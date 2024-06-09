@@ -120,7 +120,7 @@ jobs:
     name: Run PR-agent using OpenAI API or Perplexity API
     steps:
       - name: Run Codium-ai/pr-agent
-        uses: Codium-ai/pr-agent@main
+        uses: dceoy/pr-agent@feature/support-perplexity-api
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           OPENAI_KEY: ${{ secrets.OPENAI_API_KEY }}
