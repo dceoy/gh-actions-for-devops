@@ -63,6 +63,26 @@ on:
         type: string
         description: Extra instructions for the pull request update changelog
         default: null
+      openai-api-type:
+        required: false
+        type: string
+        description: Type for OpenAI API
+        default: null
+      openai-api-base:
+        required: false
+        type: string
+        description: Base URL for OpenAI API
+        default: https://api.perplexity.ai
+      openai-api-version:
+        required: false
+        type: string
+        description: Version for OpenAI API
+        default: null
+      openai-deployment-id:
+        required: false
+        type: string
+        description: Deployment ID for OpenAI API
+        default: null
     secrets:
       OPENAI_API_KEY:
         required: true
@@ -90,6 +110,10 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           OPENAI_KEY: ${{ secrets.OPENAI_API_KEY }}
           OPENAI_ORG: ${{ secrets.OPENAI_ORGANIZATION }}
+          OPENAI.API_TYPE: ${{ inputs.openai-api-type }}
+          OPENAI.API_BASE: ${{ inputs.openai-api-base }}
+          OPENAI.API_VERSION: ${{ inputs.openai-api-version }}
+          OPENAI.DEPLOYMENT_ID: ${{ inputs.openai-deployment-id }}
           CONFIG.MODEL: ${{ inputs.model || env.PPLX_MODEL }}
           CONFIG.MODEL_TURBO: ${{ inputs.model_turbo || env.PPLX_MODEL_TURBO }}
           CONFIG.FALLBACK_MODELS: ${{ inputs.fallback_models || env.PPLX_FALLBACK_MODELS }}
