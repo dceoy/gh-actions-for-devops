@@ -28,6 +28,21 @@ on:
         type: string
         description: Fallback models to use for the API
         default: null
+      max-description-tokens:
+        required: false
+        type: number
+        description: Maximum number of tokens for description
+        default: 8192
+      max-commits-tokens:
+        required: false
+        type: number
+        description: Maximum number of tokens for commits
+        default: 8192
+      max-model-tokens:
+        required: false
+        type: number
+        description: Maximum number of tokens for model
+        default: 28000
       auto-describe:
         required: false
         type: boolean
@@ -104,8 +119,8 @@ jobs:
     runs-on: ubuntu-latest
     name: Run PR-agent using OpenAI API or Perplexity API
     steps:
-      - name: Run PR-agent
-        uses: dceoy/pr-agent@feature/support-perplexity-api
+      - name: Run Codium-ai/pr-agent
+        uses: Codium-ai/pr-agent@main
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           OPENAI_KEY: ${{ secrets.OPENAI_API_KEY }}
@@ -117,6 +132,9 @@ jobs:
           CONFIG.MODEL: ${{ inputs.model || env.PPLX_MODEL }}
           CONFIG.MODEL_TURBO: ${{ inputs.model_turbo || env.PPLX_MODEL_TURBO }}
           CONFIG.FALLBACK_MODELS: ${{ inputs.fallback_models || env.PPLX_FALLBACK_MODELS }}
+          CONFIG.MAX_DESCRIPTION_TOKENS: ${{ inputs.max-description-tokens }}
+          CONFIG.MAX_COMMITS_TOKENS: ${{ inputs.max-commits-tokens }}
+          CONFIG.MAX_MODEL_TOKENS: ${{ inputs.max-model-tokens }}
           GITHUB_ACTION_CONFIG.AUTO_DESCRIBE: ${{ inputs.auto-describe || 'true' }}
           GITHUB_ACTION_CONFIG.AUTO_REVIEW: ${{ inputs.auto-review || 'true' }}
           GITHUB_ACTION_CONFIG.AUTO_IMPROVE: ${{ inputs.auto-improve || 'true' }}
