@@ -28,6 +28,26 @@ on:
         type: boolean
         description: Automatically improve the pull request
         default: true
+      pr-description-extra-instructions:
+        required: false
+        type: string
+        description: Extra instructions for the pull request description
+        default: null
+      pr-reviewer-extra-instructions:
+        required: false
+        type: string
+        description: Extra instructions for the pull request reviewer
+        default: null
+      pr-code-suggestions-extra-instructions:
+        required: false
+        type: string
+        description: Extra instructions for the pull request code suggestions
+        default: null
+      pr-update-changelog-extra-instructions:
+        required: false
+        type: string
+        description: Extra instructions for the pull request update changelog
+        default: null
     secrets:
       OPENAI_API_KEY:
         required: true
@@ -60,3 +80,7 @@ jobs:
           GITHUB_ACTION_CONFIG.AUTO_DESCRIBE: ${{ inputs.auto-describe || 'true' }}
           GITHUB_ACTION_CONFIG.AUTO_REVIEW: ${{ inputs.auto-review || 'true' }}
           GITHUB_ACTION_CONFIG.AUTO_IMPROVE: ${{ inputs.auto-improve || 'true' }}
+          PR_DESCRIPTION.EXTRA_INSTRUCTIONS: ${{ inputs.pr-description-extra-instructions || '' }}
+          PR_REVIEWER.EXTRA_INSTRUCTIONS: ${{ inputs.pr-reviewer-extra-instructions || '' }}
+          PR_CODE_SUGGESTIONS.EXTRA_INSTRUCTIONS: ${{ inputs.pr-code-suggestions-extra-instructions || '' }}
+          PR_UPDATE_CHANGELOG.EXTRA_INSTRUCTIONS: ${{ inputs.pr-update-changelog-extra-instructions || '' }}
