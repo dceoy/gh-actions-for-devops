@@ -78,6 +78,26 @@ on:
         type: string
         description: Path to a Trivy config file
         default: null
+      dockle-format:
+        required: false
+        type: string
+        description: Output format for Dockle
+        default: list
+      dockle-exit-code:
+        required: false
+        type: number
+        description: Exit code for Dockle
+        default: 1
+      dockle-exit-level:
+        required: false
+        type: string
+        description: Exit level for Dockle
+        default: warn
+      dockle-ignore:
+        required: false
+        type: string
+        description: Comma-separated code list to ignore for Dockle
+        default: null
       docker-metadata-action-tags:
         required: false
         type: string
@@ -203,6 +223,15 @@ jobs:
           DIGEST: ${{ steps.build-and-push.outputs.digest }}
         run: >
           echo "${TAGS}" | xargs -t -I {} cosign sign --yes "{}@${DIGEST}"
+      - name: Run Dockle
+        if: inputs.scan-after-build
+        uses: goodwithtech/dockle-action@0.1.0
+        with:
+          image: ${{ steps.meta.outputs.tags }}
+          format: ${{ inputs.dockle-format }}
+          exit-code: ${{ inputs.dockle-exit-code }}
+          exit-level: ${{ inputs.dockle-exit-level }}
+          ignore: ${{ inputs.dockle-ignore }}
       - name: Run Trivy vulnerability scanner
         if: inputs.scan-after-build
         uses: aquasecurity/trivy-action@0.24.0
