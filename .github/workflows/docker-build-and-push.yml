@@ -234,7 +234,7 @@ jobs:
         uses: docker/setup-buildx-action@v3
       - name: Install cosign
         if: inputs.cosign && inputs.push
-        uses: sigstore/cosign-installer@v3.8.0
+        uses: sigstore/cosign-installer@v3.8.1
       - name: Extract metadata from Git reference and GitHub events
         id: meta
         uses: docker/metadata-action@v5.6.1
