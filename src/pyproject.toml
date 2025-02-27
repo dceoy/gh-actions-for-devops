@@ -14,7 +14,7 @@ PyYAML = "^6.0.2"
 [tool.poetry.group.dev.dependencies]
 ruff = "^0.9.7"
 types-pyyaml = "^6.0.12.20241230"
-pyright = "^1.1.394"
+pyright = "^1.1.395"
 
 [tool.ruff]
 line-length = 88
