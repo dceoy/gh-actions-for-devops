@@ -208,7 +208,7 @@ jobs:
           	fi
           } | grep -ve '^[^=]*=$' | tee -a "${GITHUB_ENV}"
       - name: Run PR-agent
-        uses: Codium-ai/pr-agent@v0.26
+        uses: Codium-ai/pr-agent@v0.27
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
           GITHUB_ACTION_CONFIG.AUTO_DESCRIBE: ${{ inputs.auto-describe || 'true' }}
