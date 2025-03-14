@@ -121,7 +121,7 @@ jobs:
               'cd {} && terraform init -backend=false && terraform validate'
       - name: Run Trivy vulnerability scanner in IaC mode
         if: inputs.use-trivy
-        uses: aquasecurity/trivy-action@0.29.0
+        uses: aquasecurity/trivy-action@0.30.0
         with:
           scan-type: filesystem
           scan-ref: ${{ inputs.search-path }}
