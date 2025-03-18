@@ -263,7 +263,7 @@ jobs:
           BAKE_OUTPUT_METADATA_JSON: ${{ steps.docker-bake.outputs.metadata }}
         run: |
           if [[ -n "${BAKE_OUTPUT_METADATA_JSON}" ]]; then
-            jq -cr '[.[] | ."image.name"] | "image_refs_json=\(.)"' <<< "${BAKE_OUTPUT_METADATA_JSON}" \
+            jq -cr '[.[] | ."image.name"?] | "image_refs_json=\(.)"' <<< "${BAKE_OUTPUT_METADATA_JSON}" \
               | tee -a "${GITHUB_OUTPUT}"
           else
             echo "image_refs_json=${IMAGE_REFS_JSON}" | tee -a "${GITHUB_OUTPUT}"
