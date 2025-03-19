@@ -57,16 +57,16 @@ jobs:
       TERRAFORM_LOCK_FILE: .terraform.lock.hcl
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           ref: ${{ github.head_ref || github.ref_name }}
       - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
+        uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3.1.2
         with:
           terraform_version: ${{ inputs.terraform-version }}
       - name: Install Terragrunt
         if: inputs.terragrunt-working-directories != null
-        uses: dceoy/setup-terragrunt@v1
+        uses: dceoy/setup-terragrunt@a492a472c503fee3076bd39eb85d5fbe37265aca # v1.0.1
         with:
           terragrunt-version: ${{ inputs.terragrunt-version }}
       - name: Upgrade Terraform lock files
@@ -136,14 +136,14 @@ jobs:
           fi
       - name: Commit and push the changes
         if: (! inputs.create-pr)
-        uses: EndBug/add-and-commit@v9
+        uses: EndBug/add-and-commit@a94899bca583c204427a224a7af87c02f9b325d5 # v9.1.4
         with:
           add: ${{ env.UPDATED_FILES_JSON }}
           message: ${{ env.COMMIT_MESSAGE }}
           push: true
       - name: Detect changed files and create a pull request
         if: inputs.create-pr
-        uses: peter-evans/create-pull-request@v7
+        uses: peter-evans/create-pull-request@271a8d0340265f705b14b6d32b9829c1cb33d45e # v7.0.8
         with:
           token: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
           commit-message: ${{ env.COMMIT_MESSAGE }}
