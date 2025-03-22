@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "build_readme_md"
-version = "v0.1.0"
+version = "v0.2.0"
 description = "README.md build script"
 license = "MIT"
 authors = []
