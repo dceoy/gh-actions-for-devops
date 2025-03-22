@@ -44,18 +44,18 @@ jobs:
     runs-on: ${{ inputs.runs-on }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
       - name: Setup Terraform
-        uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3.1.2
+        uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd  # v3.1.2
         with:
           terraform_version: ${{ inputs.terraform-version }}
       - name: Setup TFLint
-        uses: terraform-linters/setup-tflint@90f302c255ef959cbfb4bd10581afecdb7ece3e6 # v4.1.1
+        uses: terraform-linters/setup-tflint@90f302c255ef959cbfb4bd10581afecdb7ece3e6  # v4.1.1
         with:
           tflint_version: latest
       - name: Install Terragrunt
         if: inputs.terragrunt-version != null
-        uses: dceoy/setup-terragrunt@a492a472c503fee3076bd39eb85d5fbe37265aca # v1.0.1
+        uses: dceoy/setup-terragrunt@a492a472c503fee3076bd39eb85d5fbe37265aca  # v1.0.1
         with:
           terragrunt-version: ${{ inputs.terragrunt-version }}
       - name: Format the code using terraform fmt
@@ -92,7 +92,7 @@ jobs:
             echo "pr_branch=automatedpr/${PR_BASE}"
           } >> "${GITHUB_OUTPUT}"
       - name: Detect changed files and create a pull request
-        uses: peter-evans/create-pull-request@271a8d0340265f705b14b6d32b9829c1cb33d45e # v7.0.8
+        uses: peter-evans/create-pull-request@271a8d0340265f705b14b6d32b9829c1cb33d45e  # v7.0.8
         with:
           token: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
           commit-message: ${{ steps.parameters.outputs.commit_message }}

@@ -83,18 +83,18 @@ jobs:
     runs-on: ${{ inputs.runs-on }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
       - name: Setup Terraform
-        uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3.1.2
+        uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd  # v3.1.2
         with:
           terraform_version: ${{ inputs.terraform-version }}
       - name: Setup TFLint
-        uses: terraform-linters/setup-tflint@90f302c255ef959cbfb4bd10581afecdb7ece3e6 # v4.1.1
+        uses: terraform-linters/setup-tflint@90f302c255ef959cbfb4bd10581afecdb7ece3e6  # v4.1.1
         with:
           tflint_version: latest
       - name: Install Terragrunt
         if: inputs.terragrunt-version != null
-        uses: dceoy/setup-terragrunt@a492a472c503fee3076bd39eb85d5fbe37265aca # v1.0.1
+        uses: dceoy/setup-terragrunt@a492a472c503fee3076bd39eb85d5fbe37265aca  # v1.0.1
         with:
           terragrunt-version: ${{ inputs.terragrunt-version }}
       - name: Lint the code using terraform fmt
@@ -121,7 +121,7 @@ jobs:
               'cd {} && terraform init -backend=false && terraform validate'
       - name: Run Trivy vulnerability scanner in IaC mode
         if: inputs.use-trivy
-        uses: aquasecurity/trivy-action@6c175e9c4083a92bbca2f9724c8a5e33bc2d97a5 # 0.30.0
+        uses: aquasecurity/trivy-action@6c175e9c4083a92bbca2f9724c8a5e33bc2d97a5  # 0.30.0
         with:
           scan-type: filesystem
           scan-ref: ${{ inputs.search-path }}

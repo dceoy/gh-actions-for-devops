@@ -143,7 +143,7 @@ jobs:
     steps:
       - name: Checkout repository
         if: inputs.aws-profile-env-file != null
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
       - name: Read AWS profile environment file
         if: inputs.aws-profile-env-file != null
         id: aws-profile-env
@@ -157,7 +157,7 @@ jobs:
           || (
             inputs.aws-iam-role-to-assume != null && steps.aws-profile-env.outputs.ROLE_ARN == null
           )
-        uses: aws-actions/configure-aws-credentials@ececac1a45f3b08a01d2dd070d28d111c5fe6722 # v4.1.0
+        uses: aws-actions/configure-aws-credentials@ececac1a45f3b08a01d2dd070d28d111c5fe6722  # v4.1.0
         with:
           role-to-assume: ${{ inputs.aws-iam-role-to-assume || steps.aws-profile-env.outputs.ROLE_ARN || null }}
           aws-region: ${{ inputs.aws-region || steps.aws-profile-env.outputs.REGION || null }}
@@ -208,7 +208,7 @@ jobs:
           	fi
           } | grep -ve '^[^=]*=$' | tee -a "${GITHUB_ENV}"
       - name: Run PR-agent
-        uses: Codium-ai/pr-agent@7cf521c00124a80aba6e6cb9765757b1c5d22603 # v0.27
+        uses: Codium-ai/pr-agent@7cf521c00124a80aba6e6cb9765757b1c5d22603  # v0.27
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
           GITHUB_ACTION_CONFIG.AUTO_DESCRIBE: ${{ inputs.auto-describe || 'true' }}
