@@ -13,6 +13,9 @@ Reusable workflows
   - [aws-cloudformation-lint.yml](.github/workflows/aws-cloudformation-lint.yml)
     - Lint for AWS CloudFormation
 
+  - [aws-codebuild-run.yml](.github/workflows/aws-codebuild-run.yml)
+    - Build using an AWS CodeBuild project
+
   - [dependabot-auto-merge.yml](.github/workflows/dependabot-auto-merge.yml)
     - Dependabot auto-merge
 
