@@ -173,12 +173,12 @@ jobs:
           	EOF
           	if [[ -n '${{ secrets.GROQ_API_KEY }}' ]]; then
           		cat <<-EOF
-          		CONFIG.MODEL=${{ inputs.model || 'groq/llama-3.1-405b-reasoning' }}
-          		CONFIG.MODEL_TURBO=${{ inputs.model_turbo || 'groq/llama-3.1-405b-reasoning' }}
-          		CONFIG.FALLBACK_MODELS=${{ inputs.fallback_models || 'groq/llama-3.1-70b-versatile' }}
-          		CONFIG.MAX_DESCRIPTION_TOKENS=${{ inputs.max-description-tokens || 131072 }}
-          		CONFIG.MAX_COMMITS_TOKENS=${{ inputs.max-commits-tokens || 131072 }}
-          		CONFIG.MAX_MODEL_TOKENS=${{ inputs.max-model-tokens || 131072 }}
+          		CONFIG.MODEL=${{ inputs.model || 'groq/llama-3.3-70b-versatile' }}
+          		CONFIG.MODEL_TURBO=${{ inputs.model_turbo || 'groq/llama-3.3-70b-versatile' }}
+          		CONFIG.FALLBACK_MODELS=${{ inputs.fallback_models || 'groq/llama-3.3-70b-versatile' }}
+          		CONFIG.MAX_DESCRIPTION_TOKENS=${{ inputs.max-description-tokens || 128000 }}
+          		CONFIG.MAX_COMMITS_TOKENS=${{ inputs.max-commits-tokens || 128000 }}
+          		CONFIG.MAX_MODEL_TOKENS=${{ inputs.max-model-tokens || 128000 }}
           		GROQ.KEY=${{ secrets.GROQ_API_KEY }}
           		EOF
           	elif [[ -n '${{ inputs.aws-iam-role-to-assume }}' ]] || [[ -n '${{ steps.aws-profile-env.outputs.ROLE_ARN }}' ]]; then
