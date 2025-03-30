@@ -18,12 +18,12 @@ on:
         type: string
         description: Model to use for the API
         default: null
-      model_turbo:
+      model-turbo:
         required: false
         type: string
         description: Turbo model to use for the API
         default: null
-      fallback_models:
+      fallback-models:
         required: false
         type: string
         description: Fallback models to use for the API
@@ -174,8 +174,8 @@ jobs:
           	if [[ -n '${{ secrets.GROQ_API_KEY }}' ]]; then
           		cat <<-EOF
           		CONFIG.MODEL=${{ inputs.model || 'groq/llama-3.3-70b-versatile' }}
-          		CONFIG.MODEL_TURBO=${{ inputs.model_turbo || 'groq/llama-3.3-70b-versatile' }}
-          		CONFIG.FALLBACK_MODELS=${{ inputs.fallback_models || 'groq/llama-3.3-70b-versatile' }}
+          		CONFIG.MODEL_TURBO=${{ inputs.model-turbo || 'groq/llama-3.3-70b-versatile' }}
+          		CONFIG.FALLBACK_MODELS=${{ inputs.fallback-models || 'groq/llama-3.3-70b-versatile' }}
           		CONFIG.MAX_DESCRIPTION_TOKENS=${{ inputs.max-description-tokens || 128000 }}
           		CONFIG.MAX_COMMITS_TOKENS=${{ inputs.max-commits-tokens || 128000 }}
           		CONFIG.MAX_MODEL_TOKENS=${{ inputs.max-model-tokens || 128000 }}
@@ -184,8 +184,8 @@ jobs:
           	elif [[ -n '${{ inputs.aws-iam-role-to-assume }}' ]] || [[ -n '${{ steps.aws-profile-env.outputs.ROLE_ARN }}' ]]; then
           		cat <<-EOF
           		CONFIG.MODEL=${{ inputs.model || 'bedrock/anthropic.claude-3-7-sonnet-20250219-v1:0' }}
-          		CONFIG.MODEL_TURBO=${{ inputs.model_turbo || 'bedrock/anthropic.claude-3-7-sonnet-20250219-v1:0' }}
-          		CONFIG.FALLBACK_MODELS=${{ inputs.fallback_models || 'bedrock/anthropic.claude-3-5-haiku-20241022-v1:0' }}
+          		CONFIG.MODEL_TURBO=${{ inputs.model-turbo || 'bedrock/anthropic.claude-3-7-sonnet-20250219-v1:0' }}
+          		CONFIG.FALLBACK_MODELS=${{ inputs.fallback-models || 'bedrock/anthropic.claude-3-5-haiku-20241022-v1:0' }}
           		CONFIG.MAX_DESCRIPTION_TOKENS=${{ inputs.max-description-tokens }}
           		CONFIG.MAX_COMMITS_TOKENS=${{ inputs.max-commits-tokens }}
           		CONFIG.MAX_MODEL_TOKENS=${{ inputs.max-model-tokens }}
@@ -193,8 +193,8 @@ jobs:
           	elif [[ -n '${{ secrets.OPENAI_API_KEY }}' ]]; then
           		cat <<-EOF
           		CONFIG.MODEL=${{ inputs.model || 'o1-mini' }}
-          		CONFIG.MODEL_TURBO=${{ inputs.model_turbo || 'o1-mini' }}
-          		CONFIG.FALLBACK_MODELS=${{ inputs.fallback_models || 'gpt-4o-mini' }}
+          		CONFIG.MODEL_TURBO=${{ inputs.model-turbo || 'o1-mini' }}
+          		CONFIG.FALLBACK_MODELS=${{ inputs.fallback-models || 'gpt-4o-mini' }}
           		CONFIG.MAX_DESCRIPTION_TOKENS=${{ inputs.max-description-tokens }}
           		CONFIG.MAX_COMMITS_TOKENS=${{ inputs.max-commits-tokens }}
           		CONFIG.MAX_MODEL_TOKENS=${{ inputs.max-model-tokens }}
