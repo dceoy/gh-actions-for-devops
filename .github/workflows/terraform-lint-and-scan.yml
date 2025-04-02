@@ -110,7 +110,7 @@ jobs:
         if: inputs.use-tflint
         working-directory: ${{ inputs.search-path }}
         run: |
-          tflint --recursive --filter .
+          tflint --recursive --chdir=.
       - name: Validate the code using terraform validate
         if: inputs.terraform-validate
         working-directory: ${{ inputs.search-path }}

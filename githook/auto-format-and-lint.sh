@@ -40,7 +40,7 @@ fi
 N_TERRAFORM_FILES=$(find . -maxdepth "${MAX_DEPTH}" -type f \( -name '*.tf' -o -name '*.hcl' \) | wc -l)
 if [[ "${N_TERRAFORM_FILES}" -gt 0 ]]; then
   terraform fmt -recursive . && terragrunt hclfmt --diff --working-dir .
-  tflint --recursive --filter .
+  tflint --recursive --chdir=.
 fi
 
 N_DOCKER_FILES=$(find . -maxdepth "${MAX_DEPTH}" -type f -name 'Dockerfile' | wc -l)
