@@ -1,0 +1,15 @@
+{
+  "name": "ubuntu",
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu",
+  "extensions": [
+    "bierner.markdown-mermaid",
+    "github.codespaces",
+    "github.copilot",
+    "github.copilot-chat",
+    "github.github-vscode-theme",
+    "github.vscode-github-actions",
+    "github.vscode-pull-request-github",
+    "saoudrizwan.claude-dev",
+    "vscodevim.vim"
+  ]
+}
