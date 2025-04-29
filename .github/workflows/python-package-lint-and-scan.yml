@@ -18,6 +18,11 @@ on:
         type: boolean
         description: Use pyright to check types
         default: true
+      use-ruff-format:
+        required: false
+        type: boolean
+        description: Use ruff format to check code
+        default: false
       use-mypy:
         required: false
         type: boolean
@@ -103,10 +108,15 @@ jobs:
             done
             echo "EXECUTOR=" | tee -a "${GITHUB_ENV}"
           fi
-      - name: Lint the code using ruff
+      - name: Lint the code using ruff check
         working-directory: ${{ inputs.package-path }}
         run: >
           ${{ env.EXECUTOR }} ruff check --output-format=github .
+      - name: Check the code using ruff format
+        if: inputs.use-ruff-format
+        working-directory: ${{ inputs.package-path }}
+        run: >
+          ${{ env.EXECUTOR }} ruff format --check .
       - name: Lint the code using flake8
         if: inputs.use-flake8
         working-directory: ${{ inputs.package-path }}
