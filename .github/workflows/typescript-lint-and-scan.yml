@@ -1,0 +1,94 @@
+---
+name: Lint and security scan for TypeScript
+on:
+  workflow_call:
+    inputs:
+      package-path:
+        required: false
+        type: string
+        description: Path to a TypeScript project
+        default: .
+      node-version:
+        required: false
+        type: string
+        description: Node.js version to use
+        default: latest
+      use-prettier:
+        required: false
+        type: boolean
+        description: Use Prettier to format code
+        default: true
+      use-react:
+        required: false
+        type: boolean
+        description: Include React specific plugins and configurations
+        default: false
+      additional-npm-packages:
+        required: false
+        type: string
+        description: Additional NPM packages to install
+        default: null
+      runs-on:
+        required: false
+        type: string
+        description: GitHub Actions runner to use
+        default: ubuntu-latest
+defaults:
+  run:
+    shell: bash -euo pipefail {0}
+    working-directory: .
+jobs:
+  lint-and-scan:
+    runs-on: ${{ inputs.runs-on }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4.4.0
+        with:
+          node-version: ${{ inputs.node-version }}
+          cache: npm
+          cache-dependency-path: ${{ inputs.package-path }}/package-lock.json
+      - name: Install dependencies
+        env:
+          ADDITIONAL_NPM_PACKAGES: ${{ inputs.additional-npm-packages }}
+        working-directory: ${{ inputs.package-path }}
+        run: |
+          if [[ -f package-lock.json ]]; then
+            npm ci
+          elif [[ -f yarn.lock ]]; then
+            npm install -g yarn
+            yarn install --frozen-lockfile
+            echo 'PACKAGE_MANAGER=yarn' >> "${GITHUB_ENV}"
+          elif [[ -f package.json ]]; then
+            npm install
+          else
+            npm upgrade -g
+          fi
+          npm install --save-dev \
+            eslint \
+            eslint-plugin-security \
+            typescript \
+            @typescript-eslint/eslint-plugin \
+            @typescript-eslint/parser \
+            ${{ inputs.use-react && 'eslint-plugin-react eslint-plugin-react-hooks' || '' }} \
+            ${{ inputs.use-prettier && 'prettier eslint-config-prettier eslint-plugin-prettier' || '' }}
+          for p in $(echo "${ADDITIONAL_NPM_PACKAGES}" | tr ' ' '\n'); do
+            if [[ -n "${p}" ]]; then
+              npm install --save-dev "${p}"
+            fi
+          done
+          echo "PATH=${PWD}/node_modules/.bin:${PATH}" >> "${GITHUB_ENV}"
+      - name: Run ESLint
+        working-directory: ${{ inputs.package-path }}
+        run: >
+          eslint --ext .js,.jsx,.ts,.tsx .
+      - name: Check formatting with Prettier
+        if: inputs.use-prettier
+        working-directory: ${{ inputs.package-path }}
+        run: >
+          prettier --check '**/*.{js,jsx,ts,tsx,json,css,scss,md}'
+      - name: Check types with TypeScript
+        working-directory: ${{ inputs.package-path }}
+        run: >
+          tsc --noEmit

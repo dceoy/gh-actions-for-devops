@@ -109,5 +109,8 @@ Reusable workflows
   - [toml-lint.yml](.github/workflows/toml-lint.yml)
     - Lint for TOML
 
+  - [typescript-lint-and-scan.yml](.github/workflows/typescript-lint-and-scan.yml)
+    - Lint and security scan for TypeScript
+
   - [yaml-lint.yml](.github/workflows/yaml-lint.yml)
     - Lint for YAML
