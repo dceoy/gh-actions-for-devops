@@ -22,7 +22,12 @@ on:
         required: false
         type: boolean
         description: Include React specific plugins and configurations
-        default: false
+        default: true
+      use-tsc:
+        required: false
+        type: boolean
+        description: Use TypeScript to check types
+        default: true
       additional-npm-packages:
         required: false
         type: string
@@ -72,7 +77,7 @@ jobs:
             @typescript-eslint/eslint-plugin \
             @typescript-eslint/parser \
             ${{ inputs.use-react && 'eslint-plugin-react eslint-plugin-react-hooks' || '' }} \
-            ${{ inputs.use-prettier && 'prettier eslint-config-prettier eslint-plugin-prettier' || '' }}
+            ${{ inputs.use-prettier && 'eslint-config-prettier eslint-plugin-prettier' || '' }}
           for p in $(echo "${ADDITIONAL_NPM_PACKAGES}" | tr ' ' '\n'); do
             if [[ -n "${p}" ]]; then
               npm install --save-dev "${p}"
@@ -89,6 +94,7 @@ jobs:
         run: >
           prettier --check '**/*.{js,jsx,ts,tsx,json,css,scss,md}'
       - name: Check types with TypeScript
+        if: inputs.use-tsc
         working-directory: ${{ inputs.package-path }}
         run: >
           tsc --noEmit
