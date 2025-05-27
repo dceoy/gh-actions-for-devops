@@ -22,7 +22,7 @@ on:
         required: false
         type: boolean
         description: Use ruff format to check code
-        default: false
+        default: true
       use-mypy:
         required: false
         type: boolean
