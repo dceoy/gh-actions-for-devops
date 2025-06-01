@@ -183,8 +183,8 @@ jobs:
           		EOF
           	elif [[ -n '${{ inputs.aws-iam-role-to-assume }}' ]] || [[ -n '${{ steps.aws-profile-env.outputs.ROLE_ARN }}' ]]; then
           		cat <<-EOF
-          		CONFIG.MODEL=${{ inputs.model || 'bedrock/us.anthropic.claude-sonnet-4-20250514-v1:0' }}
-          		CONFIG.MODEL_TURBO=${{ inputs.model-turbo || 'bedrock/us.anthropic.claude-opus-4-20250514-v1:0' }}
+          		CONFIG.MODEL=${{ inputs.model || 'bedrock/anthropic.claude-sonnet-4-20250514-v1:0' }}
+          		CONFIG.MODEL_TURBO=${{ inputs.model-turbo || 'bedrock/anthropic.claude-opus-4-20250514-v1:0' }}
           		CONFIG.FALLBACK_MODELS=${{ inputs.fallback-models || 'bedrock/anthropic.claude-3-7-sonnet-20250219-v1:0' }}
           		CONFIG.MAX_DESCRIPTION_TOKENS=${{ inputs.max-description-tokens }}
           		CONFIG.MAX_COMMITS_TOKENS=${{ inputs.max-commits-tokens }}
