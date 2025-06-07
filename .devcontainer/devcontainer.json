@@ -25,5 +25,6 @@
   },
   "features": {
     "ghcr.io/devcontainers/features/aws-cli": {}
-  }
+  },
+  "postCreateCommand": "git config --global core.pager '' && git config --global --add safe.directory /workspace"
 }
