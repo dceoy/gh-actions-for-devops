@@ -78,7 +78,22 @@ jobs:
           if [[ -n "${REQUIREMENTS_TXT_PATH}" ]]; then
             pip install -U --no-cache-dir -r "${REQUIREMENTS_TXT_PATH}"
           fi
-          if [[ -f poetry.lock ]]; then
+          if [[ -f uv.lock ]]; then
+            pip install --no-cache-dir uv
+            uv sync --dev
+            uv add --dev \
+              ${{ inputs.use-flake8 && 'flake8' || '' }} \
+              ${{ inputs.use-bandit && 'bandit' || '' }} \
+              ${{ inputs.use-mypy && 'mypy' || '' }} \
+              ${{ inputs.use-pyright && 'pyright' || '' }} \
+              ruff
+            for p in $(echo "${ADDITIONAL_PYTHON_PACKAGES}" | tr ' ' '\n'); do
+              if [[ -n "${p}" ]]; then
+                uv add --dev "${p}"
+              fi
+            done
+            echo "EXECUTOR=uv run --directory ${PWD}" | tee -a "${GITHUB_ENV}"
+          elif [[ -f poetry.lock ]]; then
             pip install --no-cache-dir poetry
             poetry lock --no-interaction
             poetry add --group=dev --no-interaction \

@@ -10,7 +10,11 @@ RUFF_LINT_IGNORE='D100,D103,D203,D213,S101,B008,A002,A004,COM812,PLC2701,TRY003'
 N_PYTHON_FILES=$(find . -maxdepth "${MAX_DEPTH}" -type f -name '*.py' | wc -l)
 if [[ "${N_PYTHON_FILES}" -gt 0 ]]; then
   PACKAGE_DIRECTORY="$(find . -maxdepth "${MAX_DEPTH}" -type f -name 'pyproject.toml' -exec dirname {} \; | head -n 1)"
-  if [[ -n "${PACKAGE_DIRECTORY}" ]] && [[ -f "${PACKAGE_DIRECTORY}/poetry.lock" ]]; then
+  if [[ -n "${PACKAGE_DIRECTORY}" ]] && [[ -f "${PACKAGE_DIRECTORY}/uv.lock" ]]; then
+    uv run --directory "${PACKAGE_DIRECTORY}" ruff format .
+    uv run --directory "${PACKAGE_DIRECTORY}" ruff check --fix .
+    uv run --directory "${PACKAGE_DIRECTORY}" pyright .
+  elif [[ -n "${PACKAGE_DIRECTORY}" ]] && [[ -f "${PACKAGE_DIRECTORY}/poetry.lock" ]]; then
     poetry -C "${PACKAGE_DIRECTORY}" run ruff format .
     poetry -C "${PACKAGE_DIRECTORY}" run ruff check --fix .
     poetry -C "${PACKAGE_DIRECTORY}" run pyright .

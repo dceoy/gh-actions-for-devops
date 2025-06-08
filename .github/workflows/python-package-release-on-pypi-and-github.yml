@@ -94,12 +94,15 @@ jobs:
           if [[ -n "${REQUIREMENTS_TXT_PATH}" ]]; then
             pip install -U --no-cache-dir -r "${REQUIREMENTS_TXT_PATH}"
           fi
-          if [[ -f poetry.lock ]]; then
-            python3 -m pip install --no-cache-dir poetry
-            python3 -m poetry build --format=wheel --no-interaction
+          if [[ -f uv.lock ]]; then
+            pip install --no-cache-dir uv
+            uv build
+          elif [[ -f poetry.lock ]]; then
+            pip install --no-cache-dir poetry
+            poetry build --format=wheel --no-interaction
           else
-            python3 -m pip install --no-cache-dir build
-            python3 -m build
+            pip install --no-cache-dir build
+            build
           fi
           mv dist /tmp/${{ steps.read-project-name.outputs.project_name }}_dist
       - name: Store the distribution packages
