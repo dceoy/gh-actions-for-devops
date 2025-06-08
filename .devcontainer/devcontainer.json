@@ -11,6 +11,7 @@
   "customizations": {
     "vscode": {
       "extensions": [
+        "anthropic.claude-code",
         "bierner.markdown-mermaid",
         "github.codespaces",
         "github.copilot",
