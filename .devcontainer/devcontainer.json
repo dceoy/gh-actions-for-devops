@@ -8,6 +8,13 @@
   "workspaceFolder": "/workspace",
   "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=consistent",
   "containerUser": "vscode",
+  "containerEnv": {
+    "AWS_PROFILE": "bedrock",
+    "CLAUDE_CODE_USE_BEDROCK": "1",
+    "ANTHROPIC_MODEL": "us.anthropic.claude-opus-4-20250514-v1:0",
+    "ANTHROPIC_SMALL_FAST_MODEL": "us.anthropic.claude-sonnet-4-20250514-v1:0",
+    "DISABLE_PROMPT_CACHING": "0"
+  },
   "customizations": {
     "vscode": {
       "extensions": [
