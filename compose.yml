@@ -8,11 +8,9 @@ services:
     image: dceoy/gh-actions-for-devops-readme:latest
     network_mode: none
     volumes:
-      - ${PWD}:/wd
-    working_dir: /wd/src
+      - ${PWD}:/workspace
+    working_dir: /workspace/src
     entrypoint:
-      - /usr/local/bin/poetry
-    command:
-      - run
       - python
+    command:
       - ./build_readme_md.py

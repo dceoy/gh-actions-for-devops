@@ -3,10 +3,10 @@
 
 import argparse
 import logging
+import tomllib
 from collections.abc import Generator
 from pathlib import Path
 
-import tomllib
 import yaml
 from jinja2 import Environment, FileSystemLoader
 
@@ -111,9 +111,16 @@ def _extract_version() -> str:
     if pyproject_toml.is_file():
         with pyproject_toml.open("rb") as f:
             data = tomllib.load(f)
-        return data["tool"]["poetry"]["version"]
-    else:
-        return "v0.0.0"
+        # Try new format first (project.version), then fall back to poetry format
+        if "project" in data and "version" in data["project"]:
+            return data["project"]["version"]
+        elif (
+            "tool" in data
+            and "poetry" in data["tool"]
+            and "version" in data["tool"]["poetry"]
+        ):
+            return data["tool"]["poetry"]["version"]
+    return "v0.0.0"
 
 
 if __name__ == "__main__":

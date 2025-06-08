@@ -1,7 +1,7 @@
 # Commands and Guidelines for gh-actions-for-devops
 
 ## Build and Lint Commands
-- **Python formatting and linting**: `cd src && poetry run ruff format . && poetry run ruff check --fix . && poetry run pyright .`
+- **Python formatting and linting**: `cd src && uv run ruff format . && uv run ruff check --fix . && uv run pyright .`
 - **Shell linting**: `shellcheck githook/*.sh`
 - **GitHub Actions linting**: `find .github/workflows -name "*.yml" -o -name "*.yaml" | xargs actionlint`
 - **YAML linting**: `find .github/workflows -name "*.yml" | xargs yamllint -d '{"extends": "relaxed", "rules": {"line-length": "disable"}}'`

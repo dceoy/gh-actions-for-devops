@@ -140,13 +140,18 @@ jobs:
         uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5.6.0
         with:
           python-version: 3.x
+      - name: Set up uv
+        uses: astral-sh/setup-uv@38f3f104447c67c051c4a08e39b64a148898af3a  # v4.2.0
+        with:
+          enable-cache: true
       - name: Install packages
+        working-directory: ./src
         run: |
-          pip install -U --no-cache-dir poetry
-          poetry -C ./src install --no-interaction --without=dev
+          uv sync --no-dev
       - name: Update README.md
+        working-directory: ./src
         run: |
-          poetry -C ./src run ./build_readme_md.py
+          uv run ./build_readme_md.py
       - name: Commit and push the changes
         uses: EndBug/add-and-commit@a94899bca583c204427a224a7af87c02f9b325d5  # v9.1.4
         with:
