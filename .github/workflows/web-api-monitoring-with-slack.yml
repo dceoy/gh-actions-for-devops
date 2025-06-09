@@ -17,11 +17,6 @@ on:
         type: string
         description: HTTP status code considered a success
         default: '200'
-      fail-on-unexpected:
-        required: false
-        type: boolean
-        description: Whether to fail the job on unexpected status
-        default: false
       headers:
         required: false
         type: string
@@ -38,6 +33,11 @@ on:
         type: string
         description: Slack channel name or ID (optional if webhook is channel-bound)
         default: null
+      fail-on-unexpected:
+        required: false
+        type: boolean
+        description: Whether to fail the job on unexpected status
+        default: false
       notify-on-expected:
         required: false
         type: boolean
@@ -105,9 +105,9 @@ jobs:
             echo "summary_plain=API responded ${RETURNED_STATUS} (expected ${EXPECTED_STATUS})"
             echo "ts=$(date +%s)"
             if [[ ${MASK_RESPONSE_BODY} ]]; then
-              echo 'response_body=[REDACTED]'
+              echo 'escaped_response_body=[REDACTED]'
             else
-              echo "response_body=${RESPONSE_BODY}"
+              echo "escaped_response_body=${RESPONSE_BODY//\"/\\\"}"
             fi
           } | tee -a "${GITHUB_OUTPUT}"
       - name: Send Slack notification (conditional)
@@ -143,7 +143,7 @@ jobs:
                     value: ${{ steps.external-api-call.outputs.status }}
                     short: true
                   - title: Response Body
-                    value: ${{ steps.external-api-call.outputs.response_body }}
+                    value: ${{ steps.external-api-call.outputs.escaped_response_body }}
                     short: true
                 footer: Commit - ${{ github.sha }}
                 footer_icon: https://platform.slack-edge.com/img/default_application_icon.png

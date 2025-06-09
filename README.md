@@ -112,7 +112,7 @@ Reusable workflows
   - [typescript-lint-and-scan.yml](.github/workflows/typescript-lint-and-scan.yml)
     - Lint and security scan for TypeScript
 
-  - [web-api-monitoring-with-notification.yml](.github/workflows/web-api-monitoring-with-notification.yml)
+  - [web-api-monitoring-with-slack.yml](.github/workflows/web-api-monitoring-with-slack.yml)
     - Synthetic web API monitoring with Slack notification
 
   - [yaml-lint.yml](.github/workflows/yaml-lint.yml)
