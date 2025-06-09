@@ -23,15 +23,17 @@ if [[ "${N_PYTHON_FILES}" -gt 0 ]]; then
     ruff check --fix .
     pyright .
   else
-    ruff format --exclude=build "--line-length=${PYTHON_LINE_LENGTH}" .
-    ruff check --fix --exclude=build "--line-length=${PYTHON_LINE_LENGTH}" --extend-select="${RUFF_LINT_EXTEND_SELECT}" --ignore="${RUFF_LINT_IGNORE}" .
+    ruff format --exclude=build --exclude=.venv "--line-length=${PYTHON_LINE_LENGTH}" .
+    ruff check --fix --exclude=build --exclude=.venv "--line-length=${PYTHON_LINE_LENGTH}" --extend-select="${RUFF_LINT_EXTEND_SELECT}" --ignore="${RUFF_LINT_IGNORE}" .
     pyright --threads=0 .
   fi
 fi
 
-N_BASH_FILES=$(find . -maxdepth "${MAX_DEPTH}" -type f \( -name '*.sh' -o -name '*.bash' -o -name '*.bats' \) | wc -l)
+N_BASH_FILES=$(find . -maxdepth "${MAX_DEPTH}" -type f \( -name '*.sh' -o -name '*.bash' -o -name '*.bats' \) | grep -cv '/\.venv/' || :)
 if [[ "${N_BASH_FILES}" -gt 0 ]]; then
-  find . -maxdepth "${MAX_DEPTH}" -type f \( -name '*.sh' -o -name '*.bash' -o -name '*.bats' \) -print0 | xargs -0 -t shellcheck
+  find . -maxdepth "${MAX_DEPTH}" -type f \( -name '*.sh' -o -name '*.bash' -o -name '*.bats' \) \
+    | grep -v '/\.venv/' \
+    | xargs -t shellcheck
 fi
 
 if [[ -d '.github/workflows' ]]; then
