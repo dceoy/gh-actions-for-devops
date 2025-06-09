@@ -42,7 +42,7 @@ on:
         required: false
         type: boolean
         description: Whether to send a Slack notification even on expected status
-        default: true
+        default: false
       message-title:
         required: false
         type: string
@@ -85,7 +85,7 @@ jobs:
           {
             echo "status=${status}"
             echo "response_body=${response_body}"
-          } >> "${GITHUB_OUTPUT}"
+          } | tee -a "${GITHUB_OUTPUT}"
       - name: Classify result, build Slack message fields
         id: result
         env:
@@ -105,12 +105,13 @@ jobs:
             echo "summary_plain=API responded ${RETURNED_STATUS} (expected ${EXPECTED_STATUS})"
             echo "ts=$(date +%s)"
             if [[ ${MASK_RESPONSE_BODY} ]]; then
-              echo 'response_body=[MASKED]'
+              echo 'response_body=[REDACTED]'
             else
               echo "response_body=${RESPONSE_BODY}"
             fi
-          } >> "${GITHUB_OUTPUT}"
-      - name: Send Slack notification (always runs)
+          } | tee -a "${GITHUB_OUTPUT}"
+      - name: Send Slack notification (conditional)
+        if: inputs.notify-on-expected || steps.result.outputs.color != 'good'
         uses: slackapi/slack-github-action@b0fa283ad8fea605de13dc3f449259339835fc52  # v2.1.0
         with:
           method: chat.postMessage
@@ -148,7 +149,7 @@ jobs:
                 footer_icon: https://platform.slack-edge.com/img/default_application_icon.png
                 ts: ${{ steps.result.outputs.ts }}
       - name: Fail the job when the API status was unexpected
-        if: inputs.fail-on-unexpected == 'true' && steps.result.outputs.color != 'good'
+        if: inputs.fail-on-unexpected && steps.result.outputs.color != 'good'
         env:
           SUMMARY: ${{ steps.result.outputs.summary_plain }}
         run: |
