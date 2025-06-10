@@ -1,0 +1,163 @@
+---
+name: Claude Code action
+on:
+  # issue_comment:
+  #   types:
+  #     - created
+  # pull_request_review_comment:
+  #   types:
+  #     - created
+  # issues:
+  #   types:
+  #     - opened
+  #     - assigned
+  # pull_request_review:
+  #   types:
+  #     - submitted
+  workflow_call:
+    inputs:
+      trigger-phrase:
+        required: false
+        type: string
+        description: The trigger phrase to look for in comments or issue body
+        default: '@claude'
+      assignee-trigger:
+        required: false
+        type: string
+        description: The assignee username that triggers the action
+        default: '@claude'
+      base-branch:
+        required: false
+        type: string
+        description: The branch to use as the base/source when creating new branches (defaults to repository default branch)
+        default: null
+      model:
+        required: false
+        type: string
+        description: Model to use in provider-specific format required for Bedrock/Vertex (e.g., anthropic.claude-opus-4-20250514-v1:0)
+        default: null
+      allowed-tools:
+        required: false
+        type: string
+        description: Additional tools for Claude to use (the base GitHub tools will always be included)
+        default: null
+      disallowed-tools:
+        required: false
+        type: string
+        description: Tools that Claude should never use
+        default: null
+      custom-instructions:
+        required: false
+        type: string
+        description: Additional custom instructions to include in the prompt for Claude
+        default: null
+      direct-prompt:
+        required: false
+        type: string
+        description: Direct instruction for Claude (bypasses normal trigger detection)
+        default: null
+      mcp-config:
+        required: false
+        type: string
+        description: Additional MCP configuration (JSON string) that merges with the built-in GitHub MCP servers
+        default: null
+      claude-env:
+        required: false
+        type: string
+        description: Custom environment variables to pass to Claude Code execution (YAML format)
+        default: null
+      max-turns:
+        required: false
+        type: string
+        description: Maximum number of conversation turns
+        default: null
+      timeout-minutes:
+        required: false
+        type: number
+        description: Timeout in minutes for execution
+        default: 60
+      aws-iam-role-to-assume:
+        required: false
+        type: string
+        description: AWS IAM role ARN to assume
+        default: null
+      aws-region:
+        required: false
+        type: string
+        description: AWS region to use
+        default: us-east-1
+      google-workload-identity-provider:
+        required: false
+        type: string
+        description: Google Workload Identity Provider to use for authentication
+        default: null
+      google-service-account:
+        required: false
+        type: string
+        description: Google Service Account to use for authentication
+        default: null
+    outputs:
+      execution-file:
+        description: Path to the Claude Code execution output file
+        value: ${{ jobs.claude-code-action.outputs.execution-file }}
+    secrets:
+      ANTHROPIC_API_KEY:
+        required: true
+        description: Anthropic API key for Claude
+      GH_TOKEN:
+        required: false
+        description: GitHub token for creating comments/issues
+permissions:
+  contents: read
+  pull-requests: read
+  issues: read
+  id-token: write
+jobs:
+  claude-code-action:
+    if: >
+      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude'))
+      || (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude'))
+      || (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude'))
+      || (github.event_name == 'issues' && contains(github.event.issue.body, '@claude'))
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ inputs.timeout-minutes || 60 }}
+    outputs:
+      execution-file: ${{ steps.claude-code-action.outputs.execution_file }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        with:
+          fetch-depth: 1
+      - name: Configure AWS credentials
+        if: inputs.aws-iam-role-to-assume != null
+        uses: aws-actions/configure-aws-credentials@b47578312673ae6fa5b5096b330d9fbac3d116df  # v4.2.1
+        with:
+          role-to-assume: ${{ inputs.aws-iam-role-to-assume }}
+          aws-region: ${{ inputs.aws-region || 'us-east-1' }}
+          role-session-name: github-actions-${{ github.run_id }}
+      - name: Authenticate to Google Cloud
+        if: inputs.google-workload-identity-provider != null && inputs.google-service-account != null
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ inputs.google-workload-identity-provider }}
+          service_account: ${{ inputs.google-service-account }}
+      - name: Run Claude PR Action
+        id: claude-code-action
+        uses: anthropics/claude-code-action@37483ba1128de6e5b33da71cff57ee65c25a4372  # v0.0.16
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
+          model: ${{ inputs.model }}
+          use_bedrock: ${{ inputs.aws-iam-role-to-assume != null }}
+          use_vertex: ${{ inputs.google-workload-identity-provider != null && inputs.google-service-account != null }}
+          timeout_minutes: ${{ inputs.timeout-minutes || 60 }}
+          trigger_phrase: ${{ inputs.trigger-phrase || '@claude' }}
+          assignee_trigger: ${{ inputs.assignee-trigger || '@claude' }}
+          base_branch: ${{ inputs.base-branch }}
+          allowed_tools: ${{ inputs.allowed-tools }}
+          disallowed_tools: ${{ inputs.disallowed-tools }}
+          custom_instructions: ${{ inputs.custom-instructions }}
+          direct_prompt: ${{ inputs.direct-prompt }}
+          mcp_config: ${{ inputs.mcp-config }}
+          claude_env: ${{ inputs.claude-env }}
+          max_turns: ${{ inputs.max-turns }}

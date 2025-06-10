@@ -16,6 +16,9 @@ Reusable workflows
   - [aws-codebuild-run.yml](.github/workflows/aws-codebuild-run.yml)
     - Build using an AWS CodeBuild project
 
+  - [claude-code-action.yml](.github/workflows/claude-code-action.yml)
+    - Claude Code action
+
   - [dependabot-auto-merge.yml](.github/workflows/dependabot-auto-merge.yml)
     - Dependabot auto-merge
 
