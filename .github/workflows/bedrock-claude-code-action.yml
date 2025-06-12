@@ -21,9 +21,7 @@ permissions:
   id-token: write
 env:
   AWS_REGION: us-west-2
-  AMAZON_BEDROCK_MODEL: anthropic.claude-sonnet-4-20250514-v1:0
-  AMAZON_BEDROCK_MODEL_TURBO: anthropic.claude-opus-4-20250514-v1:0
-  AMAZON_BEDROCK_FALLBACK_MODELS: anthropic.claude-3-7-sonnet-20250219-v1:0
+  AMAZON_BEDROCK_MODEL: us.anthropic.claude-sonnet-4-20250514-v1:0
 jobs:
   claude-code-action:
     if: >
@@ -50,7 +48,7 @@ jobs:
         uses: anthropics/claude-code-action@37483ba1128de6e5b33da71cff57ee65c25a4372  # v0.0.16
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          model: ${{ env.AMAZON_BEDROCK_MODEL_TURBO }}
+          model: ${{ env.AMAZON_BEDROCK_MODEL }}
           use_bedrock: true
           timeout_minutes: 60
           trigger_phrase: '@claude'
