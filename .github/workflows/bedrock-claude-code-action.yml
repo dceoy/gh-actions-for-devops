@@ -45,7 +45,7 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       - name: Run Claude PR Action
         id: claude-code-action
-        uses: anthropics/claude-code-action@e0d3fec39f30dc4ed990b3ada4cbed665ce797a0  # v0.0.20
+        uses: anthropics/claude-code-action@bcf2fe94f89c58fa167a7bf50fe21389f235ec04  # v0.0.21
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           model: ${{ env.AMAZON_BEDROCK_MODEL }}
