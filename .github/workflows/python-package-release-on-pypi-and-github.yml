@@ -102,7 +102,7 @@ jobs:
             poetry build --format=wheel --no-interaction
           else
             pip install --no-cache-dir build
-            build
+            python -m build
           fi
           mv dist /tmp/${{ steps.read-project-name.outputs.project_name }}_dist
       - name: Store the distribution packages
