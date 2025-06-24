@@ -164,6 +164,7 @@ jobs:
               | head -n 1 \
               | cut -d '-' -f 2 \
           )"
+          v="${v%.tar.gz}"
           if [[ "${TAG_NAME}" != "${v}" ]] && [[ "${TAG_NAME}" != "v${v}" ]]; then
             echo "The tag (${TAG_NAME}) is inconsistent with the version (${v})." && exit 1
           fi
