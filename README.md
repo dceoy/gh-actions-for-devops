@@ -16,6 +16,9 @@ Reusable workflows
   - [aws-codebuild-run.yml](.github/workflows/aws-codebuild-run.yml)
     - Build using an AWS CodeBuild project
 
+  - [aws-parameter-store-update.yml](.github/workflows/aws-parameter-store-update.yml)
+    - Update AWS Parameter Store values
+
   - [claude-code-action.yml](.github/workflows/claude-code-action.yml)
     - Claude Code action
 

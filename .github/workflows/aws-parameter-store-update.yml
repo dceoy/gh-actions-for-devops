@@ -1,0 +1,158 @@
+---
+name: Update AWS Parameter Store values
+on:
+  workflow_call:
+    inputs:
+      aws-iam-role-to-assume:
+        required: false
+        type: string
+        description: AWS IAM role ARN to assume
+      aws-region:
+        required: false
+        type: string
+        description: AWS region to use
+        default: us-east-1
+      parameters-from-json:
+        required: true
+        type: string
+        description: JSON string containing parameters to update
+      dry-run:
+        required: false
+        type: boolean
+        description: Show what would be updated without making changes
+        default: false
+permissions:
+  contents: read
+  id-token: write
+defaults:
+  run:
+    shell: bash -euo pipefail {0}
+jobs:
+  update-parameters:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@b47578312673ae6fa5b5096b330d9fbac3d116df  # v4.2.1
+        with:
+          role-to-assume: ${{ inputs.aws-iam-role-to-assume }}
+          aws-region: ${{ inputs.aws-region }}
+          role-session-name: github-actions-${{ github.run_id }}
+      - name: Update AWS Parameter Store
+        env:
+          PARAMETERS_JSON: ${{ inputs.parameters-from-json }}
+          DRY_RUN: ${{ inputs.dry-run }}
+        run: |
+          validate_parameter_type() {
+            local type="${1}"
+            case "${type}" in
+              String | StringList | SecureString )
+                return 0
+                ;;
+              * )
+                echo "Error: Invalid parameter type '${type}'. Must be String, StringList, or SecureString"
+                return 1
+                ;;
+            esac
+          }
+
+          update_parameter() {
+            local name="${1}"
+            local value="${2}"
+            local type="${3:-String}"
+            local description="${4}"
+            local key_id="${5}"
+            local overwrite="${6:-true}"
+
+            if [[ -z "${name}" || -z "${value}" ]]; then
+              echo "Error: Parameter name and value cannot be empty"
+              return 1
+            fi
+            validate_parameter_type "${type}"
+            if [[ "${DRY_RUN}" == "true" ]]; then
+              echo "DRY RUN: Would update parameter '${name}'"
+              echo "  Type: ${type}"
+              echo "  Value: [HIDDEN]"
+              echo "  Overwrite: ${overwrite}"
+              [[ -n "${description}" ]] && echo "  Description: ${description}"
+              [[ -n "${key_id}" ]] && echo "  KMS Key ID: ${key_id}"
+              return 0
+            fi
+
+            echo "Updating parameter '${name}'"
+            local args=(
+              "ssm" "put-parameter"
+              "--name" "${name}"
+              "--value" "${value}"
+              "--type" "${type}"
+            )
+            if [[ "${overwrite}" == "true" ]]; then
+              args+=("--overwrite")
+            fi
+            if [[ -n "${description}" ]]; then
+              args+=("--description" "${description}")
+            fi
+            if [[ "${type}" == "SecureString" && -n "${key_id}" ]]; then
+              args+=("--key-id" "${key_id}")
+            fi
+
+            if aws "${args[@]}"; then
+              echo "Successfully updated parameter '${name}'"
+            else
+              echo "Error: Failed to update parameter '${name}'"
+              return 1
+            fi
+          }
+
+          verify_parameter() {
+            local name="${1}"
+            echo "Verifying parameter '${name}'"
+            if ! aws ssm get-parameter --name "${name}" --query 'Parameter.[Name,Type,LastModifiedDate]' --output table; then
+              echo "Warning: Could not verify parameter '${name}'"
+              return 1
+            fi
+          }
+
+          process_json_parameters() {
+            local parameters_updated=()
+
+            while IFS= read -r param; do
+              local name value type description key_id param_overwrite
+              name=$(echo "${param}" | jq -r '.name // empty')
+              value=$(echo "${param}" | jq -r '.value // empty')
+              type=$(echo "${param}" | jq -r '.type // "String"')
+              description=$(echo "${param}" | jq -r '.description // empty')
+              key_id=$(echo "${param}" | jq -r '.keyId // empty')
+              param_overwrite=$(echo "${param}" | jq -r '.overwrite // true')
+
+              if [[ -z "${name}" ]]; then
+                echo "Error: Parameter name is required in JSON"
+                return 1
+              elif update_parameter "${name}" "${value}" "${type}" "${description}" "${key_id}" "${param_overwrite}"; then
+                parameters_updated+=("${name}")
+              else
+                echo "Error: Failed to update parameter '${name}'"
+                return 1
+              fi
+            done < <(echo "${PARAMETERS_JSON}" | jq -c '.[]')
+
+            if [[ "${DRY_RUN}" != "true" && ${#parameters_updated[@]} -gt 0 ]]; then
+              echo "Verifying ${#parameters_updated[@]} updated parameters..."
+              for param_name in "${parameters_updated[@]}"; do
+                verify_parameter "${param_name}"
+              done
+            fi
+          }
+
+          if [[ -z "${PARAMETERS_JSON}" ]]; then
+            echo "Error: parameters-from-json is required"
+            exit 1
+          elif ! echo "${PARAMETERS_JSON}" | jq empty 2>/dev/null; then
+            echo "Error: Invalid JSON format in parameters-from-json"
+            exit 1
+          else
+            echo "Processing parameters from JSON..."
+            process_json_parameters
+          fi
