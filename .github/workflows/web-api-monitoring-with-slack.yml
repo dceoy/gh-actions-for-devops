@@ -69,7 +69,6 @@ jobs:
           BODY: ${{ inputs.body }}
           HEADERS: ${{ inputs.headers }}
           TMP_RESPONSE_BODY_TXT_PATH: /tmp/response_body.txt
-          MASK_RESPONSE_BODY: ${{ inputs.mask-response-body }}
         run: |
           commands=(curl -sSL -o "${TMP_RESPONSE_BODY_TXT_PATH}" -w "%{http_code}" -X "${HTTP_METHOD}" "${API_URL}")
           if [[ -n "${BODY}" ]]; then
