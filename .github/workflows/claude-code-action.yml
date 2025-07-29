@@ -186,13 +186,13 @@ jobs:
           role-session-name: github-actions-${{ github.run_id }}
       - name: Authenticate to Google Cloud
         if: inputs.google-workload-identity-provider != null && inputs.google-service-account != null
-        uses: google-github-actions/auth@v2
+        uses: google-github-actions/auth@6fc4af4b145ae7821d527454aa9bd537d1f2dc5f  # v2.1.7
         with:
           workload_identity_provider: ${{ inputs.google-workload-identity-provider }}
           service_account: ${{ inputs.google-service-account }}
       - name: Run Claude Code Action
         id: claude-code-action
-        uses: anthropics/claude-code-action@main
+        uses: anthropics/claude-code-action@e07ea013bd13b5c183d3314c6070fab61daec759  # v0.0.47
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
