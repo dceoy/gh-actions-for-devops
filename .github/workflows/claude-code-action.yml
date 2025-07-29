@@ -36,6 +36,11 @@ on:
         type: string
         description: The branch to use as the base/source when creating new branches (defaults to repository default branch)
         default: null
+      branch-prefix:
+        required: false
+        type: string
+        description: The prefix to use for Claude branches (defaults to 'claude/', use 'claude-' for dash format)
+        default: 'claude/'
       model:
         required: false
         type: string
@@ -61,6 +66,11 @@ on:
         type: string
         description: Additional custom instructions to include in the prompt for Claude
         default: null
+      override-prompt:
+        required: false
+        type: string
+        description: Complete replacement of Claude's prompt with custom template (supports variable substitution)
+        default: null
       direct-prompt:
         required: false
         type: string
@@ -71,10 +81,35 @@ on:
         type: string
         description: Additional MCP configuration (JSON string) that merges with the built-in GitHub MCP servers
         default: null
+      additional-permissions:
+        required: false
+        type: string
+        description: Additional permissions to enable.
+        default: null
       claude-env:
         required: false
         type: string
         description: Custom environment variables to pass to Claude Code execution (YAML format)
+        default: null
+      settings:
+        required: false
+        type: string
+        description: Claude Code settings as JSON string or path to settings JSON file
+        default: null
+      use-sticky-comment:
+        required: false
+        type: boolean
+        description: Use just one comment to deliver issue/PR comments
+        default: false
+      use-commit-signing:
+        required: false
+        type: boolean
+        description: Enable commit signing using GitHub's commit signature verification
+        default: false
+      experimental-allowed-domains:
+        required: false
+        type: string
+        description: Restrict network access to these domains only (newline-separated)
         default: null
       max-turns:
         required: false
@@ -116,6 +151,9 @@ on:
         description: Path to the Claude Code execution output file
         value: ${{ jobs.claude-code-action.outputs.execution-file }}
     secrets:
+      CLAUDE_CODE_OAUTH_TOKEN:
+        required: false
+        description: OAuth token for Claude Code (if applicable)
       ANTHROPIC_API_KEY:
         required: false
         description: Anthropic API key for Claude
@@ -156,6 +194,7 @@ jobs:
         id: claude-code-action
         uses: anthropics/claude-code-action@main
         with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
           model: ${{ inputs.model }}
@@ -167,11 +206,17 @@ jobs:
           assignee_trigger: ${{ inputs.assignee-trigger }}
           label_trigger: ${{ inputs.label-trigger }}
           base_branch: ${{ inputs.base-branch }}
+          branch_prefix: ${{ inputs.branch-prefix }}
           allowed_tools: ${{ inputs.allowed-tools }}
           disallowed_tools: ${{ inputs.disallowed-tools }}
           custom_instructions: ${{ inputs.custom-instructions }}
+          override_prompt: ${{ inputs.override-prompt }}
           direct_prompt: ${{ inputs.direct-prompt }}
           mcp_config: ${{ inputs.mcp-config }}
           claude_env: ${{ inputs.claude-env }}
+          settings: ${{ inputs.settings }}
           max_turns: ${{ inputs.max-turns }}
           mode: ${{ inputs.mode }}
+          use_sticky_comment: ${{ inputs.use-sticky-comment }}
+          use_commit_signing: ${{ inputs.use-commit-signing }}
+          experimental_allowed_domains: ${{ inputs.experimental-allowed-domains }}
