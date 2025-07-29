@@ -20,7 +20,7 @@ Reusable workflows
     - Update AWS Parameter Store values
 
   - [claude-code-action.yml](.github/workflows/claude-code-action.yml)
-    - Claude Code action
+    - Claude Code Action
 
   - [dependabot-auto-merge.yml](.github/workflows/dependabot-auto-merge.yml)
     - Dependabot auto-merge
