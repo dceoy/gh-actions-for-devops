@@ -1,5 +1,5 @@
 ---
-name: Claude Code action
+name: Claude Code Action
 on:
   # issue_comment:
   #   types:
@@ -25,7 +25,12 @@ on:
         required: false
         type: string
         description: The assignee username that triggers the action
-        default: '@claude'
+        default: null
+      label-trigger:
+        required: false
+        type: string
+        description: The label that triggers the action
+        default: 'claude'
       base-branch:
         required: false
         type: string
@@ -35,6 +40,11 @@ on:
         required: false
         type: string
         description: Model to use in provider-specific format required for Bedrock/Vertex (e.g., anthropic.claude-opus-4-20250514-v1:0)
+        default: null
+      fallback-model:
+        required: false
+        type: string
+        description: Fallback model to use if the primary model fails
         default: null
       allowed-tools:
         required: false
@@ -75,7 +85,12 @@ on:
         required: false
         type: number
         description: Timeout in minutes for execution
-        default: 60
+        default: 30
+      mode:
+        required: false
+        type: string
+        description: Execution mode for the action
+        default: 'tag'
       aws-iam-role-to-assume:
         required: false
         type: string
@@ -102,25 +117,20 @@ on:
         value: ${{ jobs.claude-code-action.outputs.execution-file }}
     secrets:
       ANTHROPIC_API_KEY:
-        required: true
+        required: false
         description: Anthropic API key for Claude
       GH_TOKEN:
         required: false
         description: GitHub token for creating comments/issues
 permissions:
-  contents: read
-  pull-requests: read
-  issues: read
+  contents: write
+  pull-requests: write
+  issues: write
   id-token: write
 jobs:
   claude-code-action:
-    if: >
-      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude'))
-      || (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude'))
-      || (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude'))
-      || (github.event_name == 'issues' && contains(github.event.issue.body, '@claude'))
     runs-on: ubuntu-latest
-    timeout-minutes: ${{ inputs.timeout-minutes || 60 }}
+    timeout-minutes: ${{ inputs.timeout-minutes || 30 }}
     outputs:
       execution-file: ${{ steps.claude-code-action.outputs.execution_file }}
     steps:
@@ -128,6 +138,7 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
         with:
           fetch-depth: 1
+          token: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
       - name: Configure AWS credentials
         if: inputs.aws-iam-role-to-assume != null
         uses: aws-actions/configure-aws-credentials@b47578312673ae6fa5b5096b330d9fbac3d116df  # v4.2.1
@@ -141,18 +152,20 @@ jobs:
         with:
           workload_identity_provider: ${{ inputs.google-workload-identity-provider }}
           service_account: ${{ inputs.google-service-account }}
-      - name: Run Claude PR Action
+      - name: Run Claude Code Action
         id: claude-code-action
-        uses: anthropics/claude-code-action@6037d754ac402c2bebd7b593fcccf5a5da157eb8  # v0.0.46
+        uses: anthropics/claude-code-action@main
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
           model: ${{ inputs.model }}
+          fallback_model: ${{ inputs.fallback-model }}
           use_bedrock: ${{ inputs.aws-iam-role-to-assume != null }}
           use_vertex: ${{ inputs.google-workload-identity-provider != null && inputs.google-service-account != null }}
-          timeout_minutes: ${{ inputs.timeout-minutes || 60 }}
+          timeout_minutes: ${{ inputs.timeout-minutes || 30 }}
           trigger_phrase: ${{ inputs.trigger-phrase || '@claude' }}
-          assignee_trigger: ${{ inputs.assignee-trigger || '@claude' }}
+          assignee_trigger: ${{ inputs.assignee-trigger }}
+          label_trigger: ${{ inputs.label-trigger }}
           base_branch: ${{ inputs.base-branch }}
           allowed_tools: ${{ inputs.allowed-tools }}
           disallowed_tools: ${{ inputs.disallowed-tools }}
@@ -161,3 +174,4 @@ jobs:
           mcp_config: ${{ inputs.mcp-config }}
           claude_env: ${{ inputs.claude-env }}
           max_turns: ${{ inputs.max-turns }}
+          mode: ${{ inputs.mode }}
