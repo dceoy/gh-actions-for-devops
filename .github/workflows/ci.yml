@@ -146,17 +146,10 @@ jobs:
           go mod download
       - name: Build the Go program
         working-directory: ./src
+        env:
+          VERSION: ${{ github.ref_name || github.head_ref || 'unknown' }}
         run: |
-          # Extract version from tag or branch
-          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
-            VERSION="${{ github.ref_name }}"
-          elif [[ "${{ github.ref_name }}" == "main" ]]; then
-            VERSION="main"
-          else
-            VERSION="${{ github.ref_name }}"
-          fi
-          echo "Building with version: $VERSION"
-          go build -ldflags "-X main.version=$VERSION" -o build_readme_md build_readme_md.go
+          go build -ldflags "-X main.version=${VERSION}" -o build_readme_md build_readme_md.go
       - name: Update README.md
         run: |
           ./src/build_readme_md
