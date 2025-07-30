@@ -9,8 +9,6 @@ services:
     network_mode: none
     volumes:
       - ${PWD}:/workspace
-    working_dir: /workspace/src
+    working_dir: /workspace
     entrypoint:
-      - python
-    command:
-      - ./build_readme_md.py
+      - /app/build_readme_md

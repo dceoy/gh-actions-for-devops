@@ -1,28 +1,31 @@
 # syntax=docker/dockerfile:1
-ARG PYTHON_VERSION=3.13
-FROM public.ecr.aws/docker/library/python:${PYTHON_VERSION}-slim AS base
+ARG GO_VERSION=1.24
+FROM public.ecr.aws/docker/library/golang:${GO_VERSION} AS builder
 
 SHELL ["/bin/bash", "-euo", "pipefail", "-c"]
 
 ENV DEBIAN_FRONTEND=noninteractive
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
-ENV PYTHONIOENCODING=utf-8
-ENV PIP_DISABLE_PIP_VERSION_CHECK=1
-ENV PIP_NO_CACHE_DIR=1
 
 RUN \
       --mount=type=bind,source=.,target=/mnt/host \
-      cp -a /mnt/host /tmp/build_readme_md
+      cp -a /mnt/host /opt/build_readme_md
+
+WORKDIR /opt/build_readme_md
 
 RUN \
-      --mount=type=cache,target=/root/.cache \
-      /usr/local/bin/pip install -U uv \
-      && uv build --directory /tmp/build_readme_md \
-      && pip install -U /tmp/build_readme_md/dist/*.whl
+      --mount=type=cache,target=/go/pkg/mod \
+      --mount=type=cache,target=/root/.cache/go-build \
+      go mod download \
+      && go build -o build_readme_md build_readme_md.go
 
-WORKDIR /root
+FROM public.ecr.aws/docker/library/golang:${GO_VERSION} AS base
+
+COPY --from=builder /opt/build_readme_md /app
+
+SHELL ["/bin/bash", "-euo", "pipefail", "-c"]
+
+ENV DEBIAN_FRONTEND=noninteractive
 
 HEALTHCHECK NONE
 
-ENTRYPOINT ["python"]
+ENTRYPOINT ["/app/build_readme_md"]
