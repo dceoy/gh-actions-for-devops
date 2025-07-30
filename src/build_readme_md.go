@@ -16,6 +16,8 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+var version = "dev"
+
 type Workflow struct {
 	Name string `yaml:"name"`
 	File string
@@ -194,24 +196,5 @@ func convertJinja2ToGoTemplate(template string) string {
 }
 
 func getVersion() string {
-	// Try to read version from go.mod
-	goModPath := filepath.Join(filepath.Dir(mustAbsPath(".")), "go.mod")
-	if data, err := os.ReadFile(goModPath); err == nil {
-		lines := strings.Split(string(data), "\n")
-		for _, line := range lines {
-			if strings.HasPrefix(line, "module ") {
-				// Extract version from module name if present
-				parts := strings.Split(strings.TrimPrefix(line, "module "), "/")
-				if len(parts) > 0 {
-					lastPart := parts[len(parts)-1]
-					if strings.HasPrefix(lastPart, "v") {
-						return lastPart
-					}
-				}
-			}
-		}
-	}
-
-	// Default version
-	return "v0.2.0"
+	return version
 }
