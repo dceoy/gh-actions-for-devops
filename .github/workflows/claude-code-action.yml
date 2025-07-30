@@ -1,5 +1,5 @@
 ---
-name: Claude Code action
+name: Claude Code Action
 on:
   # issue_comment:
   #   types:
@@ -25,16 +25,31 @@ on:
         required: false
         type: string
         description: The assignee username that triggers the action
-        default: '@claude'
+        default: null
+      label-trigger:
+        required: false
+        type: string
+        description: The label that triggers the action
+        default: 'claude'
       base-branch:
         required: false
         type: string
         description: The branch to use as the base/source when creating new branches (defaults to repository default branch)
         default: null
+      branch-prefix:
+        required: false
+        type: string
+        description: The prefix to use for Claude branches (defaults to 'claude/', use 'claude-' for dash format)
+        default: 'claude/'
       model:
         required: false
         type: string
         description: Model to use in provider-specific format required for Bedrock/Vertex (e.g., anthropic.claude-opus-4-20250514-v1:0)
+        default: null
+      fallback-model:
+        required: false
+        type: string
+        description: Fallback model to use if the primary model fails
         default: null
       allowed-tools:
         required: false
@@ -51,6 +66,11 @@ on:
         type: string
         description: Additional custom instructions to include in the prompt for Claude
         default: null
+      override-prompt:
+        required: false
+        type: string
+        description: Complete replacement of Claude's prompt with custom template (supports variable substitution)
+        default: null
       direct-prompt:
         required: false
         type: string
@@ -61,10 +81,35 @@ on:
         type: string
         description: Additional MCP configuration (JSON string) that merges with the built-in GitHub MCP servers
         default: null
+      additional-permissions:
+        required: false
+        type: string
+        description: Additional permissions to enable.
+        default: null
       claude-env:
         required: false
         type: string
         description: Custom environment variables to pass to Claude Code execution (YAML format)
+        default: null
+      settings:
+        required: false
+        type: string
+        description: Claude Code settings as JSON string or path to settings JSON file
+        default: null
+      use-sticky-comment:
+        required: false
+        type: boolean
+        description: Use just one comment to deliver issue/PR comments
+        default: false
+      use-commit-signing:
+        required: false
+        type: boolean
+        description: Enable commit signing using GitHub's commit signature verification
+        default: false
+      experimental-allowed-domains:
+        required: false
+        type: string
+        description: Restrict network access to these domains only (newline-separated)
         default: null
       max-turns:
         required: false
@@ -75,7 +120,12 @@ on:
         required: false
         type: number
         description: Timeout in minutes for execution
-        default: 60
+        default: 30
+      mode:
+        required: false
+        type: string
+        description: Execution mode for the action
+        default: 'tag'
       aws-iam-role-to-assume:
         required: false
         type: string
@@ -101,26 +151,24 @@ on:
         description: Path to the Claude Code execution output file
         value: ${{ jobs.claude-code-action.outputs.execution-file }}
     secrets:
+      CLAUDE_CODE_OAUTH_TOKEN:
+        required: false
+        description: OAuth token for Claude Code (if applicable)
       ANTHROPIC_API_KEY:
-        required: true
+        required: false
         description: Anthropic API key for Claude
       GH_TOKEN:
         required: false
         description: GitHub token for creating comments/issues
 permissions:
-  contents: read
-  pull-requests: read
-  issues: read
+  contents: write
+  pull-requests: write
+  issues: write
   id-token: write
 jobs:
   claude-code-action:
-    if: >
-      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude'))
-      || (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude'))
-      || (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude'))
-      || (github.event_name == 'issues' && contains(github.event.issue.body, '@claude'))
     runs-on: ubuntu-latest
-    timeout-minutes: ${{ inputs.timeout-minutes || 60 }}
+    timeout-minutes: ${{ inputs.timeout-minutes || 30 }}
     outputs:
       execution-file: ${{ steps.claude-code-action.outputs.execution_file }}
     steps:
@@ -128,6 +176,7 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
         with:
           fetch-depth: 1
+          token: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
       - name: Configure AWS credentials
         if: inputs.aws-iam-role-to-assume != null
         uses: aws-actions/configure-aws-credentials@b47578312673ae6fa5b5096b330d9fbac3d116df  # v4.2.1
@@ -137,27 +186,37 @@ jobs:
           role-session-name: github-actions-${{ github.run_id }}
       - name: Authenticate to Google Cloud
         if: inputs.google-workload-identity-provider != null && inputs.google-service-account != null
-        uses: google-github-actions/auth@v2
+        uses: google-github-actions/auth@6fc4af4b145ae7821d527454aa9bd537d1f2dc5f  # v2.1.7
         with:
           workload_identity_provider: ${{ inputs.google-workload-identity-provider }}
           service_account: ${{ inputs.google-service-account }}
-      - name: Run Claude PR Action
+      - name: Run Claude Code Action
         id: claude-code-action
-        uses: anthropics/claude-code-action@6037d754ac402c2bebd7b593fcccf5a5da157eb8  # v0.0.46
+        uses: anthropics/claude-code-action@e07ea013bd13b5c183d3314c6070fab61daec759  # v0.0.47
         with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
           model: ${{ inputs.model }}
+          fallback_model: ${{ inputs.fallback-model }}
           use_bedrock: ${{ inputs.aws-iam-role-to-assume != null }}
           use_vertex: ${{ inputs.google-workload-identity-provider != null && inputs.google-service-account != null }}
-          timeout_minutes: ${{ inputs.timeout-minutes || 60 }}
+          timeout_minutes: ${{ inputs.timeout-minutes || 30 }}
           trigger_phrase: ${{ inputs.trigger-phrase || '@claude' }}
-          assignee_trigger: ${{ inputs.assignee-trigger || '@claude' }}
+          assignee_trigger: ${{ inputs.assignee-trigger }}
+          label_trigger: ${{ inputs.label-trigger }}
           base_branch: ${{ inputs.base-branch }}
+          branch_prefix: ${{ inputs.branch-prefix }}
           allowed_tools: ${{ inputs.allowed-tools }}
           disallowed_tools: ${{ inputs.disallowed-tools }}
           custom_instructions: ${{ inputs.custom-instructions }}
+          override_prompt: ${{ inputs.override-prompt }}
           direct_prompt: ${{ inputs.direct-prompt }}
           mcp_config: ${{ inputs.mcp-config }}
           claude_env: ${{ inputs.claude-env }}
+          settings: ${{ inputs.settings }}
           max_turns: ${{ inputs.max-turns }}
+          mode: ${{ inputs.mode }}
+          use_sticky_comment: ${{ inputs.use-sticky-comment }}
+          use_commit_signing: ${{ inputs.use-commit-signing }}
+          experimental_allowed_domains: ${{ inputs.experimental-allowed-domains }}
