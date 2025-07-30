@@ -144,10 +144,13 @@ jobs:
         working-directory: ./src
         run: |
           go mod download
-      - name: Update README.md
+      - name: Build the Go program
         working-directory: ./src
         run: |
-          go run build_readme_md.go
+          go build -o build_readme_md build_readme_md.go
+      - name: Update README.md
+        run: |
+          ./src/build_readme_md
       - name: Commit and push the changes
         uses: EndBug/add-and-commit@a94899bca583c204427a224a7af87c02f9b325d5  # v9.1.4
         with:

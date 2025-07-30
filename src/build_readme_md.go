@@ -39,6 +39,11 @@ func main() {
 	readmeMDJ2 := filepath.Join(rootDir, "README.md.j2")
 	workflowDir := filepath.Join(rootDir, ".github", "workflows")
 
+	if _, err := os.Stat(readmeMDJ2); os.IsNotExist(err) {
+		log.Fatalf("Error: Template file %s does not exist", readmeMDJ2)
+	} else if _, err := os.Stat(workflowDir); os.IsNotExist(err) {
+		log.Fatalf("Error: Workflow directory %s does not exist", workflowDir)
+	}
 	workflows := detectReusableWorkflows(workflowDir)
 	if len(workflows) == 0 {
 		log.Fatal("Error: No reusable workflows found")
