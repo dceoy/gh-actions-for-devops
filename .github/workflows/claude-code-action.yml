@@ -161,9 +161,9 @@ on:
         required: false
         description: GitHub token for creating comments/issues
 permissions:
-  contents: write
-  pull-requests: write
-  issues: write
+  contents: read
+  pull-requests: read
+  issues: read
   id-token: write
 jobs:
   claude-code-action:
