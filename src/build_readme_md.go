@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -34,7 +35,19 @@ func main() {
 
 	setLogLevel(debug, info)
 
-	rootDir, _ := os.Getwd()
+	// Get current working directory (where the script is being run from)
+	scriptDir, _ := os.Getwd()
+
+	// Determine root directory based on current location
+	var rootDir string
+	if filepath.Base(scriptDir) == "src" {
+		// We're in the src directory, parent is root
+		rootDir = filepath.Dir(scriptDir)
+	} else {
+		// We might be running from root already
+		rootDir = scriptDir
+	}
+
 	readmeMD := filepath.Join(rootDir, "README.md")
 	readmeMDJ2 := filepath.Join(rootDir, "README.md.j2")
 	workflowDir := filepath.Join(rootDir, ".github", "workflows")
