@@ -192,7 +192,7 @@ jobs:
           service_account: ${{ inputs.google-service-account }}
       - name: Run Claude Code Action
         id: claude-code-action
-        uses: anthropics/claude-code-action@1f6e3225b088699398302ad624c21c1d780d082f  # v0.0.50
+        uses: anthropics/claude-code-action@1b4ac7d7e0f097d23bf4730891060f8d3c11f580  # v0.0.51
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
