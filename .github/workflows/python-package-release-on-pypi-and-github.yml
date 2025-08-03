@@ -91,7 +91,7 @@ jobs:
       - name: Read the project name
         id: read-project-name
         working-directory: ${{ inputs.package-path }}
-        shell: ${{ steps.detect-lock-file.outputs.lock_file == 'uv.lock' && 'uv ' || '' }} python {0}
+        shell: python {0}
         run: |
           import os
           import tomllib
