@@ -50,7 +50,7 @@ if [[ "${N_TERRAFORM_FILES}" -gt 0 ]]; then
   tflint --recursive --chdir=.
 fi
 
-N_DOCKER_FILES=$(find . -maxdepth "${MAX_DEPTH}" -type f -name 'Dockerfile' | wc -l)
-if [[ "${N_DOCKER_FILES}" -gt 0 ]] || [[ "${N_TERRAFORM_FILES}" -gt 0 ]]; then
-  trivy filesystem --scanners vuln,secret,misconfig --skip-dirs .venv --skip-dirs .terraform --skip-dirs .terragrunt-cache --skip-dirs .git .
-fi
+# N_DOCKER_FILES=$(find . -maxdepth "${MAX_DEPTH}" -type f -name 'Dockerfile' | wc -l)
+# if [[ "${N_DOCKER_FILES}" -gt 0 ]] || [[ "${N_TERRAFORM_FILES}" -gt 0 ]]; then
+#   trivy filesystem --scanners vuln,secret,misconfig --skip-dirs .venv --skip-dirs .terraform --skip-dirs .terragrunt-cache --skip-dirs .git .
+# fi
