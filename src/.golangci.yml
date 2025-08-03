@@ -1,0 +1,220 @@
+---
+run:
+  concurrency: 4
+  timeout: ${{ inputs.timeout }}
+  issues-exit-code: 1
+  tests: true
+  build-tags:
+    - integration
+    - test
+linters:
+  enable:
+    # Core linters
+    - errcheck
+    - gosimple
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+    # Modern performance and style linters
+    - bodyclose
+    - contextcheck
+    - copyloopvar
+    - durationcheck
+    - errname
+    - errorlint
+    - exhaustive
+    - exportloopref
+    - gocheckcompilerdirectives
+    - gochecknoinits
+    - goconst
+    - gocritic
+    - gocyclo
+    - gofmt
+    - gofumpt
+    - goimports
+    - gomnd
+    - goprintffuncname
+    - gosec
+    - grouper
+    - importas
+    - intrange
+    - lll
+    - loggercheck
+    - makezero
+    - mirror
+    - misspell
+    - musttag
+    - nakedret
+    - nilerr
+    - nilnil
+    - noctx
+    - nolintlint
+    - nosprintfhostport
+    - perfsprint
+    - prealloc
+    - predeclared
+    - promlinter
+    - reassign
+    - revive
+    - rowserrcheck
+    - sloglint
+    - spancheck
+    - sqlclosecheck
+    - stylecheck
+    - tenv
+    - testableexamples
+    - testifylint
+    - thelper
+    - tparallel
+    - typecheck
+    - unconvert
+    - unparam
+    - usestdlibvars
+    - wastedassign
+    - whitespace
+    - zerologlint
+    # Optional strict linters (disable if too noisy)
+    # - cyclop
+    # - dupl
+    # - forcetypeassert
+    # - funlen
+    # - gocognit
+    # - godot
+    # - godox
+    # - goerr113
+    # - goheader
+    # - gomoddirectives
+    # - gomodguard
+    # - nestif
+    # - nlreturn
+    # - paralleltest
+    # - tagliatelle
+    # - testpackage
+    # - wrapcheck
+    # - wsl
+  disable:
+    # Deprecated linters
+    - deadcode
+    - exhaustivestruct
+    - golint
+    - ifshort
+    - interfacer
+    - maligned
+    - nosnakecase
+    - scopelint
+    - structcheck
+    - varcheck
+linters-settings:
+  errcheck:
+    check-type-assertions: true
+    check-blank: true
+  govet:
+    enable-all: true
+    check-shadowing: true
+  gocyclo:
+    min-complexity: 15
+  lll:
+    line-length: 120
+    tab-width: 1
+  goconst:
+    min-len: 3
+    min-occurrences: 3
+  gomnd:
+    checks:
+      - argument
+      - case
+      - condition
+      - operation
+      - return
+      - assign
+    ignored-numbers:
+      - '0'
+      - '1'
+  gocritic:
+    enabled-tags:
+      - diagnostic
+      - experimental
+      - opinionated
+      - performance
+      - style
+    disabled-checks:
+      - dupImport
+      - ifElseChain
+      - octalLiteral
+  gosec:
+    excludes:
+      - G101  # Exclude hardcoded credentials false positives
+      - G601  # Implicit memory aliasing in for loop (fixed in Go 1.22+)
+    confidence: medium
+    severity: medium
+  revive:
+    rules:
+      - name: blank-imports
+      - name: context-as-argument
+      - name: context-keys-type
+      - name: dot-imports
+      - name: error-return
+      - name: error-strings
+      - name: error-naming
+      - name: exported
+      - name: if-return
+      - name: increment-decrement
+      - name: var-naming
+      - name: var-declaration
+      - name: package-comments
+      - name: range
+      - name: receiver-naming
+      - name: time-naming
+      - name: unexported-return
+      - name: indent-error-flow
+      - name: errorf
+      - name: empty-block
+      - name: superfluous-else
+      - name: unused-parameter
+      - name: unreachable-code
+      - name: redefines-builtin-id
+  staticcheck:
+    checks: ["all", "-ST1000", "-ST1003", "-ST1016", "-ST1020", "-ST1021", "-ST1022"]
+  stylecheck:
+    checks: ["all", "-ST1000", "-ST1003", "-ST1016", "-ST1020", "-ST1021", "-ST1022"]
+    initialisms: ["ACL", "API", "ASCII", "CPU", "CSS", "DNS", "EOF", "GUID", "HTML", "HTTP", "HTTPS", "ID", "IP", "JSON", "QPS", "RAM", "RPC", "SLA", "SMTP", "SQL", "SSH", "TCP", "TLS", "TTL", "UDP", "UI", "UID", "UUID", "URI", "URL", "UTF8", "VM", "XML", "XMPP", "XSRF", "XSS", "SIP", "RTP", "AMQP", "DB", "TS"]
+  goimports:
+    local-prefixes: github.com/your-org
+  gofumpt:
+    extra-rules: true
+    module-path: github.com/your-org
+  misspell:
+    locale: US
+  testifylint:
+    enable-all: true
+  nolintlint:
+    allow-unused: false
+    require-explanation: true
+    require-specific: true
+issues:
+  exclude-use-default: false
+  max-issues-per-linter: 0
+  max-same-issues: 0
+  exclude-rules:
+    # Exclude some linters from running on tests files
+    - path: _test\.go
+      linters:
+        - gomnd
+        - goconst
+        - gosec
+        - noctx
+        - goerr113
+        - wrapcheck
+        - dupl
+    # Exclude known issues in generated files
+    - path: "(^|/)zz_generated.*\\.go$"
+      linters:
+        - goimports
+        - lll
+        - gocyclo
+    # Exclude some rules in main packages
+    - path: main\.go
+      linters:
+        - gochecknoinits
+        - gochecknoglobals

@@ -1,0 +1,104 @@
+---
+name: Lint and security scan for Go
+on:
+  workflow_call:
+    inputs:
+      package-path:
+        required: false
+        type: string
+        description: Path to a Go package or project
+        default: .
+      go-version:
+        required: false
+        type: string
+        description: Go version to use
+        default: stable
+      use-gosec:
+        required: false
+        type: boolean
+        description: Use gosec for security scanning
+        default: true
+      use-govulncheck:
+        required: false
+        type: boolean
+        description: Use govulncheck for vulnerability scanning
+        default: true
+      runs-on:
+        required: false
+        type: string
+        description: GitHub Actions runner to use
+        default: ubuntu-latest
+defaults:
+  run:
+    shell: bash -euo pipefail {0}
+    working-directory: .
+jobs:
+  lint-and-scan:
+    runs-on: ${{ inputs.runs-on }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+      - name: Set up Go
+        uses: actions/setup-go@41dfa10bad2bb2ae585af6ee5bb4d7d973ad74ed  # v5.2.0
+        with:
+          go-version: ${{ inputs.go-version }}
+          cache: true
+      - name: Verify Go installation
+        working-directory: ${{ inputs.package-path }}
+        run: |
+          go version
+          if [[ -f go.mod ]]; then
+            echo "Found go.mod file"
+            go mod download
+            go mod verify
+          else
+            echo "No go.mod file found"
+          fi
+      - name: Install golangci-lint
+        run: |
+          go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+      - name: Install gosec
+        if: inputs.use-gosec
+        run: |
+          go install github.com/securego/gosec/v2/cmd/gosec@latest
+      - name: Install govulncheck
+        if: inputs.use-govulncheck
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@latest
+      - name: Run golangci-lint
+        working-directory: ${{ inputs.package-path }}
+        run: |
+          golangci-lint run ./...
+      - name: Run go mod tidy check
+        working-directory: ${{ inputs.package-path }}
+        run: |
+          if [[ -f go.mod ]]; then
+            go mod tidy
+            if [[ -n "$(git status --porcelain go.mod go.sum)" ]]; then
+              echo "go.mod or go.sum is not tidy:"
+              git diff go.mod go.sum
+              exit 1
+            fi
+          fi
+      - name: Run go build
+        working-directory: ${{ inputs.package-path }}
+        run: |
+          if [[ -f go.mod ]]; then
+            go build -v ./...
+          fi
+      - name: Run govulncheck
+        if: inputs.use-govulncheck
+        working-directory: ${{ inputs.package-path }}
+        run: |
+          govulncheck ./...
+      - name: Run additional security scan with gosec
+        if: inputs.use-gosec
+        working-directory: ${{ inputs.package-path }}
+        run: |
+          gosec -fmt sarif -out gosec-results.sarif ./... || true
+      - name: Upload gosec results to GitHub Security tab
+        if: inputs.use-gosec
+        uses: github/codeql-action/upload-sarif@662472033e021d55d94146f66f6058822b0b39fd  # v3.27.0
+        with:
+          sarif_file: ${{ inputs.package-path }}/gosec-results.sarif
+        continue-on-error: true
