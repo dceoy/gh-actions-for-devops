@@ -137,7 +137,7 @@ jobs:
         env:
           VERSION: ${{ github.ref_name || github.head_ref || 'unknown' }}
         run: |
-          go build -ldflags "-X main.version=${VERSION}" -o build_readme_md build_readme_md.go
+          go build -ldflags "-X main.version=${VERSION}" -o src/build_readme_md src/build_readme_md.go
       - name: Update README.md
         run: |
           ./src/build_readme_md
