@@ -19,21 +19,20 @@ on:
         options:
           - lint
           - analyze
-          - format
           - build
           - release
         description: Choose the workflow to run
         default: lint
 jobs:
-  python-lint-and-scan:
+  go-lint-and-scan:
     if: >
       github.event_name == 'push'
       || github.event_name == 'pull_request'
       || (github.event_name == 'workflow_dispatch' && inputs.workflow == 'lint')
-    uses: ./.github/workflows/python-package-lint-and-scan.yml
+    uses: ./.github/workflows/go-package-lint-and-scan.yml
     with:
-      package-path: ./src
-      python-version: 3.x
+      package-path: .
+      go-version: stable
   github-actions-lint:
     if: >
       github.event_name == 'push'
@@ -53,15 +52,6 @@ jobs:
     with:
       search-path: .github/workflows
       go-version: stable
-  python-format:
-    if: >
-      github.event_name == 'push'
-      || github.event_name == 'pull_request'
-      || (github.event_name == 'workflow_dispatch' && inputs.workflow == 'format')
-    uses: ./.github/workflows/python-package-format-and-pr.yml
-    with:
-      package-path: ./src
-      python-version: 3.x
   docker-lint-and-scan:
     if: >
       github.event_name == 'push'
@@ -105,7 +95,7 @@ jobs:
     if: >
       github.event_name == 'pull_request' && github.actor == 'dependabot[bot]'
     needs:
-      - python-lint-and-scan
+      - go-lint-and-scan
       - github-actions-lint
       - toml-lint
       - docker-lint-and-scan
@@ -122,7 +112,7 @@ jobs:
     if: >
       github.event_name == 'push'
       || github.event_name == 'pull_request'
-      || (github.event_name == 'workflow_dispatch' && inputs.workflow == 'format')
+      || github.event_name == 'workflow_dispatch'
     permissions:
       contents: write
       pull-requests: write

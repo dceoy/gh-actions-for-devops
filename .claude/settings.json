@@ -7,6 +7,10 @@
           {
             "type": "command",
             "command": "find .github/workflows -type f '(' -name '*.yml' -o -name '*.yaml' ')' -print0 | xargs -0 -t actionlint"
+          },
+          {
+            "type": "command",
+            "command": "golangci-lint fmt && golangci-lint run --fix"
           }
         ]
       }

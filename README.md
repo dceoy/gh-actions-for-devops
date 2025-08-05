@@ -61,6 +61,9 @@ Reusable workflows
   - [github-release.yml](.github/workflows/github-release.yml)
     - Release on GitHub
 
+  - [go-package-lint-and-scan.yml](.github/workflows/go-package-lint-and-scan.yml)
+    - Lint and security scan for Go
+
   - [json-lint.yml](.github/workflows/json-lint.yml)
     - Lint for JSON
 

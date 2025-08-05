@@ -176,7 +176,7 @@ func renderMD(workflows []Workflow, templatePath, outputPath string) {
 	// Remove trailing newlines
 	content := bytes.TrimRight(buf.Bytes(), "\n")
 
-	if err := os.WriteFile(outputPath, content, 0644); err != nil {
+	if err := os.WriteFile(outputPath, content, 0o644); err != nil {
 		log.Fatalf("Failed to write output file: %v", err)
 	}
 }
