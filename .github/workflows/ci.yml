@@ -131,11 +131,9 @@ jobs:
         with:
           go-version: stable
       - name: Install dependencies
-        working-directory: ./src
         run: |
           go mod download
       - name: Build the Go program
-        working-directory: ./src
         env:
           VERSION: ${{ github.ref_name || github.head_ref || 'unknown' }}
         run: |
