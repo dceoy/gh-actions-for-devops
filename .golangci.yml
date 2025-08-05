@@ -5,42 +5,102 @@ run:
   timeout: 5m
   issues-exit-code: 1
   tests: true
+  build-tags:
+    - integration
+
 linters:
   enable:
-    # Default linters
+    # Core linters - essential for all Go projects
     - errcheck
     - govet
     - ineffassign
     - staticcheck
     - unused
-    # Additional linters
-    - bodyclose
-    - contextcheck
-    - goconst
-    - gocritic
-    - gocyclo
-    - gosec
-    - misspell
-    - nakedret
-    - nilerr
-    - nolintlint
-    - prealloc
-    - revive
-    - unconvert
-    - unparam
-    - whitespace
+
+    # Error handling and correctness
+    - errorlint      # Improved error handling patterns
+    - nilerr         # Nil error checks
+
+    # Performance optimization
+    - prealloc       # Preallocate slices
+    - copyloopvar    # Go 1.22+ loop variable capture issues
+    - wastedassign   # Detect wasted assignments
+
+    # Code quality and style
+    - bodyclose      # HTTP response body closure
+    - contextcheck   # Context usage validation
+    - goconst        # Extract constants
+    - gocritic       # Comprehensive criticism
+    - gocyclo        # Cyclomatic complexity
+    - misspell       # Spell checking
+    - nakedret       # Naked returns
+    - nolintlint     # Proper nolint directives
+    - revive         # Extensible linter
+    - unconvert      # Unnecessary conversions
+    - unparam        # Unused parameters
+    - whitespace     # Whitespace issues
+    - usestdlibvars  # Use stdlib constants
+
+    # Security
+    - gosec          # Security issues
+    - sqlclosecheck  # SQL resource leaks
+    - rowserrcheck   # Database rows.Err() checks
+
+    # Testing
+    - testableexamples # Ensure examples are testable
+
 linters-settings:
   errcheck:
     check-type-assertions: true
     check-blank: true
+    exclude-functions:
+      - fmt.Fprint
+      - fmt.Fprintf
+      - fmt.Fprintln
+
   govet:
-    enable-all: true
+    enable:
+      - atomic
+      - atomicalign
+      - buildtag
+      - copylocks
+      - deepequalerrors
+      - fieldalignment
+      - findcall
+      - httpresponse
+      - loopclosure
+      - lostcancel
+      - nilfunc
+      - nilness
+      - printf
+      - shadow
+      - shift
+      - sortslice
+      - stdmethods
+      - structtag
+      - testinggoroutine
+      - tests
+      - unmarshal
+      - unreachable
+      - unusedresult
+      - unusedwrite
     check-shadowing: true
+    settings:
+      printf:
+        funcs:
+          - (github.com/sirupsen/logrus.FieldLogger).Infof
+          - (github.com/sirupsen/logrus.FieldLogger).Warnf
+          - (github.com/sirupsen/logrus.FieldLogger).Errorf
+          - (github.com/sirupsen/logrus.FieldLogger).Fatalf
+
   gocyclo:
     min-complexity: 15
+
   goconst:
     min-len: 3
     min-occurrences: 3
+    ignore-tests: true
+
   gocritic:
     enabled-tags:
       - diagnostic
@@ -48,22 +108,59 @@ linters-settings:
       - opinionated
       - performance
       - style
+    enabled-checks:
+      - appendAssign
+      - badCond
+      - caseOrder
+      - codegenComment
+      - commentedOutCode
+      - deprecatedComment
+      - dupArg
+      - dupBranchBody
+      - dupCase
+      - dupSubExpr
+      - exitAfterDefer
+      - flagDeref
+      - flagName
+      - nilValReturn
+      - offBy1
+      - regexpMust
+      - sloppyLen
+      - truncateCmp
+      - weakCond
+      - wrapperFunc
+    disabled-checks:
+      - importShadow  # Too many false positives
+      - unnamedResult # Sometimes unnamed results are clearer
+
   gosec:
     excludes:
-      - G101
-      - G601
+      - G101  # Hardcoded credentials false positives
+      - G601  # Implicit memory aliasing in for loop
     confidence: medium
     severity: medium
+    config:
+      G306: "0600"  # File permissions
+      G109: true    # Integer overflow
+
   revive:
+    confidence: 0.8
+    severity: warning
+    enable-all-rules: false
     rules:
       - name: blank-imports
       - name: context-as-argument
+        arguments:
+          - allowTypesBefore: "*testing.T,*github.com/user/repo/testing.Harness"
       - name: context-keys-type
       - name: dot-imports
       - name: error-return
       - name: error-strings
       - name: error-naming
       - name: exported
+        arguments:
+          - "checkPrivateReceivers"
+          - "sayRepetitiveInsteadOfStutters"
       - name: if-return
       - name: increment-decrement
       - name: var-naming
@@ -78,20 +175,114 @@ linters-settings:
       - name: empty-block
       - name: superfluous-else
       - name: unused-parameter
+        arguments:
+          - allowRegex: "^_"
       - name: unreachable-code
       - name: redefines-builtin-id
+      - name: waitgroup-by-value
+      - name: atomic
+      - name: empty-lines
+      - name: line-length-limit
+        arguments: [88]
+      - name: call-to-gc
+      - name: duplicated-imports
+      - name: import-shadowing
+      - name: bare-return
+      - name: unused-receiver
+      - name: unhandled-error
+        arguments:
+          - "fmt.Printf"
+          - "fmt.Println"
+          - "fmt.Print"
+
   misspell:
     locale: US
+    ignore-words:
+      - cancelled  # British spelling sometimes used in APIs
+
   nolintlint:
     allow-unused: false
     require-explanation: true
     require-specific: true
+
+  errorlint:
+    errorf: true
+    asserts: true
+    comparison: true
+
+  usestdlibvars:
+    http-method: true
+    http-status-code: true
+    time-weekday: true
+    time-month: true
+    time-layout: true
+    crypto-hash: true
+    default-rpc-path: true
+    os-dev-null: true
+    sql-isolation-level: true
+    tls-signature-scheme: true
+    constant-kind: true
+
 issues:
   exclude-use-default: false
   max-issues-per-linter: 0
   max-same-issues: 0
+  new-from-rev: HEAD~1
+  fix: true
   exclude-rules:
+    # Exclude some linters from test files
     - path: _test\.go
       linters:
         - goconst
         - gosec
+        - noctx
+        - errcheck
+        - dupl
+        - gocyclo
+        - gocognit
+
+    # Exclude some linters from example files
+    - path: example_.*\.go
+      linters:
+        - errcheck
+        - gosec
+        - gocritic
+
+    # Exclude fieldalignment from tests
+    - path: _test\.go
+      linters:
+        - govet
+      text: "fieldalignment"
+
+    # Exclude certain gosec rules from test files
+    - path: _test\.go
+      linters:
+        - gosec
+      text: "G404|G109|G110"
+
+    # Allow longer lines in generated files
+    - path: "generated"
+      linters:
+        - lll
+        - revive
+      text: "line-length-limit"
+
+    # Exclude deprecation warnings in vendored code
+    - path: vendor/
+      linters:
+        - staticcheck
+      text: "SA1019"
+
+  exclude:
+    # Allow TODO/FIXME comments
+    - "^TODO:"
+    - "^FIXME:"
+    # Common false positives
+    - "Error return value of .((os\\.)?std(out|err)\\..*|.*Close|.*Flush|os\\.Remove(All)?|.*print(f|ln)?|os\\.(Un)?Setenv). is not checked"
+
+output:
+  format: colored-line-number
+  print-issued-lines: true
+  print-linter-name: true
+  uniq-by-line: true
+  sort-results: true
