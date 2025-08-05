@@ -1,15 +1,75 @@
-gh-actions-for-devops
-=====================
-
-GitHub Actions workflows for DevOps
+# gh-actions-for-devops
 
 [![CI](https://github.com/dceoy/gh-actions-for-devops/actions/workflows/ci.yml/badge.svg)](https://github.com/dceoy/gh-actions-for-devops/actions/workflows/ci.yml)
 
-Reusable workflows
-------------------
+A comprehensive collection of reusable GitHub Actions workflows for DevOps automation, covering Docker operations, AWS deployments, security scanning, code quality checks, and more.
+
+## Table of Contents
+
+- [Overview](#overview)
+- [Prerequisites](#prerequisites)
+- [Usage](#usage)
+- [Reusable Workflows](#reusable-workflows)
+- [Examples](#examples)
+- [Development](#development)
+- [Contributing](#contributing)
+- [License](#license)
+
+## Overview
+
+This repository provides production-ready, reusable GitHub Actions workflows that can be called from other repositories to standardize and simplify your CI/CD pipelines. These workflows are designed to be modular, secure, and easy to integrate into your existing projects.
+
+### Key Features
+
+- **Docker Operations**: Build, scan, push, and deploy Docker images
+- **AWS Integration**: Deploy to AWS using Terraform, CodeBuild, CloudFormation, and more
+- **Security Scanning**: Automated security checks for dependencies, containers, and infrastructure
+- **Code Quality**: Linting and formatting for multiple languages and file types
+- **Automation**: Dependabot auto-merge, PR management, and release automation
+
+## Prerequisites
+
+To use these reusable workflows, you'll need:
+
+- GitHub repository with Actions enabled
+- Appropriate secrets configured in your repository (e.g., `AWS_ACCESS_KEY_ID`, `DOCKER_HUB_TOKEN`)
+- Required permissions for the specific workflow you're using
+
+## Usage
+
+To use a reusable workflow in your repository, create a workflow file (e.g., `.github/workflows/my-workflow.yml`) and reference the desired workflow:
+
+```yaml
+name: My Workflow
+on:
+  push:
+    branches: [main]
+
+jobs:
+  docker-build-and-push:
+    uses: dceoy/gh-actions-for-devops/.github/workflows/docker-build-and-push.yml@main
+    with:
+      registry: docker.io
+      registry-user: myusername
+      image-name: my-app
+      context: .
+    secrets:
+      DOCKER_TOKEN: ${{"{{"}} secrets.DOCKER_TOKEN {{"}}"}}
+```
+
+## Reusable Workflows
+
+The workflows are organized by category for easier navigation. Each workflow is designed to be called from other repositories using the `workflow_call` trigger.
+
+### All Reusable Workflows
 
 - [.github/workflows/](.github/workflows/)
 {% for f in workflows %}
   - [{{ f.file }}](.github/workflows/{{ f.file }})
     - {{ f.name }}
 {% endfor %}
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+Copyright (c) 2024 Daichi Narushima
