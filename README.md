@@ -10,9 +10,6 @@ A comprehensive collection of reusable GitHub Actions workflows for DevOps autom
 - [Prerequisites](#prerequisites)
 - [Usage](#usage)
 - [Reusable Workflows](#reusable-workflows)
-- [Examples](#examples)
-- [Development](#development)
-- [Contributing](#contributing)
 - [License](#license)
 
 ## Overview
