@@ -36,6 +36,12 @@ if [[ "${N_BASH_FILES}" -gt 0 ]]; then
     | xargs -t shellcheck
 fi
 
+N_GO_FILES=$(find . -maxdepth "${MAX_DEPTH}" -type f -name '*.go' | wc -l)
+if [[ "${N_GO_FILES}" -gt 0 ]]; then
+  golangci-lint fmt --enable=gofumpt --enable=goimports
+  golangci-lint run --fix
+fi
+
 if [[ -d '.github/workflows' ]]; then
   find .github/workflows -type f \( -name '*.yml' -o -name '*.yaml' \) -print0 \
     | xargs -0 -t actionlint

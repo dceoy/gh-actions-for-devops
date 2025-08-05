@@ -3,7 +3,7 @@ services:
   gh-actions-for-devops-readme:
     container_name: gh-actions-for-devops-readme
     build:
-      context: ./src
+      context: .
       dockerfile: Dockerfile
     image: dceoy/gh-actions-for-devops-readme:latest
     network_mode: none

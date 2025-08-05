@@ -8,7 +8,8 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 RUN \
       --mount=type=bind,source=.,target=/mnt/host \
-      cp -a /mnt/host /opt/build_readme_md
+      cp -a /mnt/host/src /opt/build_readme_md \
+      && cp -a /mnt/host/{go.mod,go.sum} /opt/build_readme_md/
 
 WORKDIR /opt/build_readme_md
 
