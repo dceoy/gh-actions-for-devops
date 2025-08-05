@@ -10,7 +10,7 @@
           },
           {
             "type": "command",
-            "command": "golangci-lint fmt --enable=gofumpt --enable=goimports && golangci-lint run --fix"
+            "command": "golangci-lint fmt --enable=gofumpt --enable=goimports && golangci-lint run --fix && govulncheck ./... && gosec ./..."
           }
         ]
       }
