@@ -1,3 +1,4 @@
+// Package main builds README.md files from templates by detecting reusable GitHub Actions workflows.
 package main
 
 import (
@@ -66,20 +67,13 @@ func main() {
 	renderMD(workflows, readmeMDJ2, readmeMD)
 }
 
-func mustAbsPath(path string) string {
-	absPath, err := filepath.Abs(path)
-	if err != nil {
-		log.Fatalf("Failed to get absolute path: %v", err)
-	}
-	return absPath
-}
-
 func setLogLevel(debug, info bool) {
-	if debug {
+	switch {
+	case debug:
 		log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
-	} else if info {
+	case info:
 		log.SetFlags(log.Ldate | log.Ltime)
-	} else {
+	default:
 		log.SetOutput(io.Discard)
 	}
 }
@@ -106,9 +100,18 @@ func detectReusableWorkflows(workflowDir string) []Workflow {
 	for _, entry := range sortedEntries {
 		if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".yml") {
 			filePath := filepath.Join(workflowDir, entry.Name())
+			// Clean the path to prevent directory traversal
+			filePath = filepath.Clean(filePath)
+
+			// Ensure the file is within the workflow directory
+			if !strings.HasPrefix(filePath, filepath.Clean(workflowDir)) {
+				log.Printf("Skipping file outside workflow directory: %s", filePath)
+				continue
+			}
+
 			log.Printf("Read YAML: %s", filePath)
 
-			data, err := os.ReadFile(filePath)
+			data, err := os.ReadFile(filePath) // #nosec G304 -- path is validated
 			if err != nil {
 				log.Printf("Failed to read file %s: %v", filePath, err)
 				continue
@@ -149,7 +152,13 @@ func detectReusableWorkflows(workflowDir string) []Workflow {
 func renderMD(workflows []Workflow, templatePath, outputPath string) {
 	printLog(fmt.Sprintf("Render a Markdown file: %s", outputPath))
 
-	templateContent, err := os.ReadFile(templatePath)
+	// Clean and validate the template path
+	templatePath = filepath.Clean(templatePath)
+	if strings.Contains(templatePath, "..") {
+		log.Fatalf("Invalid template path: %s", templatePath)
+	}
+
+	templateContent, err := os.ReadFile(templatePath) // #nosec G304 -- path is validated
 	if err != nil {
 		log.Fatalf("Failed to read template file: %v", err)
 	}
@@ -176,14 +185,14 @@ func renderMD(workflows []Workflow, templatePath, outputPath string) {
 	// Remove trailing newlines
 	content := bytes.TrimRight(buf.Bytes(), "\n")
 
-	if err := os.WriteFile(outputPath, content, 0o644); err != nil {
+	if err := os.WriteFile(outputPath, content, 0o600); err != nil {
 		log.Fatalf("Failed to write output file: %v", err)
 	}
 }
 
 func printLog(message string) {
 	fmt.Printf(">>\t%s\n", message)
-	os.Stdout.Sync()
+	_ = os.Stdout.Sync()
 }
 
 func convertJinja2ToGoTemplate(template string) string {
