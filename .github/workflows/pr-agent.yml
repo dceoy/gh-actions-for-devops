@@ -173,9 +173,9 @@ jobs:
           	EOF
           	if [[ -n '${{ secrets.GROQ_API_KEY }}' ]]; then
           		cat <<-EOF
-          		CONFIG.MODEL=${{ inputs.model || 'groq/meta-llama/llama-4-maverick-17b-128e-instruct' }}
-          		CONFIG.MODEL_TURBO=${{ inputs.model-turbo || 'groq/meta-llama/llama-4-maverick-17b-128e-instruct' }}
-          		CONFIG.FALLBACK_MODELS=${{ inputs.fallback-models || 'groq/llama-3.3-70b-versatile' }}
+          		CONFIG.MODEL=${{ inputs.model || 'groq/openai/gpt-oss-120b' }}
+          		CONFIG.MODEL_TURBO=${{ inputs.model-turbo || 'groq/openai/gpt-oss-120b' }}
+          		CONFIG.FALLBACK_MODELS=${{ inputs.fallback-models || 'groq/openai/gpt-oss-20b' }}
           		CONFIG.MAX_DESCRIPTION_TOKENS=${{ inputs.max-description-tokens || 128000 }}
           		CONFIG.MAX_COMMITS_TOKENS=${{ inputs.max-commits-tokens || 128000 }}
           		CONFIG.MAX_MODEL_TOKENS=${{ inputs.max-model-tokens || 128000 }}
@@ -183,18 +183,18 @@ jobs:
           		EOF
           	elif [[ -n '${{ inputs.aws-iam-role-to-assume }}' ]] || [[ -n '${{ steps.aws-profile-env.outputs.ROLE_ARN }}' ]]; then
           		cat <<-EOF
-          		CONFIG.MODEL=${{ inputs.model || 'bedrock/anthropic.claude-sonnet-4-20250514-v1:0' }}
-          		CONFIG.MODEL_TURBO=${{ inputs.model-turbo || 'bedrock/anthropic.claude-opus-4-20250514-v1:0' }}
-          		CONFIG.FALLBACK_MODELS=${{ inputs.fallback-models || 'bedrock/anthropic.claude-3-7-sonnet-20250219-v1:0' }}
+          		CONFIG.MODEL=${{ inputs.model || 'bedrock/us.anthropic.claude-opus-4-1-20250805-v1:0' }}
+          		CONFIG.MODEL_TURBO=${{ inputs.model-turbo || 'bedrock/us.anthropic.claude-opus-4-1-20250805-v1:0' }}
+          		CONFIG.FALLBACK_MODELS=${{ inputs.fallback-models || 'bedrock/us.anthropic.claude-sonnet-4-20250514-v1:0' }}
           		CONFIG.MAX_DESCRIPTION_TOKENS=${{ inputs.max-description-tokens }}
           		CONFIG.MAX_COMMITS_TOKENS=${{ inputs.max-commits-tokens }}
           		CONFIG.MAX_MODEL_TOKENS=${{ inputs.max-model-tokens }}
           		EOF
           	elif [[ -n '${{ secrets.OPENAI_API_KEY }}' ]]; then
           		cat <<-EOF
-          		CONFIG.MODEL=${{ inputs.model || 'gpt-4.1' }}
-          		CONFIG.MODEL_TURBO=${{ inputs.model-turbo || 'o3' }}
-          		CONFIG.FALLBACK_MODELS=${{ inputs.fallback-models || 'o4-mini' }}
+          		CONFIG.MODEL=${{ inputs.model || 'gpt-5' }}
+          		CONFIG.MODEL_TURBO=${{ inputs.model-turbo || 'gpt-5' }}
+          		CONFIG.FALLBACK_MODELS=${{ inputs.fallback-models || 'gpt-5-mini' }}
           		CONFIG.MAX_DESCRIPTION_TOKENS=${{ inputs.max-description-tokens }}
           		CONFIG.MAX_COMMITS_TOKENS=${{ inputs.max-commits-tokens }}
           		CONFIG.MAX_MODEL_TOKENS=${{ inputs.max-model-tokens }}
