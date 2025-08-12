@@ -62,6 +62,7 @@ jobs:
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0
       - name: Detect uv.lock or poetry.lock
         id: detect-lock-file
+        working-directory: ${{ inputs.package-path }}
         run: |
           if [[ -f uv.lock ]]; then
             echo "lock_file=uv.lock" >> "${GITHUB_OUTPUT}"
@@ -77,6 +78,7 @@ jobs:
           version: ${{ inputs.uv-version }}
       - name: Install packages using uv
         if: steps.detect-lock-file.outputs.lock_file == 'uv.lock'
+        working-directory: ${{ inputs.package-path }}
         run: |
           uv sync --dev
           uv add --dev \
