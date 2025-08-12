@@ -137,6 +137,9 @@ The workflows are organized by category for easier navigation. Each workflow is 
   - [python-package-release-on-pypi-and-github.yml](.github/workflows/python-package-release-on-pypi-and-github.yml)
     - Python package release on PyPI and GitHub
 
+  - [python-package-test.yml](.github/workflows/python-package-test.yml)
+    - Test for Python Package
+
   - [python-pyinstaller.yml](.github/workflows/python-pyinstaller.yml)
     - Build using PyInstaller
 
