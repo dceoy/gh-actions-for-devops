@@ -176,10 +176,10 @@ jobs:
           		CONFIG.MODEL=${{ inputs.model || 'groq/openai/gpt-oss-120b' }}
           		CONFIG.MODEL_TURBO=${{ inputs.model-turbo || 'groq/openai/gpt-oss-120b' }}
           		CONFIG.FALLBACK_MODELS=${{ inputs.fallback-models || 'groq/openai/gpt-oss-20b' }}
-          		CONFIG.MAX_DESCRIPTION_TOKENS=${{ inputs.max-description-tokens || 131072 }}
-          		CONFIG.MAX_COMMITS_TOKENS=${{ inputs.max-commits-tokens || 131072 }}
-          		CONFIG.MAX_MODEL_TOKENS=${{ inputs.max-model-tokens || 131072 }}
-          		CONFIG.CUSTOM_MODEL_MAX_TOKENS=${{ inputs.max-model-tokens || 131072 }}
+          		CONFIG.MAX_DESCRIPTION_TOKENS=${{ inputs.max-description-tokens || 8000 }}
+          		CONFIG.MAX_COMMITS_TOKENS=${{ inputs.max-commits-tokens || 8000 }}
+          		CONFIG.MAX_MODEL_TOKENS=${{ inputs.max-model-tokens || 8000 }}
+          		CONFIG.CUSTOM_MODEL_MAX_TOKENS=${{ inputs.max-model-tokens || 8000 }}
           		GROQ.KEY=${{ secrets.GROQ_API_KEY }}
           		EOF
           	elif [[ -n '${{ inputs.aws-iam-role-to-assume }}' ]] || [[ -n '${{ steps.aws-profile-env.outputs.ROLE_ARN }}' ]]; then
