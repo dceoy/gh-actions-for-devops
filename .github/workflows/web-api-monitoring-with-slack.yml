@@ -53,6 +53,10 @@ on:
         type: boolean
         description: Whether to mask the response body in the Slack message
         default: false
+    secrets:
+      SLACK_API_TOKEN:
+        required: true
+        description: Slack API token
 defaults:
   run:
     shell: bash -euo pipefail {0}
@@ -114,7 +118,7 @@ jobs:
         uses: slackapi/slack-github-action@91efab103c0de0a537f72a35f6b8cda0ee76bf0a  # v2.1.1
         with:
           method: chat.postMessage
-          token: ${{ secrets.SLACK_BOT_TOKEN }}
+          token: ${{ secrets.SLACK_API_TOKEN }}
           payload: |
             channel: ${{ inputs.slack-channel-id }}
             attachments:  # https://api.slack.com/reference/messaging/attachments
