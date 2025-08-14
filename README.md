@@ -152,6 +152,9 @@ The workflows are organized by category for easier navigation. Each workflow is 
   - [shell-lint.yml](.github/workflows/shell-lint.yml)
     - Lint for Shell
 
+  - [slack-post-with-attachments.yml](.github/workflows/slack-post-with-attachments.yml)
+    - Slack messaging with attachments
+
   - [terraform-deploy-to-aws.yml](.github/workflows/terraform-deploy-to-aws.yml)
     - Deployment of AWS resources using Terraform
 
