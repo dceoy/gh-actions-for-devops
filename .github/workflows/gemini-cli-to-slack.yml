@@ -1,0 +1,153 @@
+---
+name: Gemini CLI with Slack notification
+on:
+  workflow_dispatch:
+    inputs:
+      gemini-cli-prompt:
+        required: true
+        type: string
+        description: String passed to the Gemini CLI's `--prompt` argument
+      slack-channel-id:
+        required: true
+        type: string
+        description: Slack channel ID
+      gemini-cli-settings:
+        required: false
+        type: string
+        description: JSON string written to `.gemini/settings.json`
+        default: null
+      gemini-cli-version:
+        required: false
+        type: string
+        description: Version of the Gemini CLI to use
+        default: latest
+      title:
+        required: false
+        type: string
+        description: Title for the Slack message
+        default: 'Gemini CLI Result :milky_way:'
+      fail-on-error:
+        required: false
+        type: boolean
+        description: Fail the job when Gemini CLI exits non-zero
+        default: false
+  workflow_call:
+    inputs:
+      gemini-cli-prompt:
+        required: true
+        type: string
+        description: String passed to the Gemini CLI's `--prompt` argument
+      slack-channel-id:
+        required: true
+        type: string
+        description: Slack channel ID
+      gemini-cli-settings:
+        required: false
+        type: string
+        description: JSON string written to `.gemini/settings.json`
+        default: null
+      gemini-cli-version:
+        required: false
+        type: string
+        description: Version of the Gemini CLI to use
+        default: latest
+      title:
+        required: false
+        type: string
+        description: Title for the Slack message
+        default: 'Gemini CLI Result :milky_way:'
+      fail-on-error:
+        required: false
+        type: boolean
+        description: Fail the job when Gemini CLI exits non-zero
+        default: false
+    secrets:
+      GEMINI_API_KEY:
+        required: true
+        description: Gemini API key for google-github-actions/run-gemini-cli
+      SLACK_API_TOKEN:
+        required: true
+        description: Slack API token
+defaults:
+  run:
+    shell: bash -euo pipefail {0}
+    working-directory: .
+jobs:
+  gemini-to-slack:
+    runs-on: ubuntu-latest
+    env:
+      OUTPUT_MD_FILE: gemini_output.md
+    steps:
+      - name: Run Gemini CLI
+        id: gemini-cli
+        continue-on-error: true
+        uses: google-github-actions/run-gemini-cli@a3bf79042542528e91937b3a3a6fbc4967ee3c31  # v0.1.11
+        with:
+          prompt: ${{ inputs.gemini-cli-prompt }}
+          settings: ${{ inputs.gemini-cli-settings }}
+          gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
+          gemini_cli_version: ${{ inputs.gemini-cli-version || 'latest' }}
+      - name: Normalize the output
+        id: result-normalization
+        env:
+          RUN_GEMINI_CLI_OUTCOME: ${{ steps.gemini-cli.outcome }}
+          RUN_GEMINI_CLI_OUTPUTS_SUMMARY: ${{ steps.gemini-cli.outputs.summary }}
+          RUN_GEMINI_CLI_OUTPUTS_ERROR: ${{ steps.gemini-cli.outputs.error }}
+          MAX_OUTPUT_LENGTH: 12000
+        run: |
+          if [[ -n "${RUN_GEMINI_CLI_OUTPUTS_SUMMARY}" ]]; then
+            raw_output="${RUN_GEMINI_CLI_OUTPUTS_SUMMARY}"
+          elif [[ -n "${RUN_GEMINI_CLI_OUTPUTS_ERROR}" ]]; then
+            raw_output="${RUN_GEMINI_CLI_OUTPUTS_ERROR}"
+          else
+            raw_output="(No response returned by run-gemini-cli)"
+          fi
+          escaped_output=${raw_output//\"/\\\"}
+          if (( ${#escaped_output} > MAX_OUTPUT_LENGTH )); then
+            escaped_output="${escaped_output:0:max_len}... (truncated)"
+          fi
+          {
+            if [[ "${RUN_GEMINI_CLI_OUTCOME}" == "success" ]]; then
+              echo 'color=good'
+              echo 'text=:white_check_mark: Success'
+              echo 'summary_plain=Gemini CLI succeeded'
+            else
+              echo 'color=danger'
+              echo 'text=:x: Failure'
+              echo 'summary_plain=Gemini CLI failed'
+            fi
+            echo "escaped_output=${escaped_output}"
+            echo "ts=$(date +%s)"
+          } | tee -a "${GITHUB_OUTPUT}"
+      - name: Send Slack message
+        uses: slackapi/slack-github-action@91efab103c0de0a537f72a35f6b8cda0ee76bf0a  # v2.1.1
+        with:
+          method: chat.postMessage
+          token: ${{ secrets.SLACK_API_TOKEN }}
+          payload: |
+            channel: ${{ inputs.slack-channel-id }}
+            attachments:  # https://api.slack.com/reference/messaging/attachments
+              - fallback: ${{ steps.result-normalization.outputs.summary_plain }}
+                mrkdwn_in:
+                  - text
+                color: ${{ steps.result-normalization.outputs.color }}
+                author_name: GitHub Actions
+                author_link: ${{ github.server_url }}/${{ github.repository }}
+                author_icon: https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png
+                title: ${{ inputs.title }}
+                title_link: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+                text: |
+                   ${{ steps.result-normalization.outputs.escaped_output }}
+                fields:
+                  - title: Prompt
+                    value: ${{ inputs.gemini-cli-prompt }}
+                    short: false
+                footer: Commit - ${{ github.sha }}
+                footer_icon: https://platform.slack-edge.com/img/default_application_icon.png
+                ts: ${{ steps.result-normalization.outputs.ts }}
+      - name: Fail the job on error (optional)
+        if: inputs.fail-on-error && steps.gemini-cli.outcome != 'success'
+        run: |
+          echo "Gemini CLI reported an error:" >&2
+          echo "${{ steps.gemini-cli.outputs.error }}" >&2
+          exit 1
