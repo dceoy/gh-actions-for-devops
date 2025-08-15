@@ -98,6 +98,9 @@ The workflows are organized by category for easier navigation. Each workflow is 
   - [docker-save-and-terraform-deploy-to-aws.yml](.github/workflows/docker-save-and-terraform-deploy-to-aws.yml)
     - Docker image save and resource deployment to AWS using Terraform
 
+  - [gemini-cli-to-slack.yml](.github/workflows/gemini-cli-to-slack.yml)
+    - Gemini CLI with Slack notification
+
   - [github-actions-lint.yml](.github/workflows/github-actions-lint.yml)
     - Lint for GitHub Actions workflows
 
@@ -151,9 +154,6 @@ The workflows are organized by category for easier navigation. Each workflow is 
 
   - [shell-lint.yml](.github/workflows/shell-lint.yml)
     - Lint for Shell
-
-  - [slack-post-with-attachments.yml](.github/workflows/slack-post-with-attachments.yml)
-    - Slack messaging with attachments
 
   - [terraform-deploy-to-aws.yml](.github/workflows/terraform-deploy-to-aws.yml)
     - Deployment of AWS resources using Terraform
