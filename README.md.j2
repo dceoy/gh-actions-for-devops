@@ -1,8 +1,8 @@
 # gh-actions-for-devops
 
-[![CI](https://github.com/dceoy/gh-actions-for-devops/actions/workflows/ci.yml/badge.svg)](https://github.com/dceoy/gh-actions-for-devops/actions/workflows/ci.yml)
-
 A comprehensive collection of reusable GitHub Actions workflows for DevOps automation, covering Docker operations, AWS deployments, security scanning, code quality checks, and more.
+
+[![CI](https://github.com/dceoy/gh-actions-for-devops/actions/workflows/ci.yml/badge.svg)](https://github.com/dceoy/gh-actions-for-devops/actions/workflows/ci.yml)
 
 ## Table of Contents
 

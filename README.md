@@ -1,8 +1,8 @@
 # gh-actions-for-devops
 
-[![CI](https://github.com/dceoy/gh-actions-for-devops/actions/workflows/ci.yml/badge.svg)](https://github.com/dceoy/gh-actions-for-devops/actions/workflows/ci.yml)
-
 A comprehensive collection of reusable GitHub Actions workflows for DevOps automation, covering Docker operations, AWS deployments, security scanning, code quality checks, and more.
+
+[![CI](https://github.com/dceoy/gh-actions-for-devops/actions/workflows/ci.yml/badge.svg)](https://github.com/dceoy/gh-actions-for-devops/actions/workflows/ci.yml)
 
 ## Table of Contents
 
@@ -97,6 +97,9 @@ The workflows are organized by category for easier navigation. Each workflow is 
 
   - [docker-save-and-terraform-deploy-to-aws.yml](.github/workflows/docker-save-and-terraform-deploy-to-aws.yml)
     - Docker image save and resource deployment to AWS using Terraform
+
+  - [gemini-cli-to-slack.yml](.github/workflows/gemini-cli-to-slack.yml)
+    - Gemini CLI with Slack notification
 
   - [github-actions-lint.yml](.github/workflows/github-actions-lint.yml)
     - Lint for GitHub Actions workflows
