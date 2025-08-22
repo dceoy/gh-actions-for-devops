@@ -17,6 +17,16 @@ on:
         type: string
         description: Version of the Gemini CLI to use
         default: latest
+      validate-gemini-cli-run-outcome:
+        required: false
+        type: boolean
+        description: Whether to validate the outcome of the Gemini CLI run
+        default: true
+      slack-message-text-file-path:
+        required: false
+        type: string
+        description: Path to a file containing the text of the Slack message
+        default: null
   workflow_call:
     inputs:
       gemini-cli-prompt:
@@ -33,6 +43,16 @@ on:
         type: string
         description: Version of the Gemini CLI to use
         default: latest
+      validate-gemini-cli-run-outcome:
+        required: false
+        type: boolean
+        description: Whether to validate the outcome of the Gemini CLI run
+        default: true
+      slack-message-text-file-path:
+        required: false
+        type: string
+        description: Path to a file containing the text of the Slack message
+        default: null
     secrets:
       GEMINI_API_KEY:
         required: true
@@ -76,19 +96,29 @@ jobs:
           settings: ${{ inputs.gemini-cli-settings }}
           gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
           gemini_cli_version: ${{ env.GEMINI_CLI_VERSION }}
+      - name: Validate Gemini CLI run outcome
+        if: >
+          inputs.validate-gemini-cli-run-outcome && steps.gemini-cli-run.outcome != 'success'
+        run: |
+          echo "Error: Failed to create Slack message payload." >&2
+          exit 1
       - name: Create a Slack message payload JSON from the Gemini CLI results
         id: create-slack-payload
         env:
-          RUN_GEMINI_CLI_OUTCOME: ${{ steps.gemini-cli-run.outcome }}
           RUN_GEMINI_CLI_OUTPUTS_SUMMARY: ${{ steps.gemini-cli-run.outputs.summary }}
           RUN_GEMINI_CLI_OUTPUTS_ERROR: ${{ steps.gemini-cli-run.outputs.error }}
+          SLACK_MESSAGE_TEXT_FILE_PATH: ${{ inputs.slack-message-text-file-path }}
           SLACK_CHANNEL_ID: ${{ secrets.SLACK_CHANNEL_ID }}
         run: |
           {
-            if [[ "${RUN_GEMINI_CLI_OUTCOME}" = "success" ]]; then
+            if [[ -n "${SLACK_MESSAGE_TEXT_FILE_PATH}" && -f "${SLACK_MESSAGE_TEXT_FILE_PATH}" ]]; then
+              cat "${SLACK_MESSAGE_TEXT_FILE_PATH}"
+            elif [[ -n "${RUN_GEMINI_CLI_OUTPUTS_SUMMARY}" ]]; then
               echo "${RUN_GEMINI_CLI_OUTPUTS_SUMMARY}"
-            else
+            elif [[ -n "${RUN_GEMINI_CLI_OUTPUTS_ERROR}" ]]; then
               echo "${RUN_GEMINI_CLI_OUTPUTS_ERROR}"
+            else
+              echo
             fi
           } \
             | jq -crRs --arg channel "${SLACK_CHANNEL_ID}" '{channel:$channel, text:.} | "slack_payload_json=\(.)"' \
