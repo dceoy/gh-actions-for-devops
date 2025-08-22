@@ -72,7 +72,6 @@ jobs:
     runs-on: ubuntu-latest
     env:
       GEMINI_CLI_VERSION: ${{ inputs.gemini-cli-version || 'latest' }}
-      GEMINI_CLI_RESULTS_TXT_FILE: ./gemini-cli.result.${{ github.run_id }}.txt
     steps:
       - name: Validate the Slack channel ID and API token
         env:
@@ -111,7 +110,7 @@ jobs:
           SLACK_CHANNEL_ID: ${{ secrets.SLACK_CHANNEL_ID }}
         run: |
           {
-            if [[ -n "${SLACK_MESSAGE_TEXT_FILE_PATH}" && -f "${SLACK_MESSAGE_TEXT_FILE_PATH}" ]]; then
+            if [[ -n "${SLACK_MESSAGE_TEXT_FILE_PATH}" ]]; then
               cat "${SLACK_MESSAGE_TEXT_FILE_PATH}"
             elif [[ -n "${RUN_GEMINI_CLI_OUTPUTS_SUMMARY}" ]]; then
               echo "${RUN_GEMINI_CLI_OUTPUTS_SUMMARY}"
@@ -123,7 +122,14 @@ jobs:
           } \
             | jq -crRs --arg channel "${SLACK_CHANNEL_ID}" '{channel:$channel, text:.} | "slack_payload_json=\(.)"' \
             | tee -a "${GITHUB_OUTPUT}"
-      - name: Send Slack message
+      - name: Validate the Slack message payload
+        if: >
+          inputs.validate-gemini-cli-run-outcome
+          && fromJson(steps.create-slack-payload.outputs.slack_payload_json).text == ''
+        run: |
+          echo "Error: Slack message payload is empty." >&2
+          exit 1
+      - name: Send the Slack message
         uses: slackapi/slack-github-action@91efab103c0de0a537f72a35f6b8cda0ee76bf0a  # v2.1.1
         with:
           method: chat.postMessage
