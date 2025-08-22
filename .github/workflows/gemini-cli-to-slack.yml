@@ -1,0 +1,137 @@
+---
+name: Gemini CLI with Slack notification
+on:
+  workflow_dispatch:
+    inputs:
+      gemini-cli-prompt:
+        required: true
+        type: string
+        description: String passed to the Gemini CLI's `--prompt` argument
+      gemini-cli-settings:
+        required: false
+        type: string
+        description: JSON string written to `.gemini/settings.json`
+        default: null
+      gemini-cli-version:
+        required: false
+        type: string
+        description: Version of the Gemini CLI to use
+        default: latest
+      validate-gemini-cli-run-outcome:
+        required: false
+        type: boolean
+        description: Whether to validate the outcome of the Gemini CLI run
+        default: true
+      slack-message-text-file-path:
+        required: false
+        type: string
+        description: Path to a file containing the text of the Slack message
+        default: null
+  workflow_call:
+    inputs:
+      gemini-cli-prompt:
+        required: true
+        type: string
+        description: String passed to the Gemini CLI's `--prompt` argument
+      gemini-cli-settings:
+        required: false
+        type: string
+        description: JSON string written to `.gemini/settings.json`
+        default: null
+      gemini-cli-version:
+        required: false
+        type: string
+        description: Version of the Gemini CLI to use
+        default: latest
+      validate-gemini-cli-run-outcome:
+        required: false
+        type: boolean
+        description: Whether to validate the outcome of the Gemini CLI run
+        default: true
+      slack-message-text-file-path:
+        required: false
+        type: string
+        description: Path to a file containing the text of the Slack message
+        default: null
+    secrets:
+      GEMINI_API_KEY:
+        required: true
+        description: Gemini API key for google-github-actions/run-gemini-cli
+      SLACK_API_TOKEN:
+        required: true
+        description: Slack API token
+      SLACK_CHANNEL_ID:
+        required: true
+        description: Slack channel ID for the Slack message
+defaults:
+  run:
+    shell: bash -euo pipefail {0}
+    working-directory: .
+jobs:
+  gemini-to-slack:
+    runs-on: ubuntu-latest
+    env:
+      GEMINI_CLI_VERSION: ${{ inputs.gemini-cli-version || 'latest' }}
+    steps:
+      - name: Validate the Slack channel ID and API token
+        env:
+          SLACK_CHANNEL_ID: ${{ secrets.SLACK_CHANNEL_ID }}
+          SLACK_API_TOKEN: ${{ secrets.SLACK_API_TOKEN }}
+        run: |
+          if [[ -z "${SLACK_CHANNEL_ID}" ]]; then
+            echo "Error: SLACK_CHANNEL_ID is not set." >&2
+            exit 1
+          elif [[ -z "${SLACK_API_TOKEN}" ]]; then
+            echo "Error: SLACK_API_TOKEN is not set." >&2
+            exit 2
+          fi
+      - name: Checkout repository
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0
+      - name: Run Gemini CLI with the provided prompt
+        id: gemini-cli-run
+        uses: google-github-actions/run-gemini-cli@a3bf79042542528e91937b3a3a6fbc4967ee3c31  # v0.1.11
+        with:
+          prompt: ${{ inputs.gemini-cli-prompt }}
+          settings: ${{ inputs.gemini-cli-settings }}
+          gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
+          gemini_cli_version: ${{ env.GEMINI_CLI_VERSION }}
+      - name: Validate Gemini CLI run outcome
+        if: >
+          inputs.validate-gemini-cli-run-outcome && steps.gemini-cli-run.outcome != 'success'
+        run: |
+          echo "Error: Failed to create Slack message payload." >&2
+          exit 1
+      - name: Create a Slack message payload JSON from the Gemini CLI results
+        id: create-slack-payload
+        env:
+          RUN_GEMINI_CLI_OUTPUTS_SUMMARY: ${{ steps.gemini-cli-run.outputs.summary }}
+          RUN_GEMINI_CLI_OUTPUTS_ERROR: ${{ steps.gemini-cli-run.outputs.error }}
+          SLACK_MESSAGE_TEXT_FILE_PATH: ${{ inputs.slack-message-text-file-path }}
+          SLACK_CHANNEL_ID: ${{ secrets.SLACK_CHANNEL_ID }}
+        run: |
+          {
+            if [[ -n "${SLACK_MESSAGE_TEXT_FILE_PATH}" ]]; then
+              cat "${SLACK_MESSAGE_TEXT_FILE_PATH}"
+            elif [[ -n "${RUN_GEMINI_CLI_OUTPUTS_SUMMARY}" ]]; then
+              echo "${RUN_GEMINI_CLI_OUTPUTS_SUMMARY}"
+            elif [[ -n "${RUN_GEMINI_CLI_OUTPUTS_ERROR}" ]]; then
+              echo "${RUN_GEMINI_CLI_OUTPUTS_ERROR}"
+            else
+              echo
+            fi
+          } \
+            | jq -crRs --arg channel "${SLACK_CHANNEL_ID}" '{channel:$channel, text:.} | "slack_payload_json=\(.)"' \
+            | tee -a "${GITHUB_OUTPUT}"
+      - name: Validate the Slack message payload
+        if: >
+          inputs.validate-gemini-cli-run-outcome
+          && fromJson(steps.create-slack-payload.outputs.slack_payload_json).text == ''
+        run: |
+          echo "Error: Slack message payload is empty." >&2
+          exit 1
+      - name: Send the Slack message
+        uses: slackapi/slack-github-action@91efab103c0de0a537f72a35f6b8cda0ee76bf0a  # v2.1.1
+        with:
+          method: chat.postMessage
+          token: ${{ secrets.SLACK_API_TOKEN }}
+          payload: ${{ steps.create-slack-payload.outputs.slack_payload_json }}
