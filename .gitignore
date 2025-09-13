@@ -33,3 +33,6 @@ go.work.sum
 
 # Binary output
 build_readme_md
+
+# Serena MCP
+.serena/
