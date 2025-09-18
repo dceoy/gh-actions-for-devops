@@ -1,6 +1,7 @@
 # Commands and Guidelines for gh-actions-for-devops
 
 ## Build and Lint Commands
+
 - **Shell linting**: `shellcheck githook/*.sh`
 - **GitHub Actions linting**: `find .github/workflows -name "*.yml" -o -name "*.yaml" | xargs actionlint`
 - **YAML linting**: `find .github/workflows -name "*.yml" | xargs yamllint -d '{"extends": "relaxed", "rules": {"line-length": "disable"}}'`
@@ -10,6 +11,7 @@
 - **Build README**: `go run ./src/build_readme_md.go`
 
 ## Code Style Guidelines
+
 - **Python**: Google docstring style; line length 88; strict type checking with pyright
 - **Formatting**: Use ruff for Python code formatting and linting
 - **Imports**: Use absolute imports, organized by stdlib, 3rd party, local
@@ -21,12 +23,22 @@
 - **CI**: GitHub Actions workflows in `.github/workflows/` for automation
 
 ## Git Workflow
+
 - Run `./githook/auto-format-and-lint.sh` before committing changes
 - Workflows stored at `.github/workflows/` with symlink at `workflows/`
 
+## Serena MCP Usage (Prioritize When Available)
+
+- **If Serena MCP is available, use it first.** Treat Serena MCP tools as the primary interface over local commands or ad-hoc scripts.
+- **Glance at the Serena MCP docs/help before calling a tool** to confirm tool names, required args, and limits.
+- **Use the MCP-exposed tools for supported actions** (e.g., reading/writing files, running tasks, fetching data) instead of re-implementing workflows.
+- **Never hardcode secrets.** Reference environment variables or the MCP’s configured credential store; avoid printing tokens or sensitive paths.
+- **If Serena MCP isn’t enabled or lacks a needed capability, say so and propose a safe fallback.** Mention enabling it via `.mcp.json` when relevant.
+- **Be explicit and reproducible.** Name the exact MCP tool and arguments you intend to use in your steps.
+
 ## Web Search Instructions
 
-For tasks requiring web search, always use Gemini CLI (`gemini` command) instead of the built-in web search tools (WebFetch and WebSearch).
+For tasks requiring web search, always use Gemini CLI (`gemini` command) instead of the built-in web search tools.
 Gemini CLI is an AI workflow tool that provides reliable web search capabilities.
 
 ### Usage
