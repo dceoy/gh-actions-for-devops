@@ -1,23 +1,22 @@
 ---
 name: PR-agent
 on:
-  pull_request:
-    types:
-      - opened
-      - reopened
-      - ready_for_review
-  issue_comment:
-    types:
-      - created
-      - edited
-      - deleted
+  # pull_request:
+  #   types:
+  #     - opened
+  #     - reopened
+  #     - ready_for_review
+  # issue_comment:
+  #   types:
+  #     - created
+  #     - edited
+  #     - deleted
   workflow_call:
     inputs:
       model:
-        required: false
+        required: true
         type: string
         description: Model to use for the API
-        default: null
       model-turbo:
         required: false
         type: string
@@ -30,19 +29,19 @@ on:
         default: null
       max-description-tokens:
         required: false
-        type: string
+        type: number
         description: Maximum number of tokens for description
-        default: null
+        default: 200000
       max-commits-tokens:
         required: false
-        type: string
+        type: number
         description: Maximum number of tokens for commits
-        default: null
+        default: 200000
       max-model-tokens:
         required: false
-        type: string
+        type: number
         description: Maximum number of tokens for model
-        default: null
+        default: 200000
       auto-describe:
         required: false
         type: boolean
@@ -144,6 +143,8 @@ jobs:
       - name: Checkout repository
         if: inputs.aws-profile-env-file != null
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0
+        with:
+          persist-credentials: false
       - name: Read AWS profile environment file
         if: inputs.aws-profile-env-file != null
         id: aws-profile-env
@@ -162,58 +163,28 @@ jobs:
           role-to-assume: ${{ inputs.aws-iam-role-to-assume || steps.aws-profile-env.outputs.ROLE_ARN || null }}
           aws-region: ${{ inputs.aws-region || steps.aws-profile-env.outputs.REGION || null }}
           role-session-name: github-actions-${{ github.run_id }}
-      - name: Set environment variables
-        run: |
-          {
-          	cat <<-EOF
-          	PR_DESCRIPTION.EXTRA_INSTRUCTIONS=${{ inputs.pr-description-extra-instructions }}
-          	PR_REVIEWER.EXTRA_INSTRUCTIONS=${{ inputs.pr-reviewer-extra-instructions }}
-          	PR_CODE_SUGGESTIONS.EXTRA_INSTRUCTIONS=${{ inputs.pr-code-suggestions-extra-instructions }}
-          	PR_UPDATE_CHANGELOG.EXTRA_INSTRUCTIONS=${{ inputs.pr-update-changelog-extra-instructions }}
-          	EOF
-          	if [[ -n '${{ secrets.GROQ_API_KEY }}' ]]; then
-          		cat <<-EOF
-          		CONFIG.MODEL=${{ inputs.model || 'groq/openai/gpt-oss-120b' }}
-          		CONFIG.MODEL_TURBO=${{ inputs.model-turbo || 'groq/openai/gpt-oss-120b' }}
-          		CONFIG.FALLBACK_MODELS=${{ inputs.fallback-models || 'groq/openai/gpt-oss-20b' }}
-          		CONFIG.MAX_DESCRIPTION_TOKENS=${{ inputs.max-description-tokens || 8000 }}
-          		CONFIG.MAX_COMMITS_TOKENS=${{ inputs.max-commits-tokens || 8000 }}
-          		CONFIG.MAX_MODEL_TOKENS=${{ inputs.max-model-tokens || 8000 }}
-          		CONFIG.CUSTOM_MODEL_MAX_TOKENS=${{ inputs.max-model-tokens || 8000 }}
-          		GROQ.KEY=${{ secrets.GROQ_API_KEY }}
-          		EOF
-          	elif [[ -n '${{ inputs.aws-iam-role-to-assume }}' ]] || [[ -n '${{ steps.aws-profile-env.outputs.ROLE_ARN }}' ]]; then
-          		cat <<-EOF
-          		CONFIG.MODEL=${{ inputs.model || 'bedrock/us.anthropic.claude-opus-4-1-20250805-v1:0' }}
-          		CONFIG.MODEL_TURBO=${{ inputs.model-turbo || 'bedrock/us.anthropic.claude-opus-4-1-20250805-v1:0' }}
-          		CONFIG.FALLBACK_MODELS=${{ inputs.fallback-models || 'bedrock/us.anthropic.claude-sonnet-4-20250514-v1:0' }}
-          		CONFIG.MAX_DESCRIPTION_TOKENS=${{ inputs.max-description-tokens || 200000 }}
-          		CONFIG.MAX_COMMITS_TOKENS=${{ inputs.max-commits-tokens || 200000 }}
-          		CONFIG.MAX_MODEL_TOKENS=${{ inputs.max-model-tokens || 200000 }}
-          		CONFIG.CUSTOM_MODEL_MAX_TOKENS=${{ inputs.max-model-tokens || 131072 }}
-          		EOF
-          	elif [[ -n '${{ secrets.OPENAI_API_KEY }}' ]]; then
-          		cat <<-EOF
-          		CONFIG.MODEL=${{ inputs.model || 'gpt-5' }}
-          		CONFIG.MODEL_TURBO=${{ inputs.model-turbo || 'gpt-5' }}
-          		CONFIG.FALLBACK_MODELS=${{ inputs.fallback-models || 'gpt-5-mini' }}
-          		CONFIG.MAX_DESCRIPTION_TOKENS=${{ inputs.max-description-tokens || 200000 }}
-          		CONFIG.MAX_COMMITS_TOKENS=${{ inputs.max-commits-tokens || 200000 }}
-          		CONFIG.MAX_MODEL_TOKENS=${{ inputs.max-model-tokens || 200000 }}
-          		CONFIG.CUSTOM_MODEL_MAX_TOKENS=${{ inputs.max-model-tokens || 200000 }}
-          		OPENAI.API_TYPE=${{ inputs.openai-api-type }}
-          		OPENAI.API_BASE=${{ inputs.openai-api-base }}
-          		OPENAI.API_VERSION=${{ inputs.openai-api-version }}
-          		OPENAI.DEPLOYMENT_ID=${{ inputs.openai-deployment-id }}
-          		OPENAI.KEY=${{ secrets.OPENAI_API_KEY }}
-          		OPENAI.ORG=${{ secrets.OPENAI_ORGANIZATION }}
-          		EOF
-          	fi
-          } | grep -ve '^[^=]*=$' | tee -a "${GITHUB_ENV}"
       - name: Run PR-agent
         uses: qodo-ai/pr-agent@eb4cdbb115dfb711375a24eccc75e3ef73ec03bc  # v0.30
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
-          GITHUB_ACTION_CONFIG.AUTO_DESCRIBE: ${{ inputs.auto-describe || 'true' }}
-          GITHUB_ACTION_CONFIG.AUTO_REVIEW: ${{ inputs.auto-review || 'true' }}
-          GITHUB_ACTION_CONFIG.AUTO_IMPROVE: ${{ inputs.auto-improve || 'true' }}
+          CONFIG.AUTO_DESCRIBE: ${{ inputs.auto-describe || 'true' }}
+          CONFIG.AUTO_REVIEW: ${{ inputs.auto-review || 'true' }}
+          CONFIG.AUTO_IMPROVE: ${{ inputs.auto-improve || 'true' }}
+          CONFIG.MODEL: ${{ inputs.model }}
+          CONFIG.MODEL_TURBO: ${{ inputs.model-turbo || inputs.model }}
+          CONFIG.FALLBACK_MODELS: ${{ inputs.fallback-models || inputs.model }}
+          CONFIG.MAX_DESCRIPTION_TOKENS: ${{ inputs.max-description-tokens }}
+          CONFIG.MAX_COMMITS_TOKENS: ${{ inputs.max-commits-tokens }}
+          CONFIG.MAX_MODEL_TOKENS: ${{ inputs.max-model-tokens }}
+          CONFIG.CUSTOM_MODEL_MAX_TOKENS: ${{ inputs.max-model-tokens }}
+          PR_DESCRIPTION.EXTRA_INSTRUCTIONS: ${{ inputs.pr-description-extra-instructions }}
+          PR_REVIEWER.EXTRA_INSTRUCTIONS: ${{ inputs.pr-reviewer-extra-instructions }}
+          PR_CODE_SUGGESTIONS.EXTRA_INSTRUCTIONS: ${{ inputs.pr-code-suggestions-extra-instructions }}
+          PR_UPDATE_CHANGELOG.EXTRA_INSTRUCTIONS: ${{ inputs.pr-update-changelog-extra-instructions }}
+          GROQ.KEY: ${{ secrets.GROQ_API_KEY }}
+          OPENAI.API_TYPE: ${{ inputs.openai-api-type }}
+          OPENAI.API_BASE: ${{ inputs.openai-api-base }}
+          OPENAI.API_VERSION: ${{ inputs.openai-api-version }}
+          OPENAI.DEPLOYMENT_ID: ${{ inputs.openai-deployment-id }}
+          OPENAI.ORG: ${{ secrets.OPENAI_ORGANIZATION }}
+          OPENAI.KEY: ${{ secrets.OPENAI_API_KEY }}

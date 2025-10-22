@@ -29,16 +29,20 @@ jobs:
       github.event_name == 'push'
       || github.event_name == 'pull_request'
       || (github.event_name == 'workflow_dispatch' && inputs.workflow == 'lint')
+    permissions:
+      contents: read
     uses: ./.github/workflows/go-package-lint-and-scan.yml
     with:
       package-path: .
       go-version: stable
-  github-actions-lint:
+  github-actions-lint-and-scan:
     if: >
       github.event_name == 'push'
       || github.event_name == 'pull_request'
       || (github.event_name == 'workflow_dispatch' && inputs.workflow == 'lint')
-    uses: ./.github/workflows/github-actions-lint.yml
+    permissions:
+      contents: read
+    uses: ./.github/workflows/github-actions-lint-and-scan.yml
     with:
       search-path: .github/workflows
       go-version: stable
@@ -48,6 +52,8 @@ jobs:
       github.event_name == 'push'
       || github.event_name == 'pull_request'
       || (github.event_name == 'workflow_dispatch' && inputs.workflow == 'lint')
+    permissions:
+      contents: read
     uses: ./.github/workflows/toml-lint.yml
     with:
       search-path: .github/workflows
@@ -57,10 +63,15 @@ jobs:
       github.event_name == 'push'
       || github.event_name == 'pull_request'
       || (github.event_name == 'workflow_dispatch' && inputs.workflow == 'lint')
+    permissions:
+      contents: write
     uses: ./.github/workflows/docker-lint-and-scan.yml
   docker-build-and-push:
     if: >
       github.event_name == 'workflow_dispatch' && inputs.workflow == 'build'
+    permissions:
+      contents: write
+      packages: write
     uses: ./.github/workflows/docker-build-and-push.yml
     with:
       registry: ghcr.io
@@ -77,6 +88,10 @@ jobs:
     if: >
       github.event_name == 'push'
       || (github.event_name == 'workflow_dispatch' && inputs.workflow == 'analyze')
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
     uses: ./.github/workflows/github-codeql-analysis.yml
     with:
       language: >
@@ -93,10 +108,11 @@ jobs:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   dependabot-auto-merge:
     if: >
-      github.event_name == 'pull_request' && github.actor == 'dependabot[bot]'
+      github.event_name == 'pull_request'
+      && github.event.pull_request.user.login == 'dependabot[bot]'
     needs:
       - go-lint-and-scan
-      - github-actions-lint
+      - github-actions-lint-and-scan
       - toml-lint
       - docker-lint-and-scan
     permissions:
@@ -126,6 +142,7 @@ jobs:
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0
         with:
           ref: ${{ github.head_ref || github.ref_name }}
+          persist-credentials: true
       - name: Set up Go
         uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00  # v6.0.0
         with:
@@ -147,3 +164,4 @@ jobs:
           add: ./README.md
           message: Update README.md
           push: true
+          github_token: ${{ secrets.GITHUB_TOKEN }}

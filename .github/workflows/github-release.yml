@@ -48,7 +48,7 @@ jobs:
         env:
           TAG_NAME: ${{ inputs.tag-name }}
         run: >
-          echo "Invalid input tag: ${TAG_NAME} != ${{ github.ref_name }}" && exit 1
+          echo "Invalid input tag: ${TAG_NAME} != ${GITHUB_REF_NAME}" && exit 1
       - name: Validate the input tag
         if: >
           (! startsWith(github.ref, 'refs/tags/')) && inputs.tag-name == null
@@ -56,12 +56,14 @@ jobs:
           echo 'An input tag is required for non-tag events' && exit 2
       - name: Checkout repository
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0
+        with:
+          persist-credentials: false
       - name: Create the GitHub release for the tag
         if: >
           startsWith(github.ref, 'refs/tags/')
           || ((! startsWith(github.ref, 'refs/tags/')) && ! inputs.create-new-tag)
         run: >
-          gh release create '${{ github.ref_name }}' --repo '${{ github.repository }}' --generate-notes --verify-tag
+          gh release create "${GITHUB_REF_NAME}" --repo '${{ github.repository }}' --generate-notes --verify-tag
       - name: Create the GitHub release with the new tag
         if: >
           (! startsWith(github.ref, 'refs/tags/')) && inputs.create-new-tag

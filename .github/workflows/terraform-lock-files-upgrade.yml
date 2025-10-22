@@ -60,6 +60,7 @@ jobs:
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0
         with:
           ref: ${{ github.head_ref || github.ref_name }}
+          persist-credentials: true
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd  # v3.1.2
         with:
@@ -141,6 +142,7 @@ jobs:
           add: ${{ env.UPDATED_FILES_JSON }}
           message: ${{ env.COMMIT_MESSAGE }}
           push: true
+          github_token: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
       - name: Detect changed files and create a pull request
         if: inputs.create-pr
         uses: peter-evans/create-pull-request@271a8d0340265f705b14b6d32b9829c1cb33d45e  # v7.0.8

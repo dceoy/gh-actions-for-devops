@@ -101,8 +101,8 @@ The workflows are organized by category for easier navigation. Each workflow is 
   - [gemini-cli-to-slack.yml](.github/workflows/gemini-cli-to-slack.yml)
     - Gemini CLI with Slack notification
 
-  - [github-actions-lint.yml](.github/workflows/github-actions-lint.yml)
-    - Lint for GitHub Actions workflows
+  - [github-actions-lint-and-scan.yml](.github/workflows/github-actions-lint-and-scan.yml)
+    - Lint and security scan for GitHub Actions workflows
 
   - [github-codeql-analysis.yml](.github/workflows/github-codeql-analysis.yml)
     - GitHub CodeQL Analysis
