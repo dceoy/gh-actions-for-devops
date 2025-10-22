@@ -1,5 +1,5 @@
 ---
-name: Lint for GitHub Actions workflows
+name: Lint and security scan for GitHub Actions workflows
 on:
   workflow_call:
     inputs:

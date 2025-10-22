@@ -4,6 +4,7 @@
 
 - **Shell linting**: `shellcheck githook/*.sh`
 - **GitHub Actions linting**: `find .github/workflows -name "*.yml" -o -name "*.yaml" | xargs actionlint`
+- **GitHub Actions scanning**: `zizmor --fix=safe .github/workflows`
 - **YAML linting**: `find .github/workflows -name "*.yml" | xargs yamllint -d '{"extends": "relaxed", "rules": {"line-length": "disable"}}'`
 - **Go formatting and linting**: `golangci-lint fmt -E gofumpt -E goimports && golangci-lint run --fix && govulncheck ./... && gosec ./...`
 - **Terraform formatting and linting**: `terraform fmt -recursive . && terragrunt hclfmt --diff && tflint --recursive`

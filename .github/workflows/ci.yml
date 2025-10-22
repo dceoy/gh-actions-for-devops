@@ -33,12 +33,12 @@ jobs:
     with:
       package-path: .
       go-version: stable
-  github-actions-lint:
+  github-actions-lint-and-scan:
     if: >
       github.event_name == 'push'
       || github.event_name == 'pull_request'
       || (github.event_name == 'workflow_dispatch' && inputs.workflow == 'lint')
-    uses: ./.github/workflows/github-actions-lint.yml
+    uses: ./.github/workflows/github-actions-lint-and-scan.yml
     with:
       search-path: .github/workflows
       go-version: stable
@@ -93,10 +93,11 @@ jobs:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   dependabot-auto-merge:
     if: >
-      github.event_name == 'pull_request' && github.actor == 'dependabot[bot]'
+      github.event_name == 'pull_request'
+      && github.event.pull_request.user.login == 'dependabot[bot]'
     needs:
       - go-lint-and-scan
-      - github-actions-lint
+      - github-actions-lint-and-scan
       - toml-lint
       - docker-lint-and-scan
     permissions:
