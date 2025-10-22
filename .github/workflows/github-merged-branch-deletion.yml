@@ -1,11 +1,11 @@
 ---
 name: Deletion of merged branches on GitHub
 on:
-  pull_request:
-    branches:
-      - main
-    types:
-      - closed
+  # pull_request:
+  #   branches:
+  #     - main
+  #   types:
+  #     - closed
   workflow_call:
     inputs:
       pull-request-number:
