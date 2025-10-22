@@ -43,6 +43,7 @@ if [[ "${N_GO_FILES}" -gt 0 ]]; then
 fi
 
 if [[ -d '.github/workflows' ]]; then
+  zizmor --fix=safe .github/workflows
   find .github/workflows -type f \( -name '*.yml' -o -name '*.yaml' \) -print0 \
     | xargs -0 -t actionlint
   find .github/workflows -type f \( -name '*.yml' -o -name '*.yaml' \) -print0 \
