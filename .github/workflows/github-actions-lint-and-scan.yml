@@ -83,7 +83,7 @@ jobs:
       - name: Execute zizmor
         working-directory: ${{ inputs.search-path }}
         run: >
-          zizmor .
+          zizmor "${PWD}"
   yaml-lint:
     if: inputs.use-yamllint
     uses: ./.github/workflows/yaml-lint.yml
