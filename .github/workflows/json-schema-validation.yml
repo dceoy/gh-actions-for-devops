@@ -28,6 +28,8 @@ on:
         type: boolean
         description: Whether to lint JSON files before validation
         default: true
+permissions:
+  contents: read
 defaults:
   run:
     shell: bash -euo pipefail {0}

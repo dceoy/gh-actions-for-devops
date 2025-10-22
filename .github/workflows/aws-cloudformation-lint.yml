@@ -23,6 +23,8 @@ on:
         type: string
         description: Configuration data for yamllint
         default: '{"extends": "relaxed", "rules": {"line-length": "disable"}}'
+permissions:
+  contents: read
 defaults:
   run:
     shell: bash -euo pipefail {0}

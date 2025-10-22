@@ -63,6 +63,8 @@ on:
       SLACK_CHANNEL_ID:
         required: true
         description: Slack channel ID for the Slack message
+permissions:
+  contents: read
 defaults:
   run:
     shell: bash -euo pipefail {0}
