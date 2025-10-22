@@ -89,7 +89,7 @@ jobs:
         with:
           terraform_version: ${{ inputs.terraform-version }}
       - name: Setup TFLint
-        uses: terraform-linters/setup-tflint@ae78205cfffec9e8d93fd2b3115c7e9d3166d4b6  # v5.0.0
+        uses: terraform-linters/setup-tflint@acd1575d3c037258ce5b2dd01379dc49ce24c6b7  # v6.2.0
         with:
           tflint_version: latest
       - name: Install Terragrunt
@@ -121,7 +121,7 @@ jobs:
               'cd {} && terraform init -backend=false && terraform validate'
       - name: Run Trivy vulnerability scanner in IaC mode
         if: inputs.use-trivy
-        uses: aquasecurity/trivy-action@f9424c10c36e288d5fa79bd3dfd1aeb2d6eae808  # 0.33.0
+        uses: aquasecurity/trivy-action@b6643a29fecd7f34b3597bc6acb0a98b03d33ff8  # 0.33.1
         with:
           scan-type: filesystem
           scan-ref: ${{ inputs.search-path }}

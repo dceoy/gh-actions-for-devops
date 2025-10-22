@@ -39,7 +39,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0
       - name: Set up Go
-        uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5  # v5.2.0
+        uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00  # v5.2.0
         with:
           go-version: ${{ inputs.go-version }}
           cache: true
@@ -92,7 +92,7 @@ jobs:
           gosec -fmt sarif -out gosec-results.sarif ./...
       - name: Upload gosec results to GitHub Security tab
         if: inputs.use-gosec
-        uses: github/codeql-action/upload-sarif@3c3833e0f8c1c83d449a7478aa59c036a9165498  # v3.29.5
+        uses: github/codeql-action/upload-sarif@192325c86100d080feab897ff886c34abd4c83a3  # v3.29.5
         with:
           sarif_file: ${{ inputs.package-path }}/gosec-results.sarif
         continue-on-error: true
