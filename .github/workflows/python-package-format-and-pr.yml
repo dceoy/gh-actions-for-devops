@@ -60,6 +60,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0
+        with:
+          persist-credentials: false
       - name: Detect uv.lock or poetry.lock
         id: detect-lock-file
         working-directory: ${{ inputs.package-path }}
@@ -118,32 +120,30 @@ jobs:
       - name: Format the code using ruff
         if: (! inputs.use-black)
         working-directory: ${{ inputs.package-path }}
-        run: >
+        run: >  # zizmor: ignore[template-injection]
           ${{ env.EXECUTOR }} ruff format .
       - name: Format the code using black
         if: inputs.use-black
         working-directory: ${{ inputs.package-path }}
-        run: >
+        run: >  # zizmor: ignore[template-injection]
           ${{ env.EXECUTOR }} black .
       - name: Sort Python import definitions using isort
         if: inputs.use-isort
         working-directory: ${{ inputs.package-path }}
-        run: >
+        run: >  # zizmor: ignore[template-injection]
           ${{ env.EXECUTOR }} isort .
       - name: Lint the code using ruff
         if: inputs.lint-before-pr
         working-directory: ${{ inputs.package-path }}
-        run: >
+        run: >  # zizmor: ignore[template-injection]
           ${{ env.EXECUTOR }} ruff check --fix --output-format=github .
       - name: Restore project files
         if: startsWith(env.EXECUTOR, 'poetry') || startsWith(env.EXECUTOR, 'uv')
         working-directory: ${{ inputs.package-path }}
+        env:
+          LOCK_FILE: ${{ steps.detect-lock-file.outputs.lock_file }}
         run: |
-          if [[ "${EXECUTOR}" =~ ^uv ]]; then
-            git restore pyproject.toml uv.lock
-          elif [[ "${EXECUTOR}" =~ ^poetry ]]; then
-            git restore pyproject.toml poetry.lock
-          fi
+          git restore pyproject.toml "${LOCK_FILE}"
       - name: Create output parameters
         id: parameters
         env:

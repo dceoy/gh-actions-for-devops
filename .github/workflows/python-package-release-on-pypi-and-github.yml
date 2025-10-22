@@ -68,6 +68,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0
+        with:
+          persist-credentials: false
       - name: Detect uv.lock or poetry.lock
         id: detect-lock-file
         working-directory: ${{ inputs.package-path }}
@@ -111,6 +113,7 @@ jobs:
         env:
           LOCK_FILE: ${{ steps.detect-lock-file.outputs.lock_file }}
           REQUIREMENTS_TXT_PATH: ${{ inputs.requirements-txt }}
+          STEPS_READ_PROJECT_NAME_OUTPUTS_PROJECT_NAME: ${{ steps.read-project-name.outputs.project_name }}
         working-directory: ${{ inputs.package-path }}
         run: |
           if [[ "${LOCK_FILE}" == "uv.lock" ]]; then
@@ -128,7 +131,7 @@ jobs:
               python -m build
             fi
           fi
-          mv dist /tmp/${{ steps.read-project-name.outputs.project_name }}_dist
+          mv dist "/tmp/${STEPS_READ_PROJECT_NAME_OUTPUTS_PROJECT_NAME}_dist"
       - name: Store the distribution packages
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
         with:
@@ -182,9 +185,10 @@ jobs:
       - name: Validate the version-tag consistency
         env:
           TAG_NAME: ${{ github.ref_name }}
+          NEEDS_BUILD_OUTPUTS_PROJECT_NAME: ${{ needs.build.outputs.project-name }}
         run: |
           v="$( \
-            find dist -type f -name '${{ needs.build.outputs.project-name }}-*' -exec basename {} \; \
+            find dist -type f -name "${NEEDS_BUILD_OUTPUTS_PROJECT_NAME}-*" -exec basename {} \; \
               | head -n 1 \
               | cut -d '-' -f 2 \
           )"
@@ -201,7 +205,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
         run: |
-          gh release create ${{ github.ref_name }} --repo ${{ github.repository }} --generate-notes --verify-tag
+          gh release create "${GITHUB_REF_NAME}" --repo '${{ github.repository }}' --generate-notes --verify-tag
       - name: Upload artifact signatures to GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
@@ -209,7 +213,7 @@ jobs:
         # `dist/` contains the built packages, and the
         # sigstore-produced signatures and certificates.
         run: |
-          gh release upload ${{ github.ref_name }} dist/** --repo ${{ github.repository }}
+          gh release upload "${GITHUB_REF_NAME}" dist/** --repo '${{ github.repository }}'
   publish-to-pypi:
     name: Publish the Python 🐍 distribution 📦 to PyPI
     if: >

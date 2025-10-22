@@ -42,6 +42,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0
+        with:
+          persist-credentials: false
       - name: List open pull request branches
         id: list-open-prs
         run: |
@@ -65,13 +67,14 @@ jobs:
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0
         with:
           fetch-depth: 0
+          persist-credentials: false
       - name: Fetch the remote branches
         run: |
           jq -r '.[]' <<< "${BRANCHES_JSON}" | xargs -t git fetch origin
       - name: Configure the Git user
         run: |
-          git config --global user.name ${{ github.actor }}
-          git config --global user.email ${{ github.actor }}@users.noreply.github.com
+          git config --global user.name "${GITHUB_ACTOR}"
+          git config --global user.email "${GITHUB_ACTOR}@users.noreply.github.com"
       - name: Merge the branches
         run: |
           jq -r '.[]' <<< "${BRANCHES_JSON}" | xargs -I{} -t git merge --no-edit origin/{}

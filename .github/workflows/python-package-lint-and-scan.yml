@@ -68,6 +68,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0
+        with:
+          persist-credentials: false
       - name: Detect uv.lock or poetry.lock
         id: detect-lock-file
         working-directory: ${{ inputs.package-path }}
@@ -87,6 +89,8 @@ jobs:
       - name: Install packages using uv
         if: steps.detect-lock-file.outputs.lock_file == 'uv.lock'
         working-directory: ${{ inputs.package-path }}
+        env:
+          INPUTS_ADDITIONAL_PYTHON_PACKAGES: ${{ inputs.additional-python-packages }}
         run: |
           uv sync --dev
           uv add --dev \
@@ -95,7 +99,7 @@ jobs:
             ${{ inputs.use-mypy && 'mypy' || '' }} \
             ${{ inputs.use-pyright && 'pyright' || '' }} \
             ruff
-          for p in $(echo "${{ inputs.additional-python-packages }}" | tr ' ' '\n'); do
+          for p in $(echo "${INPUTS_ADDITIONAL_PYTHON_PACKAGES}" | tr ' ' '\n'); do
             if [[ -n "${p}" ]]; then
               uv add --dev "${p}"
             fi
@@ -150,30 +154,30 @@ jobs:
           fi
       - name: Lint the code using ruff check
         working-directory: ${{ inputs.package-path }}
-        run: >
+        run: >  # zizmor: ignore[template-injection]
           ${{ env.EXECUTOR }} ruff check --output-format=github .
       - name: Check the code using ruff format
         if: inputs.use-ruff-format
         working-directory: ${{ inputs.package-path }}
-        run: >
+        run: >  # zizmor: ignore[template-injection]
           ${{ env.EXECUTOR }} ruff format --check .
       - name: Lint the code using flake8
         if: inputs.use-flake8
         working-directory: ${{ inputs.package-path }}
-        run: >
+        run: >  # zizmor: ignore[template-injection]
           ${{ env.EXECUTOR }} flake8 .
       - name: Find security issues using bandit
         if: inputs.use-bandit
         working-directory: ${{ inputs.package-path }}
-        run: >
+        run: >  # zizmor: ignore[template-injection]
           ${{ env.EXECUTOR }} bandit --recursive .
       - name: Check types using mypy
         if: inputs.use-mypy
         working-directory: ${{ inputs.package-path }}
-        run: >
+        run: >  # zizmor: ignore[template-injection]
           ${{ env.EXECUTOR }} mypy --install-types --non-interactive .
       - name: Check types using pyright
         if: inputs.use-pyright
         working-directory: ${{ inputs.package-path }}
-        run: >
+        run: >  # zizmor: ignore[template-injection]
           ${{ env.EXECUTOR }} pyright --threads=0 .
