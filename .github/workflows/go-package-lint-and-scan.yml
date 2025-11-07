@@ -94,7 +94,7 @@ jobs:
           gosec -fmt sarif -out gosec-results.sarif ./...
       - name: Upload gosec results to GitHub Security tab
         if: inputs.use-gosec
-        uses: github/codeql-action/upload-sarif@192325c86100d080feab897ff886c34abd4c83a3  # v3.29.5
+        uses: github/codeql-action/upload-sarif@0499de31b99561a6d14a36a5f662c2a54f91beee  # v3.29.5
         with:
           sarif_file: ${{ inputs.package-path }}/gosec-results.sarif
         continue-on-error: true
