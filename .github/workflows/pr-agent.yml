@@ -164,7 +164,7 @@ jobs:
           aws-region: ${{ inputs.aws-region || steps.aws-profile-env.outputs.REGION || null }}
           role-session-name: github-actions-${{ github.run_id }}
       - name: Run PR-agent
-        uses: qodo-ai/pr-agent@eb4cdbb115dfb711375a24eccc75e3ef73ec03bc  # v0.30
+        uses: qodo-ai/pr-agent@d36ad319f7fb0049205017405a71275c41599587  # v0.31
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
           CONFIG.AUTO_DESCRIBE: ${{ inputs.auto-describe || 'true' }}
