@@ -112,7 +112,7 @@ jobs:
       - name: Prepare working directories for Terraform
         working-directory: ${{ inputs.terragrunt-working-directory }}
         run: |
-          terragrunt run-all init
+          terragrunt run --all -- init
       - name: Start or stop EC2 instances
         if: inputs.terragrunt-target-ec2-directory != null
         env:

@@ -28,6 +28,25 @@
 - Run `./githook/auto-format-and-lint.sh` before committing changes
 - Workflows stored at `.github/workflows/` with symlink at `workflows/`
 
+## Testing Guidelines
+
+### Test Desiderata
+
+Desirable properties of tests:
+
+- **Isolated**: results never depend on test order or shared state.
+- **Composable**: validate dimensions separately and combine results.
+- **Deterministic**: same inputs produce the same outcome.
+- **Fast**: keep runtime short to encourage frequent execution.
+- **Writable**: cheap to create relative to code value.
+- **Readable**: intent and motivation are obvious to reviewers.
+- **Behavioral**: sensitive to user-visible behavior changes.
+- **Structure-insensitive**: refactors shouldn’t flip results.
+- **Automated**: run without human intervention.
+- **Specific**: failures point clearly to the cause.
+- **Predictive**: passing suite signals production readiness.
+- **Inspiring**: green builds build team confidence.
+
 ## Serena MCP Usage (Prioritize When Available)
 
 - **If Serena MCP is available, use it first.** Treat Serena MCP tools as the primary interface over local commands or ad-hoc scripts.
@@ -36,30 +55,6 @@
 - **Never hardcode secrets.** Reference environment variables or the MCP’s configured credential store; avoid printing tokens or sensitive paths.
 - **If Serena MCP isn’t enabled or lacks a needed capability, say so and propose a safe fallback.** Mention enabling it via `.mcp.json` when relevant.
 - **Be explicit and reproducible.** Name the exact MCP tool and arguments you intend to use in your steps.
-
-## Web Search Instructions
-
-For tasks requiring web search, always use Gemini CLI (`gemini` command) instead of the built-in web search tools.
-Gemini CLI is an AI workflow tool that provides reliable web search capabilities.
-
-### Usage
-
-```sh
-# Basic search query
-gemini --sandbox --prompt "WebSearch: <query>"
-
-# Example: Search for latest news
-gemini --sandbox --prompt "WebSearch: What are the latest developments in AI?"
-```
-
-### Policy
-
-When users request information that requires web search:
-
-1. Use `gemini --sandbox --prompt` command via terminal
-2. Parse and present the Gemini response appropriately
-
-This ensures consistent and reliable web search results through the Gemini API.
 
 ## Code Design Principles
 
