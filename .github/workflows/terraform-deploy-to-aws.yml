@@ -190,7 +190,7 @@ jobs:
         if: inputs.terragrunt-version != null
         working-directory: ${{ inputs.terraform-or-terragrunt-working-directory }}
         run: |
-          terragrunt run-all init
+          terragrunt run --all -- init
       - name: Prepare working directories for Terraform
         if: inputs.terragrunt-version == null
         working-directory: ${{ inputs.terraform-or-terragrunt-working-directory }}
@@ -206,7 +206,7 @@ jobs:
         if: inputs.terragrunt-version != null
         working-directory: ${{ inputs.terraform-or-terragrunt-working-directory }}
         run: |
-          terragrunt run-all validate
+          terragrunt run --all -- validate
       - name: Check whether the configuration of Terraform is valid
         if: inputs.terragrunt-version != null
         working-directory: ${{ inputs.terraform-or-terragrunt-working-directory }}
@@ -216,12 +216,12 @@ jobs:
         if: (! inputs.apply) && (! inputs.destroy) && inputs.terragrunt-version != null
         working-directory: ${{ inputs.terraform-or-terragrunt-working-directory }}
         run: |
-          terragrunt run-all plan
+          terragrunt run --all -- plan
       - name: Show destroy changes required by the current configuration of Terraform and Terragrunt
         if: (! inputs.apply) && inputs.destroy && inputs.terragrunt-version != null
         working-directory: ${{ inputs.terraform-or-terragrunt-working-directory }}
         run: |
-          terragrunt run-all plan -- -destroy
+          terragrunt run --all -- plan -destroy
       - name: Show changes required by the current configuration of Terraform
         if: (! inputs.apply) && (! inputs.destroy) && inputs.terragrunt-version == null
         env:
@@ -248,12 +248,12 @@ jobs:
         if: inputs.apply && (! inputs.destroy) && inputs.terragrunt-version != null
         working-directory: ${{ inputs.terraform-or-terragrunt-working-directory }}
         run: |
-          terragrunt run-all apply --non-interactive
+          terragrunt run --non-interactive --all -- apply
       - name: Destroy infrastructure using Terraform and Terragrunt
         if: inputs.apply && inputs.destroy && inputs.terragrunt-version != null
         working-directory: ${{ inputs.terraform-or-terragrunt-working-directory }}
         run: |
-          terragrunt run-all destroy --non-interactive
+          terragrunt run --non-interactive --all -- destroy
       - name: Create or update infrastructure using Terraform
         if: inputs.apply && (! inputs.destroy) && inputs.terragrunt-version == null
         env:
