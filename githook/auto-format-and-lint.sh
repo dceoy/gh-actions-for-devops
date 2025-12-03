@@ -19,9 +19,9 @@ if [[ "${N_PYTHON_FILES}" -gt 0 ]]; then
     poetry -C "${PACKAGE_DIRECTORY}" run ruff check --fix .
     poetry -C "${PACKAGE_DIRECTORY}" run pyright .
   elif [[ -n "${PACKAGE_DIRECTORY}" ]]; then
-    ruff format .
-    ruff check --fix .
-    pyright .
+    ruff format "${PACKAGE_DIRECTORY}"
+    ruff check --fix "${PACKAGE_DIRECTORY}"
+    pyright "${PACKAGE_DIRECTORY}"
   else
     ruff format --exclude=build --exclude=.venv "--line-length=${PYTHON_LINE_LENGTH}" .
     ruff check --fix --exclude=build --exclude=.venv "--line-length=${PYTHON_LINE_LENGTH}" --extend-select="${RUFF_LINT_EXTEND_SELECT}" --ignore="${RUFF_LINT_IGNORE}" .
@@ -34,6 +34,22 @@ if [[ "${N_BASH_FILES}" -gt 0 ]]; then
   find . -maxdepth "${MAX_DEPTH}" -type f \( -name '*.sh' -o -name '*.bash' -o -name '*.bats' \) \
     | grep -v '/\.venv/' \
     | xargs -t shellcheck
+fi
+
+N_TYPESCRIPT_FILES=$(find . -maxdepth "${MAX_DEPTH}" -path '*/node_modules/*' -prune -o -type f \( -name '*.ts' -o -name '*.tsx' -o -name '*.js' -o -name '*.jsx' \) -print | wc -l)
+if [[ "${N_TYPESCRIPT_FILES}" -gt 0 ]]; then
+  PACKAGE_FILE=$(find . -maxdepth "${MAX_DEPTH}" -path '*/node_modules/*' -prune -o -type f -name 'package.json' -print -quit)
+  if [[ -n "${PACKAGE_FILE}" ]]; then
+    PACKAGE_DIRECTORY="$(dirname "${PACKAGE_FILE}")"
+    NODE_MODULES_BIN="${PACKAGE_DIRECTORY}/node_modules/.bin"
+    "${NODE_MODULES_BIN}/eslint" --ext .js,.jsx,.ts,.tsx "${PACKAGE_DIRECTORY}"
+    "${NODE_MODULES_BIN}/prettier" --check "${PACKAGE_DIRECTORY}/**/*.{js,jsx,ts,tsx,json,css,scss,md}"
+    "${NODE_MODULES_BIN}/tsc" --noEmit --project "${PACKAGE_DIRECTORY}/tsconfig.json"
+  else
+    eslint --ext .js,.jsx,.ts,.tsx .
+    prettier --check '**/*.{js,jsx,ts,tsx,json,css,scss,md}'
+    tsc --noEmit
+  fi
 fi
 
 N_GO_FILES=$(find . -maxdepth "${MAX_DEPTH}" -type f -name '*.go' | wc -l)
