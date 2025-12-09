@@ -7,7 +7,7 @@
 - **GitHub Actions scanning**: `zizmor --fix=safe .github/workflows`
 - **YAML linting**: `find .github/workflows -name "*.yml" | xargs yamllint -d '{"extends": "relaxed", "rules": {"line-length": "disable"}}'`
 - **Go formatting and linting**: `golangci-lint fmt -E gofumpt -E goimports && golangci-lint run --fix && govulncheck ./... && gosec ./...`
-- **Terraform formatting and linting**: `terraform fmt -recursive . && terragrunt hclfmt --diff && tflint --recursive`
+- **Terraform formatting and linting**: `terraform fmt -recursive . && terragrunt hcl format --diff && tflint --recursive`
 - **Security scanning**: `trivy filesystem --scanners vuln,secret,misconfig .`
 - **Build README**: `go run ./src/build_readme_md.go`
 

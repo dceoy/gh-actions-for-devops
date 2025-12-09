@@ -74,12 +74,12 @@ jobs:
           SEARCH_PATH: ${{ inputs.search-path }}
         run: |
           terraform fmt -recursive "${SEARCH_PATH}"
-      - name: Format the code using terragrunt hclfmt
+      - name: Format the code using terragrunt hcl format
         if: inputs.terragrunt-version != null
         env:
           SEARCH_PATH: ${{ inputs.search-path }}
         run: |
-          terragrunt hclfmt --diff --working-dir="${SEARCH_PATH}"
+          terragrunt hcl format --diff --working-dir="${SEARCH_PATH}"
       - name: Lint the code using TFLint
         if: inputs.lint-before-pr
         env:
