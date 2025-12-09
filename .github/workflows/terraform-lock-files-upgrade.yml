@@ -76,7 +76,7 @@ jobs:
           terraform_version: ${{ inputs.terraform-version }}
       - name: Install Terragrunt
         if: inputs.terragrunt-working-directories != null
-        uses: dceoy/setup-terragrunt@a492a472c503fee3076bd39eb85d5fbe37265aca  # v1.0.1
+        uses: dceoy/setup-terragrunt@1cbef4029fa29d03260e3572cd1df1d45fd3f290  # v2.0.0
         with:
           terragrunt-version: ${{ inputs.terragrunt-version }}
       - name: Upgrade Terraform lock files
