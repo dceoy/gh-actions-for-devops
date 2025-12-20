@@ -21,6 +21,11 @@ on:
         type: boolean
         description: Show what would be updated without making changes
         default: false
+      runs-on:
+        required: false
+        type: string
+        description: Runner to use
+        default: ubuntu-latest
 permissions:
   contents: read
   id-token: write
@@ -29,7 +34,7 @@ defaults:
     shell: bash -euo pipefail {0}
 jobs:
   update-parameters:
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runs-on }}
     timeout-minutes: 30
     steps:
       - name: Checkout repository

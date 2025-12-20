@@ -23,6 +23,11 @@ on:
         type: string
         description: Configuration data for yamllint
         default: '{"extends": "relaxed", "rules": {"line-length": "disable"}}'
+      runs-on:
+        required: false
+        type: string
+        description: Runner to use
+        default: ubuntu-latest
 permissions:
   contents: read
 defaults:
@@ -31,7 +36,7 @@ defaults:
     working-directory: .
 jobs:
   cloudformation-lint:
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runs-on }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6.0.1

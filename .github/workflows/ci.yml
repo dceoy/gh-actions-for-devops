@@ -96,6 +96,7 @@ jobs:
     with:
       language: >
         ["go"]
+      runs-on: ubuntu-slim
   github-release:
     if: >
       github.event_name == 'workflow_dispatch' && inputs.workflow == 'release'
@@ -104,6 +105,7 @@ jobs:
     uses: ./.github/workflows/github-release.yml
     with:
       create-new-tag: false
+      runs-on: ubuntu-slim
     secrets:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   dependabot-auto-merge:
@@ -122,6 +124,7 @@ jobs:
     uses: ./.github/workflows/dependabot-auto-merge.yml
     with:
       unconditional: true
+      runs-on: ubuntu-slim
     secrets:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   update-readme-md:

@@ -146,6 +146,11 @@ on:
         type: string
         description: Google Service Account to use for authentication
         default: null
+      runs-on:
+        required: false
+        type: string
+        description: Runner to use
+        default: ubuntu-latest
     outputs:
       execution-file:
         description: Path to the Claude Code execution output file
@@ -167,7 +172,7 @@ permissions:
   id-token: write
 jobs:
   claude-code-action:
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runs-on }}
     timeout-minutes: ${{ inputs.timeout-minutes || 30 }}
     outputs:
       execution-file: ${{ steps.claude-code-action.outputs.execution_file }}

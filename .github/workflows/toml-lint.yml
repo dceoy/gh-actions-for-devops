@@ -13,13 +13,18 @@ on:
         type: string
         description: Go version to use
         default: stable
+      runs-on:
+        required: false
+        type: string
+        description: Runner to use
+        default: ubuntu-latest
 defaults:
   run:
     shell: bash -euo pipefail {0}
     working-directory: .
 jobs:
   lint:
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runs-on }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6.0.1

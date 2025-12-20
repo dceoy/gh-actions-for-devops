@@ -13,6 +13,11 @@ on:
         type: boolean
         description: Create a new tag if the input tag does not exist
         default: false
+      runs-on:
+        required: false
+        type: string
+        description: Runner to use
+        default: ubuntu-latest
     secrets:
       GH_TOKEN:
         required: false
@@ -37,7 +42,7 @@ defaults:
     working-directory: .
 jobs:
   github-release:
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runs-on }}
     env:
       GH_TOKEN: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
     steps:

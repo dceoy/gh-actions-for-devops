@@ -13,6 +13,11 @@ on:
         type: boolean
         description: Whether to merge the PR automatically only after necessary requirements are met
         default: false
+      runs-on:
+        required: false
+        type: string
+        description: Runner to use
+        default: ubuntu-latest
     secrets:
       GH_TOKEN:
         required: false
@@ -28,7 +33,7 @@ defaults:
 jobs:
   dependabot-auto-merge:
     if: github.event.pull_request.user.login == 'dependabot[bot]'
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runs-on }}
     env:
       PR_URL: ${{ github.event.pull_request.html_url }}
       GH_TOKEN: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}

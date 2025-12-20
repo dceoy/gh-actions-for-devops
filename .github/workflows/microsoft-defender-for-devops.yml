@@ -8,9 +8,14 @@ on:
         type: string
         description: .NET version to use
         default: 6.0.x
+      runs-on:
+        required: false
+        type: string
+        description: Runner to use
+        default: windows-latest
 jobs:
   msdo:
-    runs-on: windows-latest
+    runs-on: ${{ inputs.runs-on }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6.0.1

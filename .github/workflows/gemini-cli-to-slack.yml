@@ -53,6 +53,11 @@ on:
         type: string
         description: Path to a file containing the text of the Slack message
         default: null
+      runs-on:
+        required: false
+        type: string
+        description: Runner to use
+        default: ubuntu-latest
     secrets:
       GEMINI_API_KEY:
         required: true
@@ -71,7 +76,7 @@ defaults:
     working-directory: .
 jobs:
   gemini-to-slack:
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runs-on }}
     env:
       GEMINI_CLI_VERSION: ${{ inputs.gemini-cli-version || 'latest' }}
     steps:
