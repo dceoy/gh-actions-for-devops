@@ -13,6 +13,11 @@ on:
         type: string
         description: The pull request number to delete the branch for
         default: null
+      runs-on:
+        required: false
+        type: string
+        description: Runner to use
+        default: ubuntu-latest
     secrets:
       GH_TOKEN:
         required: false
@@ -28,7 +33,7 @@ jobs:
   delete-merged-branch:
     if: >
       inputs.pull-request-number != null || github.event.pull_request.merged
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runs-on }}
     env:
       GH_TOKEN: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
       PR_NUMBER: ${{ inputs.pull-request-number || github.event.pull_request.number }}

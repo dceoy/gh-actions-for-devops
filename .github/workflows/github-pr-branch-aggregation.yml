@@ -13,6 +13,11 @@ on:
         type: boolean
         description: Delete the merged branches
         default: false
+      runs-on:
+        required: false
+        type: string
+        description: Runner to use
+        default: ubuntu-latest
     outputs:
       merged-pr-branches-json:
         description: JSON array of the merged branches
@@ -32,7 +37,7 @@ jobs:
   branch-list:
     if: >
       github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runs-on }}
     env:
       BRANCH_PREFIX: ${{ inputs.branch-prefix }}
       HEAD_REF: ${{ github.head_ref }}
@@ -57,7 +62,7 @@ jobs:
       needs.branch-list.outputs.pr_branches_json != '[]'
     needs:
       - branch-list
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runs-on }}
     env:
       BRANCHES_JSON: ${{ needs.branch-list.outputs.pr_branches_json }}
       HEAD_REF: ${{ github.head_ref }}

@@ -53,6 +53,11 @@ on:
         type: boolean
         description: Whether to mask the response body in the Slack message
         default: false
+      runs-on:
+        required: false
+        type: string
+        description: Runner to use
+        default: ubuntu-latest
     secrets:
       SLACK_API_TOKEN:
         required: true
@@ -63,7 +68,7 @@ defaults:
     working-directory: .
 jobs:
   synthetic-api-monitoring:
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runs-on }}
     steps:
       - name: Call the external API and capture the HTTP status code
         id: external-api-call
