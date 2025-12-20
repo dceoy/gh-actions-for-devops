@@ -7,9 +7,9 @@ MAX_DEPTH=7
 PYTHON_LINE_LENGTH=88
 RUFF_LINT_EXTEND_SELECT='F,E,W,C90,I,N,D,UP,S,B,A,COM,C4,PT,Q,SIM,ARG,ERA,PD,PLC,PLE,PLW,TRY,FLY,NPY,PERF,FURB,RUF'
 RUFF_LINT_IGNORE='D100,D103,D203,D213,S101,B008,A002,A004,COM812,PLC2701,TRY003'
-N_PYTHON_FILES=$(find . -maxdepth "${MAX_DEPTH}" -type f -name '*.py' | wc -l)
+N_PYTHON_FILES=$(find . -maxdepth "${MAX_DEPTH}" -path '*/.*' -prune -o -type f -name '*.py' -print | wc -l)
 if [[ "${N_PYTHON_FILES}" -gt 0 ]]; then
-  PACKAGE_DIRECTORY="$(find . -maxdepth "${MAX_DEPTH}" -type f -name 'pyproject.toml' -exec dirname {} \; | head -n 1)"
+  PACKAGE_DIRECTORY="$(find . -maxdepth "${MAX_DEPTH}" -path '*/.*' -prune -o -type f -name 'pyproject.toml' -exec dirname {} \; | head -n 1)"
   if [[ -n "${PACKAGE_DIRECTORY}" ]] && [[ -f "${PACKAGE_DIRECTORY}/uv.lock" ]]; then
     uv run --directory "${PACKAGE_DIRECTORY}" ruff format .
     uv run --directory "${PACKAGE_DIRECTORY}" ruff check --fix .
@@ -29,22 +29,22 @@ if [[ "${N_PYTHON_FILES}" -gt 0 ]]; then
   fi
 fi
 
-N_BASH_FILES=$(find . -maxdepth "${MAX_DEPTH}" -type f \( -name '*.sh' -o -name '*.bash' -o -name '*.bats' \) | grep -cv '/\.venv/' || :)
+N_BASH_FILES=$(find . -maxdepth "${MAX_DEPTH}" -path '*/.*' -prune -o -type f \( -name '*.sh' -o -name '*.bash' -o -name '*.bats' \) -print | wc -l)
 if [[ "${N_BASH_FILES}" -gt 0 ]]; then
-  find . -maxdepth "${MAX_DEPTH}" -type f \( -name '*.sh' -o -name '*.bash' -o -name '*.bats' \) \
-    | grep -v '/\.venv/' \
-    | xargs -t shellcheck
+  find . -maxdepth "${MAX_DEPTH}" -path '*/.*' -prune -o -type f \( -name '*.sh' -o -name '*.bash' -o -name '*.bats' \) -print0 \
+    | xargs -0 -t shellcheck
 fi
 
-N_TYPESCRIPT_FILES=$(find . -maxdepth "${MAX_DEPTH}" -path '*/node_modules/*' -prune -o -type f \( -name '*.ts' -o -name '*.tsx' -o -name '*.js' -o -name '*.jsx' \) -print | wc -l)
+N_TYPESCRIPT_FILES=$(find . -maxdepth "${MAX_DEPTH}" \( -path '*/.*' -o -path '*/node_modules/*' \) -prune -o -type f \( -name '*.ts' -o -name '*.tsx' -o -name '*.js' -o -name '*.jsx' \) -print | wc -l)
 if [[ "${N_TYPESCRIPT_FILES}" -gt 0 ]]; then
-  PACKAGE_FILE=$(find . -maxdepth "${MAX_DEPTH}" -path '*/node_modules/*' -prune -o -type f -name 'package.json' -print -quit)
+  PACKAGE_FILE=$(find . -maxdepth "${MAX_DEPTH}" \( -path '*/.*' -o -path '*/node_modules/*' \) -prune -o -type f -name 'package.json' -print -quit)
   if [[ -n "${PACKAGE_FILE}" ]]; then
     PACKAGE_DIRECTORY="$(dirname "${PACKAGE_FILE}")"
     NODE_MODULES_BIN="${PACKAGE_DIRECTORY}/node_modules/.bin"
-    "${NODE_MODULES_BIN}/eslint" --ext .js,.jsx,.ts,.tsx "${PACKAGE_DIRECTORY}"
-    "${NODE_MODULES_BIN}/prettier" --check "${PACKAGE_DIRECTORY}/**/*.{js,jsx,ts,tsx,json,css,scss,md}"
-    "${NODE_MODULES_BIN}/tsc" --noEmit --project "${PACKAGE_DIRECTORY}/tsconfig.json"
+    PATH="${NODE_MODULES_BIN}:${PATH}"
+    eslint --ext .js,.jsx,.ts,.tsx "${PACKAGE_DIRECTORY}"
+    prettier --check "${PACKAGE_DIRECTORY}/**/*.{js,jsx,ts,tsx,json,css,scss,md}"
+    tsc --noEmit --project "${PACKAGE_DIRECTORY}/tsconfig.json"
   else
     eslint --ext .js,.jsx,.ts,.tsx .
     prettier --check '**/*.{js,jsx,ts,tsx,json,css,scss,md}'
@@ -52,7 +52,7 @@ if [[ "${N_TYPESCRIPT_FILES}" -gt 0 ]]; then
   fi
 fi
 
-N_GO_FILES=$(find . -maxdepth "${MAX_DEPTH}" -type f -name '*.go' | wc -l)
+N_GO_FILES=$(find . -maxdepth "${MAX_DEPTH}" -path '*/.*' -prune -o -type f -name '*.go' -print | wc -l)
 if [[ "${N_GO_FILES}" -gt 0 ]]; then
   golangci-lint fmt --enable=gofumpt --enable=goimports
   golangci-lint run --fix
@@ -66,14 +66,14 @@ if [[ -d '.github/workflows' ]]; then
     | xargs -0 -t yamllint -d '{"extends": "relaxed", "rules": {"line-length": "disable"}}'
 fi
 
-N_TERRAFORM_FILES=$(find . -maxdepth "${MAX_DEPTH}" -type f \( -name '*.tf' -o -name '*.hcl' \) | wc -l)
+N_TERRAFORM_FILES=$(find . -maxdepth "${MAX_DEPTH}" -path '*/.*' -prune -o -type f \( -name '*.tf' -o -name '*.hcl' \) -print | wc -l)
 if [[ "${N_TERRAFORM_FILES}" -gt 0 ]]; then
   terraform fmt -recursive .
   terragrunt hcl format --diff --working-dir .
   tflint --recursive --chdir=.
 fi
 
-# N_DOCKER_FILES=$(find . -maxdepth "${MAX_DEPTH}" -type f -name 'Dockerfile' | wc -l)
+# N_DOCKER_FILES=$(find . -maxdepth "${MAX_DEPTH}" -path '*/.*' -prune -o -type f -name 'Dockerfile' -print | wc -l)
 # if [[ "${N_DOCKER_FILES}" -gt 0 ]] || [[ "${N_TERRAFORM_FILES}" -gt 0 ]]; then
 #   trivy filesystem --scanners vuln,secret,misconfig --skip-dirs .venv --skip-dirs .terraform --skip-dirs .terragrunt-cache --skip-dirs .git .
 # fi
