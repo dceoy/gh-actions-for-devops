@@ -35,33 +35,33 @@ if [[ "${N_BASH_FILES}" -gt 0 ]]; then
     | xargs -0 -t shellcheck
 fi
 
-N_HTML_FILES=$(find . -maxdepth "${MAX_DEPTH}" -path '*/.*' -prune -o -type f -name '*.html' -print | wc -l)
-if [[ "${N_HTML_FILES}" -gt 0 ]]; then
-  htmllint '**/*.html'
-fi
-
-# N_MD_FILES=$(find . -maxdepth "${MAX_DEPTH}" -path '*/.*' -prune -o -type f -name '*.md' -print | wc -l)
-# if [[ "${N_MD_FILES}" -gt 0 ]]; then
-#   markdownlint-cli2 '**/*.md'
-# fi
-
 N_TYPESCRIPT_FILES=$(find . -maxdepth "${MAX_DEPTH}" \( -path '*/.*' -o -path '*/node_modules/*' \) -prune -o -type f \( -name '*.ts' -o -name '*.tsx' -o -name '*.js' -o -name '*.jsx' \) -print | wc -l)
 if [[ "${N_TYPESCRIPT_FILES}" -gt 0 ]]; then
-  PACKAGE_FILE=$(find . -maxdepth "${MAX_DEPTH}" \( -path '*/.*' -o -path '*/node_modules/*' \) -prune -o -type f -name 'package.json' -print -quit)
-  if [[ -n "${PACKAGE_FILE}" ]]; then
-    PACKAGE_DIRECTORY="$(dirname "${PACKAGE_FILE}")"
+  PACKAGE_JSON_FILE=$(find . -maxdepth "${MAX_DEPTH}" \( -path '*/.*' -o -path '*/node_modules/*' \) -prune -o -type f -name 'package.json' -print -quit)
+  if [[ -n "${PACKAGE_JSON_FILE}" ]]; then
+    PACKAGE_DIRECTORY="$(dirname "${PACKAGE_JSON_FILE}")"
     NODE_MODULES_BIN="${PACKAGE_DIRECTORY}/node_modules/.bin"
     PATH="${NODE_MODULES_BIN}:${PATH}"
     eslint --ext .js,.jsx,.ts,.tsx "${PACKAGE_DIRECTORY}"
-    prettier --check "${PACKAGE_DIRECTORY}/**/*.{js,jsx,ts,tsx,json,css,scss,md,html,yaml,yml,json,jsonc}"
+    prettier --check "${PACKAGE_DIRECTORY}/**/*.{js,jsx,ts,tsx,json,css,scss}"
     tsc --noEmit --project "${PACKAGE_DIRECTORY}/tsconfig.json"
   else
     eslint --ext .js,.jsx,.ts,.tsx .
-    prettier --check '**/*.{js,jsx,ts,tsx,json,css,scss,md,html}'
+    prettier --check '**/*.{js,jsx,ts,tsx,json,css,scss}'
     tsc --noEmit
   fi
-else
-  prettier --check './**/*.{css,scss,md,html}'
+fi
+
+N_HTML_FILES=$(find . -maxdepth "${MAX_DEPTH}" -path '*/.*' -prune -o -type f \( -name '*.html' -o -name '*.htm' \) -print | wc -l)
+if [[ "${N_HTML_FILES}" -gt 0 ]]; then
+  prettier --check './**/*.{html,htm}'
+  htmlhint './**/*.{html,htm}'
+fi
+
+N_MARKDOWN_FILES=$(find . -maxdepth "${MAX_DEPTH}" -path '*/.*' -prune -o -type f -name '*.md' -print | wc -l)
+if [[ "${N_MARKDOWN_FILES}" -gt 0 ]]; then
+  prettier --check './**/*.md'
+  # markdownlint-cli2 './**/*.md'
 fi
 
 N_GO_FILES=$(find . -maxdepth "${MAX_DEPTH}" -path '*/.*' -prune -o -type f -name '*.go' -print | wc -l)
