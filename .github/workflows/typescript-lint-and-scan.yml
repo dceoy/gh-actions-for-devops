@@ -18,6 +18,11 @@ on:
         type: boolean
         description: Use Prettier to format code
         default: true
+      prettier-glob:
+        required: false
+        type: string
+        description: Glob pattern for Prettier to format
+        default: '**/*.{js,jsx,ts,tsx,css,scss,html,md}'
       use-react:
         required: false
         type: boolean
@@ -93,8 +98,10 @@ jobs:
       - name: Check formatting with Prettier
         if: inputs.use-prettier
         working-directory: ${{ inputs.package-path }}
+        env:
+          PRETTIER_GLOB: ${{ inputs.prettier-glob }}
         run: >
-          prettier --check '**/*.{js,jsx,ts,tsx,json,css,scss,md,html}'
+          prettier --check "${PRETTIER_GLOB}"
       - name: Check types with TypeScript
         if: inputs.use-tsc
         working-directory: ${{ inputs.package-path }}
