@@ -59,11 +59,9 @@ jobs:
 The workflows are organized by category for easier navigation. Each workflow is designed to be called from other repositories using the `workflow_call` trigger.
 
 ### All Reusable Workflows
-
-- [.github/workflows/](.github/workflows/)
 {% for f in workflows %}
-  - [{{ f.file }}](.github/workflows/{{ f.file }})
-    - {{ f.name }}
+- [{{ f.file }}](.github/workflows/{{ f.file }})
+  - {{ f.name }}
 {% endfor %}
 ## License
 

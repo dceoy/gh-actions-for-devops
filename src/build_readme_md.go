@@ -182,8 +182,7 @@ func renderMD(workflows []Workflow, templatePath, outputPath string) {
 		log.Fatalf("Failed to execute template: %v", err)
 	}
 
-	// Remove trailing newlines
-	content := bytes.TrimRight(buf.Bytes(), "\n")
+	content := buf.Bytes()
 
 	if err := os.WriteFile(outputPath, content, 0o600); err != nil {
 		log.Fatalf("Failed to write output file: %v", err)
