@@ -150,6 +150,10 @@ jobs:
         uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c  # v6.1.0
         with:
           go-version: stable
+      - name: Setup Node.js
+        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f  # v6.1.0
+        with:
+          node-version: latest
       - name: Install dependencies
         run: |
           go mod download
@@ -161,6 +165,9 @@ jobs:
       - name: Update README.md
         run: |
           ./src/build_readme_md
+      - name: Prettify README.md
+        run: |
+          npx prettier --write ./README.md
       - name: Commit and push the changes
         uses: EndBug/add-and-commit@a94899bca583c204427a224a7af87c02f9b325d5  # v9.1.4
         with:
