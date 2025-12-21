@@ -18,6 +18,11 @@ on:
         type: boolean
         description: Use Prettier to format code
         default: true
+      prettier-glob:
+        required: false
+        type: string
+        description: Glob pattern for Prettier to format
+        default: '**/*.{js,jsx,ts,tsx,css,scss,html,md}'
       use-eslint:
         required: false
         type: boolean
@@ -91,8 +96,10 @@ jobs:
       - name: Format the code using Prettier
         if: inputs.use-prettier
         working-directory: ${{ inputs.package-path }}
+        env:
+          PRETTIER_GLOB: ${{ inputs.prettier-glob }}
         run: >
-          prettier --write '**/*.{js,jsx,ts,tsx,json,css,scss,md,html,yml,yaml,json,jsonc}'
+          prettier --write "${PRETTIER_GLOB}"
       - name: Format the code using ESLint
         if: inputs.use-eslint
         working-directory: ${{ inputs.package-path }}
