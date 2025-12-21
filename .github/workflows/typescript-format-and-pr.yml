@@ -1,0 +1,144 @@
+---
+name: Formatting for TypeScript
+on:
+  workflow_call:
+    inputs:
+      package-path:
+        required: false
+        type: string
+        description: Path to a TypeScript project
+        default: .
+      node-version:
+        required: false
+        type: string
+        description: Node.js version to use
+        default: latest
+      use-prettier:
+        required: false
+        type: boolean
+        description: Use Prettier to format code
+        default: true
+      use-eslint:
+        required: false
+        type: boolean
+        description: Use ESLint to format code
+        default: true
+      lint-before-pr:
+        required: false
+        type: boolean
+        description: Run lint before creating a pull request
+        default: true
+      additional-npm-packages:
+        required: false
+        type: string
+        description: Additional NPM packages to install
+        default: null
+      runs-on:
+        required: false
+        type: string
+        description: GitHub Actions runner to use
+        default: ubuntu-latest
+    secrets:
+      GH_TOKEN:
+        required: false
+        description: GitHub token
+permissions:
+  contents: write
+  pull-requests: write
+defaults:
+  run:
+    shell: bash -euo pipefail {0}
+    working-directory: .
+jobs:
+  format-and-pr:
+    runs-on: ${{ inputs.runs-on }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6.0.1
+        with:
+          persist-credentials: false
+      - name: Setup Node.js
+        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f  # v6.1.0
+        with:
+          node-version: ${{ inputs.node-version }}
+          cache: npm
+          cache-dependency-path: ${{ inputs.package-path }}/package-lock.json
+      - name: Install dependencies
+        env:
+          ADDITIONAL_NPM_PACKAGES: ${{ inputs.additional-npm-packages }}
+        working-directory: ${{ inputs.package-path }}
+        run: |
+          if [[ -f package-lock.json ]]; then
+            npm ci
+          elif [[ -f yarn.lock ]]; then
+            npm install -g yarn
+            yarn install --frozen-lockfile
+            echo 'PACKAGE_MANAGER=yarn' >> "${GITHUB_ENV}"
+          elif [[ -f package.json ]]; then
+            npm install
+          else
+            npm upgrade -g
+          fi
+          npm install --save-dev \
+            ${{ inputs.use-eslint && 'eslint typescript @typescript-eslint/eslint-plugin @typescript-eslint/parser' || '' }} \
+            ${{ inputs.use-prettier && 'prettier eslint-config-prettier' || '' }}
+          for p in $(echo "${ADDITIONAL_NPM_PACKAGES}" | tr ' ' '\n'); do
+            if [[ -n "${p}" ]]; then
+              npm install --save-dev "${p}"
+            fi
+          done
+          echo "PATH=${PWD}/node_modules/.bin:${PATH}" >> "${GITHUB_ENV}"
+      - name: Format the code using Prettier
+        if: inputs.use-prettier
+        working-directory: ${{ inputs.package-path }}
+        run: >
+          prettier --write '**/*.{js,jsx,ts,tsx,json,css,scss,md,html,yml,yaml,json,jsonc}'
+      - name: Format the code using ESLint
+        if: inputs.use-eslint
+        working-directory: ${{ inputs.package-path }}
+        run: >
+          eslint --ext .js,.jsx,.ts,.tsx --fix .
+      - name: Lint the code using ESLint
+        if: inputs.use-eslint && inputs.lint-before-pr
+        working-directory: ${{ inputs.package-path }}
+        run: >
+          eslint --ext .js,.jsx,.ts,.tsx .
+      - name: Create output parameters
+        id: parameters
+        env:
+          USE_PRETTIER: ${{ inputs.use-prettier }}
+          USE_ESLINT: ${{ inputs.use-eslint }}
+          PR_BASE: ${{ github.head_ref || github.ref_name }}
+        run: |
+          if ${USE_PRETTIER} && ${USE_ESLINT}; then
+            formatters='prettier and eslint'
+          elif ${USE_PRETTIER}; then
+            formatters='prettier'
+          elif ${USE_ESLINT}; then
+            formatters='eslint'
+          else
+            formatters='TypeScript formatters'
+          fi
+          {
+            echo "commit_message=Reformat TypeScript code using ${formatters}"
+            echo "pr_base=${PR_BASE}"
+            echo "pr_branch=automatedpr/${PR_BASE}"
+          } >> "${GITHUB_OUTPUT}"
+      - name: Detect changed files and create a pull request
+        uses: peter-evans/create-pull-request@98357b18bf14b5342f975ff684046ec3b2a07725  # v8.0.0
+        with:
+          token: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
+          commit-message: ${{ steps.parameters.outputs.commit_message }}
+          title: ${{ steps.parameters.outputs.commit_message }}
+          branch: ${{ steps.parameters.outputs.pr_branch }}
+          base: ${{ steps.parameters.outputs.pr_base }}
+          labels: automated pr
+          body: |
+            This PR contains the following updates:
+
+            - ${{ steps.parameters.outputs.commit_message }}
+
+            This PR has been generated by
+            [${{ github.workflow_ref }}](https://github.com/${{ github.repository }}/).
+          delete-branch: true
+          draft: false
