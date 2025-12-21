@@ -94,7 +94,7 @@ jobs:
         if: inputs.use-prettier
         working-directory: ${{ inputs.package-path }}
         run: >
-          prettier --check '**/*.{js,jsx,ts,tsx,json,css,scss,md}'
+          prettier --check '**/*.{js,jsx,ts,tsx,json,css,scss,md,html}'
       - name: Check types with TypeScript
         if: inputs.use-tsc
         working-directory: ${{ inputs.package-path }}

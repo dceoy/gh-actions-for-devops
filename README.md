@@ -61,7 +61,6 @@ The workflows are organized by category for easier navigation. Each workflow is 
 ### All Reusable Workflows
 
 - [.github/workflows/](.github/workflows/)
-
   - [aws-cloudformation-lint.yml](.github/workflows/aws-cloudformation-lint.yml)
     - Lint for AWS CloudFormation
 
