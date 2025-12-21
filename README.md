@@ -117,6 +117,9 @@ The workflows are organized by category for easier navigation. Each workflow is 
 - [go-package-lint-and-scan.yml](.github/workflows/go-package-lint-and-scan.yml)
   - Lint and security scan for Go
 
+- [html-lint-and-scan.yml](.github/workflows/html-lint-and-scan.yml)
+  - Lint and scan for HTML/CSS
+
 - [json-lint.yml](.github/workflows/json-lint.yml)
   - Lint for JSON
 

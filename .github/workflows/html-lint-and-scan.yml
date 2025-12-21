@@ -1,0 +1,151 @@
+---
+name: Lint and scan for HTML/CSS
+on:
+  workflow_call:
+    inputs:
+      package-path:
+        required: false
+        type: string
+        description: Path to the frontend or static site project
+        default: .
+      node-version:
+        required: false
+        type: string
+        description: Node.js version to use
+        default: latest
+      use-prettier:
+        required: false
+        type: boolean
+        description: Check formatting with Prettier
+        default: true
+      use-htmlhint:
+        required: false
+        type: boolean
+        description: Lint HTML files with HTMLHint
+        default: true
+      use-stylelint:
+        required: false
+        type: boolean
+        description: Lint CSS (and related) files with stylelint
+        default: true
+      lint-html-embedded-css:
+        required: false
+        type: boolean
+        description: Lint CSS inside HTML style tags with stylelint
+        default: true
+      htmlhint-config:
+        required: false
+        type: string
+        description: Path to an HTMLHint configuration file
+        default: null
+      stylelint-config:
+        required: false
+        type: string
+        description: Path to a stylelint configuration file
+        default: null
+      prettier-glob:
+        required: false
+        type: string
+        description: Glob for files to check with Prettier
+        default: '**/*.{html,htm,css,scss}'
+      html-glob:
+        required: false
+        type: string
+        description: Glob for HTML files to lint with HTMLHint
+        default: '**/*.{html,htm}'
+      css-glob:
+        required: false
+        type: string
+        description: Glob for CSS files to lint with stylelint
+        default: '**/*.{css,scss,sass,less}'
+      additional-npm-packages:
+        required: false
+        type: string
+        description: Additional NPM packages to install
+        default: null
+      runs-on:
+        required: false
+        type: string
+        description: GitHub Actions runner to use
+        default: ubuntu-latest
+defaults:
+  run:
+    shell: bash -euo pipefail {0}
+    working-directory: .
+jobs:
+  lint-and-scan:
+    runs-on: ${{ inputs.runs-on }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6.0.1
+        with:
+          persist-credentials: false
+      - name: Setup Node.js
+        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f  # v6.1.0
+        with:
+          node-version: ${{ inputs.node-version }}
+          cache: npm
+          cache-dependency-path: ${{ inputs.package-path }}/package-lock.json
+      - name: Install dependencies
+        env:
+          ADDITIONAL_NPM_PACKAGES: ${{ inputs.additional-npm-packages }}
+        working-directory: ${{ inputs.package-path }}
+        run: |
+          if [[ -f package-lock.json ]]; then
+            npm ci
+          elif [[ -f yarn.lock ]]; then
+            npm install -g yarn
+            yarn install --frozen-lockfile
+            echo 'PACKAGE_MANAGER=yarn' >> "${GITHUB_ENV}"
+          elif [[ -f package.json ]]; then
+            npm install
+          else
+            npm upgrade -g
+          fi
+          npm install --save-dev \
+            ${{ inputs.use-prettier && 'prettier' || '' }} \
+            ${{ inputs.use-htmlhint && 'htmlhint' || '' }} \
+            ${{ inputs.use-stylelint && 'stylelint stylelint-config-standard stylelint-config-prettier' || '' }} \
+            ${{ inputs.lint-html-embedded-css && 'postcss-html' || '' }}
+          for p in $(echo "${ADDITIONAL_NPM_PACKAGES}" | tr ' ' '\n'); do
+            if [[ -n "${p}" ]]; then
+              npm install --save-dev "${p}"
+            fi
+          done
+          echo "PATH=${PWD}/node_modules/.bin:${PATH}" >> "${GITHUB_ENV}"
+      - name: Run HTMLHint
+        if: inputs.use-htmlhint
+        env:
+          HTMLHINT_CONFIG: ${{ inputs.htmlhint-config }}
+          HTML_GLOB: ${{ inputs.html-glob }}
+        working-directory: ${{ inputs.package-path }}
+        run: |
+          config_arg=()
+          if [[ -n "${HTMLHINT_CONFIG}" ]]; then
+            config_arg=(--config "${HTMLHINT_CONFIG}")
+          fi
+          htmlhint "${config_arg[@]}" "${HTML_GLOB}"
+      - name: Run stylelint
+        if: inputs.use-stylelint
+        env:
+          STYLELINT_CONFIG: ${{ inputs.stylelint-config }}
+          CSS_GLOB: ${{ inputs.css-glob }}
+          HTML_GLOB: ${{ inputs.html-glob }}
+          LINT_HTML_EMBEDDED_CSS: ${{ inputs.lint-html-embedded-css }}
+        working-directory: ${{ inputs.package-path }}
+        run: |
+          config_arg=()
+          if [[ -n "${STYLELINT_CONFIG}" ]]; then
+            config_arg=(--config "${STYLELINT_CONFIG}")
+          fi
+          stylelint "${config_arg[@]}" "${CSS_GLOB}"
+          if [[ "${LINT_HTML_EMBEDDED_CSS}" == "true" ]]; then
+            stylelint "${config_arg[@]}" --custom-syntax postcss-html "${HTML_GLOB}"
+          fi
+      - name: Check formatting with Prettier
+        if: inputs.use-prettier
+        env:
+          PRETTIER_GLOB: ${{ inputs.prettier-glob }}
+        working-directory: ${{ inputs.package-path }}
+        run: >
+          prettier --check "${PRETTIER_GLOB}"
