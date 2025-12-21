@@ -9,6 +9,11 @@ on:
         description: The language to analyze (JSON array)
         default: >
           ["python"]
+      go-version:
+        required: false
+        type: string
+        description: Go version to use
+        default: stable
       runs-on:
         required: false
         type: string
@@ -31,6 +36,11 @@ jobs:
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6.0.1
         with:
           persist-credentials: false
+      - name: Set up Go
+        if: matrix.language == 'go'
+        uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c  # v6.1.0
+        with:
+          go-version: ${{ inputs.go-version }}
       - name: Initialize CodeQL
         uses: github/codeql-action/init@0499de31b99561a6d14a36a5f662c2a54f91beee  # v3.29.5
         with:
