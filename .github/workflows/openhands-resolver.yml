@@ -22,7 +22,7 @@ permissions:
   issues: write
 jobs:
   call-openhands-resolver:
-    uses: All-Hands-AI/OpenHands/.github/workflows/openhands-resolver.yml@7fbb48c40679afd674970966b96185657d92a487  # 0.62.0
+    uses: All-Hands-AI/OpenHands/.github/workflows/openhands-resolver.yml@0cb27a4aa8c2656c37c00a8d52ad574c1c21649b  # 1.0.0
     with:
       macro: ${{ vars.OPENHANDS_MACRO || '@openhands-agent' }}
       max_iterations: ${{ fromJson(vars.OPENHANDS_MAX_ITER || 50) }}
