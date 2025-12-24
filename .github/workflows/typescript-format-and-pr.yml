@@ -62,34 +62,82 @@ jobs:
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6.0.1
         with:
           persist-credentials: false
+      - name: Detect the package manager
+        working-directory: ${{ inputs.package-path }}
+        run: |
+          {
+            if [[ -f package-lock.json ]]; then
+              echo 'PACKAGE_LOCK_FILE=package-lock.json'
+              echo 'PACKAGE_MANAGER=npm'
+            elif [[ -f pnpm-lock.yaml ]]; then
+              echo 'PACKAGE_LOCK_FILE=pnpm-lock.yaml'
+              echo 'PACKAGE_MANAGER=pnpm'
+            elif [[ -f yarn.lock ]]; then
+              echo 'PACKAGE_LOCK_FILE=yarn.lock'
+              echo 'PACKAGE_MANAGER=yarn'
+            else
+              echo 'PACKAGE_LOCK_FILE='
+              echo 'PACKAGE_MANAGER='
+            fi
+          } | tee -a "${GITHUB_ENV}"
       - name: Setup Node.js
         uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f  # v6.1.0
         with:
           node-version: ${{ inputs.node-version }}
-          cache: npm
-          cache-dependency-path: ${{ inputs.package-path }}/package-lock.json
+          cache: ${{ env.PACKAGE_MANAGER || null }}
+          cache-dependency-path: ${{ env.PACKAGE_LOCK_FILE && format('{0}/{1}', inputs.package-path, env.PACKAGE_LOCK_FILE) || null }}
       - name: Install dependencies
         env:
           ADDITIONAL_NPM_PACKAGES: ${{ inputs.additional-npm-packages }}
         working-directory: ${{ inputs.package-path }}
         run: |
-          if [[ -f package-lock.json ]]; then
-            npm ci
-          elif [[ -f yarn.lock ]]; then
+          if [[ "${PACKAGE_MANAGER:-}" == "npm" ]]; then
+            if [[ -f package-lock.json ]]; then
+              npm ci
+            else
+              npm install
+            fi
+          elif [[ "${PACKAGE_MANAGER:-}" == "yarn" ]]; then
             npm install -g yarn
             yarn install --frozen-lockfile
-            echo 'PACKAGE_MANAGER=yarn' >> "${GITHUB_ENV}"
+          elif [[ "${PACKAGE_MANAGER:-}" == "pnpm" ]]; then
+            npm install -g pnpm
+            pnpm install --frozen-lockfile
           elif [[ -f package.json ]]; then
             npm install
           else
             npm upgrade -g
           fi
-          npm install --save-dev \
-            ${{ inputs.use-eslint && 'eslint typescript @typescript-eslint/eslint-plugin @typescript-eslint/parser' || '' }} \
-            ${{ inputs.use-prettier && 'prettier eslint-config-prettier' || '' }}
+          case "${PACKAGE_MANAGER:-}" in
+            yarn)
+              yarn add --dev \
+                ${{ inputs.use-eslint && 'eslint typescript @typescript-eslint/eslint-plugin @typescript-eslint/parser' || '' }} \
+                ${{ inputs.use-prettier && 'prettier eslint-config-prettier' || '' }}
+              ;;
+            pnpm)
+              pnpm add --save-dev \
+                ${{ inputs.use-eslint && 'eslint typescript @typescript-eslint/eslint-plugin @typescript-eslint/parser' || '' }} \
+                ${{ inputs.use-prettier && 'prettier eslint-config-prettier' || '' }}
+              ;;
+            *)
+              npm install --save-dev \
+                ${{ inputs.use-eslint && 'eslint typescript @typescript-eslint/eslint-plugin @typescript-eslint/parser' || '' }} \
+                ${{ inputs.use-prettier && 'prettier eslint-config-prettier' || '' }}
+              ;;
+          esac
           for p in $(echo "${ADDITIONAL_NPM_PACKAGES}" | tr ' ' '\n'); do
             if [[ -n "${p}" ]]; then
-              npm install --save-dev "${p}"
+              case "${PACKAGE_MANAGER:-}" in
+                yarn)
+                  yarn add --dev "${p}"
+                  ;;
+                pnpm)
+                  pnpm add --save-dev "${p}"
+                  ;;
+                *)
+                  npm install --save-dev "${p}"
+                  ;;
+              esac
             fi
           done
           echo "PATH=${PWD}/node_modules/.bin:${PATH}" >> "${GITHUB_ENV}"
