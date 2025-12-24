@@ -142,7 +142,7 @@ jobs:
                 ${{ inputs.lint-html-embedded-css && 'postcss-html' || '' }}
               ;;
             *)
-              npm install --save-dev \
+              npm install --save-dev --legacy-peer-deps \
                 ${{ inputs.use-prettier && 'prettier' || '' }} \
                 ${{ inputs.use-htmlhint && 'htmlhint' || '' }} \
                 ${{ inputs.use-stylelint && 'stylelint stylelint-config-standard stylelint-config-prettier' || '' }} \
@@ -159,7 +159,7 @@ jobs:
                   pnpm add --save-dev "${p}"
                   ;;
                 *)
-                  npm install --save-dev "${p}"
+                  npm install --save-dev --legacy-peer-deps "${p}"
                   ;;
               esac
             fi
