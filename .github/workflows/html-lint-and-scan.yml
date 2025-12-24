@@ -85,7 +85,7 @@ jobs:
         with:
           node-version: ${{ inputs.node-version }}
           cache: npm
-          cache-dependency-path: ${{ inputs.package-path }}/package-lock.json
+          cache-dependency-path: ${{ hashFiles(format('{0}/package-lock.json', inputs.package-path)) != '' && format('{0}/package-lock.json', inputs.package-path) || null }}
       - name: Install dependencies
         env:
           ADDITIONAL_NPM_PACKAGES: ${{ inputs.additional-npm-packages }}
