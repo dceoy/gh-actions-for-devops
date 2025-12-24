@@ -172,11 +172,11 @@ jobs:
           HTML_GLOB: ${{ inputs.html-glob }}
         working-directory: ${{ inputs.package-path }}
         run: |
-          config_arg=()
           if [[ -n "${HTMLHINT_CONFIG}" ]]; then
-            config_arg=(--config "${HTMLHINT_CONFIG}")
+            htmlhint --config "${HTMLHINT_CONFIG}" "${HTML_GLOB}"
+          else
+            htmlhint "${HTML_GLOB}"
           fi
-          htmlhint "${config_arg[@]}" "${HTML_GLOB}"
       - name: Run stylelint
         if: inputs.use-stylelint
         env:
@@ -186,13 +186,16 @@ jobs:
           LINT_HTML_EMBEDDED_CSS: ${{ inputs.lint-html-embedded-css }}
         working-directory: ${{ inputs.package-path }}
         run: |
-          config_arg=()
+          echo '{"root": true, "extends": ["stylelint-config-standard", "stylelint-config-prettier"]}' > .stylelintrc.json
           if [[ -n "${STYLELINT_CONFIG}" ]]; then
-            config_arg=(--config "${STYLELINT_CONFIG}")
+            stylelint_config="${STYLELINT_CONFIG}"
+          else
+            stylelint_config="${RUNNER_TEMP}/stylelint.config.mjs"
+            echo 'export default { extends: ["stylelint-config-standard", "stylelint-config-prettier"] };' > "${stylelint_config}"
           fi
-          stylelint "${config_arg[@]}" "${CSS_GLOB}"
-          if [[ "${LINT_HTML_EMBEDDED_CSS}" == "true" ]]; then
-            stylelint "${config_arg[@]}" --custom-syntax postcss-html "${HTML_GLOB}"
+          stylelint --config "${STYLELINT_CONFIG}" "${CSS_GLOB}"
+          if [[ "${LINT_HTML_EMBEDDED_CSS}" ]] && [[ -n "${HTML_GLOB}" ]]; then
+            stylelint --config "${STYLELINT_CONFIG}" --custom-syntax postcss-html "${HTML_GLOB}"
           fi
       - name: Check formatting with Prettier
         if: inputs.use-prettier
