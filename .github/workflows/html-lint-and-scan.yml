@@ -102,8 +102,6 @@ jobs:
         uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f  # v6.1.0
         with:
           node-version: ${{ inputs.node-version }}
-          cache: ${{ env.PACKAGE_MANAGER || null }}
-          cache-dependency-path: ${{ env.PACKAGE_LOCK_FILE && format('{0}/{1}', inputs.package-path, env.PACKAGE_LOCK_FILE) || null }}
       - name: Install dependencies
         env:
           ADDITIONAL_NPM_PACKAGES: ${{ inputs.additional-npm-packages }}

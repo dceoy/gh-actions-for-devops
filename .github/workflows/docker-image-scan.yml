@@ -110,7 +110,7 @@ jobs:
           scanners: ${{ inputs.trivy-scanners }}
           severity: ${{ inputs.trivy-severity }}
           ignore-unfixed: ${{ inputs.trivy-ignore-unfixed }}
-          exit-code: 0
+          exit-code: ${{ inputs.trivy-exit-code }}
           trivy-config: ${{ inputs.trivy-config }}
           timeout: ${{ inputs.trivy-timeout }}
           format: github

@@ -207,6 +207,7 @@ jobs:
           fallback_model: ${{ inputs.fallback-model }}
           use_bedrock: ${{ inputs.aws-iam-role-to-assume != null }}
           use_vertex: ${{ inputs.google-workload-identity-provider != null && inputs.google-service-account != null }}
+          additional_permissions: ${{ inputs.additional-permissions }}
           timeout_minutes: ${{ inputs.timeout-minutes || 30 }}
           trigger_phrase: ${{ inputs.trigger-phrase || '@claude' }}
           assignee_trigger: ${{ inputs.assignee-trigger }}

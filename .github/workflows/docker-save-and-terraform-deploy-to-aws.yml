@@ -183,11 +183,6 @@ on:
         type: string
         description: Terragrunt version to use
         default: null
-      terraform-output-pattern-for-docker-image-uri:
-        required: false
-        type: string
-        description: Terraform output variable pattern for the Docker image URI
-        default: image_uri
       docker-metadata-action-images:
         required: false
         type: string
