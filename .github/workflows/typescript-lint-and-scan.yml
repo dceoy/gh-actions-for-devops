@@ -152,7 +152,7 @@ jobs:
       - name: Run ESLint
         working-directory: ${{ inputs.package-path }}
         run: >
-          eslint --ext .js,.jsx,.ts,.tsx .
+          eslint --ext .js,.jsx,.ts,.tsx --no-error-on-unmatched-pattern .
       - name: Check formatting with Prettier
         if: inputs.use-prettier
         working-directory: ${{ inputs.package-path }}

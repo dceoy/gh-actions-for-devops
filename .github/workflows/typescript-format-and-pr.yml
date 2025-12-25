@@ -148,16 +148,11 @@ jobs:
           PRETTIER_GLOB: ${{ inputs.prettier-glob }}
         run: >
           prettier --write "${PRETTIER_GLOB}"
-      - name: Format the code using ESLint
-        if: inputs.use-eslint
-        working-directory: ${{ inputs.package-path }}
-        run: >
-          eslint --ext .js,.jsx,.ts,.tsx --fix .
       - name: Lint the code using ESLint
         if: inputs.use-eslint && inputs.lint-before-pr
         working-directory: ${{ inputs.package-path }}
         run: >
-          eslint --ext .js,.jsx,.ts,.tsx .
+          eslint --ext .js,.jsx,.ts,.tsx --fix --no-error-on-unmatched-pattern .
       - name: Create output parameters
         id: parameters
         env:

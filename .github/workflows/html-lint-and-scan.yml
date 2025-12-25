@@ -165,7 +165,7 @@ jobs:
             fi
           done
           echo "PATH=${PWD}/node_modules/.bin:${PATH}" >> "${GITHUB_ENV}"
-      - name: Run HTMLHint
+      - name: Run HTMLHint on HTML files
         if: inputs.use-htmlhint
         env:
           HTMLHINT_CONFIG: ${{ inputs.htmlhint-config }}
@@ -177,25 +177,29 @@ jobs:
           else
             htmlhint "${HTML_GLOB}"
           fi
-      - name: Run stylelint
+      - name: Run stylelint on CSS files
         if: inputs.use-stylelint
         env:
           STYLELINT_CONFIG: ${{ inputs.stylelint-config }}
           CSS_GLOB: ${{ inputs.css-glob }}
-          HTML_GLOB: ${{ inputs.html-glob }}
-          LINT_HTML_EMBEDDED_CSS: ${{ inputs.lint-html-embedded-css }}
         working-directory: ${{ inputs.package-path }}
         run: |
-          echo '{"root": true, "extends": ["stylelint-config-standard", "stylelint-config-prettier"]}' > .stylelintrc.json
           if [[ -n "${STYLELINT_CONFIG}" ]]; then
-            stylelint_config="${STYLELINT_CONFIG}"
+            stylelint --config "${STYLELINT_CONFIG}" "${CSS_GLOB}"
           else
-            stylelint_config="${RUNNER_TEMP}/stylelint.config.mjs"
-            echo 'export default { extends: ["stylelint-config-standard", "stylelint-config-prettier"] };' > "${stylelint_config}"
+            stylelint "${CSS_GLOB}"
           fi
-          stylelint --config "${STYLELINT_CONFIG}" "${CSS_GLOB}"
-          if [[ "${LINT_HTML_EMBEDDED_CSS}" ]] && [[ -n "${HTML_GLOB}" ]]; then
+      - name: Run stylelint on embedded CSS in HTML files
+        if: inputs.use-stylelint && inputs.lint-html-embedded-css
+        env:
+          STYLELINT_CONFIG: ${{ inputs.stylelint-config }}
+          HTML_GLOB: ${{ inputs.html-glob }}
+        working-directory: ${{ inputs.package-path }}
+        run: |
+          if [[ -n "${STYLELINT_CONFIG}" ]]; then
             stylelint --config "${STYLELINT_CONFIG}" --custom-syntax postcss-html "${HTML_GLOB}"
+          else
+            stylelint --custom-syntax postcss-html "${HTML_GLOB}"
           fi
       - name: Check formatting with Prettier
         if: inputs.use-prettier

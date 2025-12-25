@@ -42,11 +42,11 @@ if [[ "${N_TYPESCRIPT_FILES}" -gt 0 ]]; then
     PACKAGE_DIRECTORY="$(dirname "${PACKAGE_JSON_FILE}")"
     NODE_MODULES_BIN="${PACKAGE_DIRECTORY}/node_modules/.bin"
     PATH="${NODE_MODULES_BIN}:${PATH}"
-    eslint --ext .js,.jsx,.ts,.tsx "${PACKAGE_DIRECTORY}"
+    eslint --ext .js,.jsx,.ts,.tsx --no-error-on-unmatched-pattern "${PACKAGE_DIRECTORY}"
     prettier --check "${PACKAGE_DIRECTORY}/**/*.{js,jsx,ts,tsx,json,css,scss}"
     tsc --noEmit --project "${PACKAGE_DIRECTORY}/tsconfig.json"
   else
-    eslint --ext .js,.jsx,.ts,.tsx .
+    eslint --ext .js,.jsx,.ts,.tsx --no-error-on-unmatched-pattern .
     prettier --check '**/*.{js,jsx,ts,tsx,json,css,scss}'
     tsc --noEmit
   fi
