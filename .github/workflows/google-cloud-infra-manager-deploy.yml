@@ -1,0 +1,225 @@
+---
+name: Deployment of Google Cloud resources using Infrastructure Manager
+on:
+  workflow_call:
+    inputs:
+      project-id:
+        required: true
+        type: string
+        description: Google Cloud project ID to use
+      infra-manager-deployment-id:
+        required: true
+        type: string
+        description: Google Cloud Infrastructure Manager deployment ID
+      workload-identity-provider:
+        required: true
+        type: string
+        description: Google Workload Identity Provider to use for authentication
+      workload-identity-service-account:
+        required: true
+        type: string
+        description: Google Service Account to use for authentication
+      location:
+        required: false
+        type: string
+        description: Google Cloud location
+        default: us-central1
+      gcloud-version:
+        required: false
+        type: string
+        description: gcloud CLI version to use
+        default: latest
+      gcloud-components:
+        required: false
+        type: string
+        description: gcloud components to install (comma-separated)
+        default: null
+      infra-manager-source-directory:
+        required: false
+        type: string
+        description: Local directory containing Terraform configuration for Infra Manager
+        default: .
+      infra-manager-input-values:
+        required: false
+        type: string
+        description: Comma-separated input values (e.g., "region=us-central1,env=prod")
+        default: null
+      infra-manager-inputs-file:
+        required: false
+        type: string
+        description: Path to inputs file for Infra Manager
+        default: null
+      infra-manager-service-account:
+        required: false
+        type: string
+        description: Service account for Infra Manager deployment execution
+        default: null
+      infra-manager-artifacts-gcs-bucket:
+        required: false
+        type: string
+        description: GCS bucket to store Infra Manager artifacts
+        default: null
+      infra-manager-labels:
+        required: false
+        type: string
+        description: Labels to set on the deployment (comma-separated key=value pairs)
+        default: null
+      infra-manager-annotations:
+        required: false
+        type: string
+        description: Annotations to set on the deployment (comma-separated key=value pairs)
+        default: null
+      infra-manager-import-existing-resources:
+        required: false
+        type: boolean
+        description: Import existing resources into Infra Manager deployment
+        default: false
+      infra-manager-delete-policy:
+        required: false
+        type: string
+        description: Delete policy for Infra Manager (abandon, delete, or delete-policy-unspecified)
+        default: null
+      infra-manager-async:
+        required: false
+        type: boolean
+        description: Run Infra Manager operations asynchronously
+        default: false
+      apply:
+        required: false
+        type: boolean
+        description: Create or update infrastructure
+        default: false
+      destroy:
+        required: false
+        type: boolean
+        description: Destroy infrastructure
+        default: false
+      environment-variables:
+        required: false
+        type: string
+        description: Environment variables to set (e.g., "FOO=bar")
+        default: null
+      environment-file:
+        required: false
+        type: string
+        description: Environment file to set environment variables
+        default: null
+      runs-on:
+        required: false
+        type: string
+        description: GitHub Actions runner to use
+        default: ubuntu-slim
+      timeout-minutes:
+        required: false
+        type: number
+        description: Timeout in minutes for the job
+        default: 360
+    secrets:
+permissions:
+  contents: read
+  id-token: write
+defaults:
+  run:
+    shell: bash -euo pipefail {0}
+    working-directory: .
+jobs:
+  deploy:
+    runs-on: ${{ inputs.runs-on }}
+    timeout-minutes: ${{ inputs.timeout-minutes }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6.0.1
+        with:
+          persist-credentials: false
+      - name: Set environment variables from key-value pairs
+        if: inputs.environment-variables != null
+        env:
+          ENVIRONMENT_VARIABLES: ${{ inputs.environment-variables }}
+        run: |
+          echo "${ENVIRONMENT_VARIABLES}" >> "${GITHUB_ENV}"
+      - name: Set environment variables from file
+        if: inputs.environment-file != null
+        env:
+          ENVIRONMENT_FILE: ${{ inputs.environment-file }}
+        run: |
+          cat "${ENVIRONMENT_FILE}" >> "${GITHUB_ENV}"
+      - name: Authenticate to Google Cloud using Workload Identity Federation
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093  # v3.0.0
+        with:
+          workload_identity_provider: ${{ inputs.workload-identity-provider }}
+          service_account: ${{ inputs.workload-identity-service-account }}
+      - name: Setup gcloud
+        uses: google-github-actions/setup-gcloud@26f734c2779b00b7dda794207734c511110a4368  # v3.0.0
+        with:
+          version: ${{ inputs.gcloud-version }}
+          project_id: ${{ inputs.project-id }}
+          install_components: ${{ inputs.gcloud-components }}
+      - name: Preview infrastructure using Infrastructure Manager
+        if: (! inputs.apply) && (! inputs.destroy)
+        env:
+          PREVIEW: projects/${{ inputs.project-id }}/locations/${{ inputs.location }}/previews/${{ inputs.infra-manager-deployment-id }}
+          SOURCE_DIR: ${{ inputs.infra-manager-source-directory }}
+          INPUT_VALUES: ${{ inputs.infra-manager-input-values }}
+          INPUTS_FILE: ${{ inputs.infra-manager-inputs-file }}
+          SERVICE_ACCOUNT: ${{ inputs.infra-manager-service-account || inputs.workload-identity-service-account }}
+          ARTIFACTS_GCS_BUCKET: ${{ inputs.infra-manager-artifacts-gcs-bucket }}
+          LABELS: ${{ inputs.infra-manager-labels }}
+          ANNOTATIONS: ${{ inputs.infra-manager-annotations }}
+          ASYNC: ${{ inputs.infra-manager-async }}
+        run: |
+          create_args=(--service-account="${SERVICE_ACCOUNT}" --local-source="${SOURCE_DIR}")
+          [[ -z "${INPUT_VALUES}" ]] || create_args+=(--input-values="${INPUT_VALUES}")
+          [[ -z "${INPUTS_FILE}" ]] || create_args+=(--inputs-file="${INPUTS_FILE}")
+          [[ -z "${SERVICE_ACCOUNT}" ]] || create_args+=(--service-account="${SERVICE_ACCOUNT}")
+          [[ -z "${ARTIFACTS_GCS_BUCKET}" ]] || create_args+=(--artifacts-gcs-bucket="${ARTIFACTS_GCS_BUCKET}")
+          [[ -z "${LABELS}" ]] || create_args+=(--labels="${LABELS}")
+          [[ -z "${ANNOTATIONS}" ]] || create_args+=(--annotations="${ANNOTATIONS}")
+          [[ ! "${ASYNC}" ]] || create_args+=(--async)
+          gcloud infra-manager previews create "${PREVIEW}" "${create_args[@]}"
+      - name: Describe and delete Infrastructure Manager preview
+        if: (! inputs.apply) && (! inputs.destroy) && (! inputs.infra-manager-async)
+        env:
+          PREVIEW: projects/${{ inputs.project-id }}/locations/${{ inputs.location }}/previews/${{ inputs.infra-manager-deployment-id }}
+        run: |
+          gcloud infra-manager previews describe "${PREVIEW}"
+          gcloud infra-manager previews delete "${PREVIEW}"
+      - name: Create or update infrastructure using Infrastructure Manager
+        if: inputs.apply && (! inputs.destroy)
+        env:
+          DEPLOYMENT: projects/${{ inputs.project-id }}/locations/${{ inputs.location }}/deployments/${{ inputs.infra-manager-deployment-id }}
+          SOURCE_DIR: ${{ inputs.infra-manager-source-directory }}
+          INPUT_VALUES: ${{ inputs.infra-manager-input-values }}
+          INPUTS_FILE: ${{ inputs.infra-manager-inputs-file }}
+          SERVICE_ACCOUNT: ${{ inputs.infra-manager-service-account || inputs.workload-identity-service-account }}
+          ARTIFACTS_GCS_BUCKET: ${{ inputs.infra-manager-artifacts-gcs-bucket }}
+          LABELS: ${{ inputs.infra-manager-labels }}
+          ANNOTATIONS: ${{ inputs.infra-manager-annotations }}
+          IMPORT_EXISTING_RESOURCES: ${{ inputs.infra-manager-import-existing-resources }}
+          ASYNC: ${{ inputs.infra-manager-async }}
+        run: |
+          apply_args=(--service-account="${SERVICE_ACCOUNT}" --local-source="${SOURCE_DIR}")
+          [[ -z "${INPUT_VALUES}" ]] || apply_args+=(--input-values="${INPUT_VALUES}")
+          [[ -z "${INPUTS_FILE}" ]] || apply_args+=(--inputs-file="${INPUTS_FILE}")
+          [[ -z "${ARTIFACTS_GCS_BUCKET}" ]] || apply_args+=(--artifacts-gcs-bucket="${ARTIFACTS_GCS_BUCKET}")
+          [[ -z "${LABELS}" ]] || apply_args+=(--labels="${LABELS}")
+          [[ -z "${ANNOTATIONS}" ]] || apply_args+=(--annotations="${ANNOTATIONS}")
+          [[ ! "${IMPORT_EXISTING_RESOURCES}" ]] && apply_args+=(--import-existing-resources)
+          [[ ! "${ASYNC}" ]] || apply_args+=(--async)
+          gcloud infra-manager deployments apply "${DEPLOYMENT}" "${apply_args[@]}"
+      - name: Describe Infrastructure Manager deployment
+        if: inputs.apply && (! inputs.destroy) && (! inputs.infra-manager-async)
+        env:
+          DEPLOYMENT: projects/${{ inputs.project-id }}/locations/${{ inputs.location }}/deployments/${{ inputs.infra-manager-deployment-id }}
+        run: |
+          gcloud infra-manager deployments describe "${DEPLOYMENT}"
+      - name: Destroy infrastructure using Infrastructure Manager
+        if: inputs.apply && inputs.destroy
+        env:
+          DEPLOYMENT: projects/${{ inputs.project-id }}/locations/${{ inputs.location }}/deployments/${{ inputs.infra-manager-deployment-id }}
+          DELETE_POLICY: ${{ inputs.infra-manager-delete-policy }}
+          ASYNC: ${{ inputs.infra-manager-async }}
+        run: |
+          delete_args=()
+          [[ -z "${DELETE_POLICY}" ]] || delete_args+=(--delete-policy="${DELETE_POLICY}")
+          [[ ! "${ASYNC}" ]] || delete_args+=(--async)
+          gcloud infra-manager deployments delete "${DEPLOYMENT}" "${delete_args[@]}"
