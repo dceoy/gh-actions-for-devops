@@ -7,18 +7,19 @@ on:
         required: true
         type: string
         description: Google Cloud project ID to use
-      infra-manager-deployment-id:
+      infra-manager-deployment-name:
         required: true
         type: string
-        description: Google Cloud Infrastructure Manager deployment ID
+        description: Infrastructure Manager deployment ID
       workload-identity-provider:
         required: true
         type: string
-        description: Google Workload Identity Provider to use for authentication
-      workload-identity-service-account:
-        required: true
+        description: Workload Identity Provider to use for authentication
+      workload-identity-service-account-name:
+        required: false
         type: string
-        description: Google Service Account to use for authentication
+        description: Service Account name to use for Workload Identity Federation
+        default: null
       location:
         required: false
         type: string
@@ -49,10 +50,10 @@ on:
         type: string
         description: Path to inputs file for Infra Manager
         default: null
-      infra-manager-service-account:
+      infra-manager-service-account-name:
         required: false
         type: string
-        description: Service account for Infra Manager deployment execution
+        description: Service account name for Infra Manager deployment execution
         default: null
       infra-manager-artifacts-gcs-bucket:
         required: false
@@ -127,8 +128,10 @@ jobs:
     runs-on: ${{ inputs.runs-on }}
     timeout-minutes: ${{ inputs.timeout-minutes }}
     env:
-      PREVIEW: projects/${{ inputs.project-id }}/locations/${{ inputs.location }}/previews/${{ inputs.infra-manager-deployment-id }}-preview
-      DEPLOYMENT: projects/${{ inputs.project-id }}/locations/${{ inputs.location }}/deployments/${{ inputs.infra-manager-deployment-id }}
+      WI_SERVICE_ACCOUNT: ${{ inputs.workload-identity-service-account-name && format('projects/{0}/serviceAccounts/{1}@{0}.iam.gserviceaccount.com', inputs.project-id, inputs.workload-identity-service-account-name) || null }}
+      IM_SERVICE_ACCOUNT: ${{ inputs.infra-manager-service-account-name && format('projects/{0}/serviceAccounts/{1}@{0}.iam.gserviceaccount.com', inputs.project-id, inputs.infra-manager-service-account-name) || null }}
+      IM_PREVIEW: projects/${{ inputs.project-id }}/locations/${{ inputs.location }}/previews/${{ inputs.infra-manager-deployment-name }}-preview
+      IM_DEPLOYMENT: projects/${{ inputs.project-id }}/locations/${{ inputs.location }}/deployments/${{ inputs.infra-manager-deployment-name }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6.0.1
@@ -149,8 +152,9 @@ jobs:
       - name: Authenticate to Google Cloud using Workload Identity Federation
         uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093  # v3.0.0
         with:
+          project_id: ${{ inputs.project-id }}
           workload_identity_provider: ${{ inputs.workload-identity-provider }}
-          service_account: ${{ inputs.workload-identity-service-account }}
+          service_account: ${{ env.WI_SERVICE_ACCOUNT }}
       - name: Setup gcloud
         uses: google-github-actions/setup-gcloud@26f734c2779b00b7dda794207734c511110a4368  # v3.0.0
         with:
@@ -160,7 +164,6 @@ jobs:
       - name: Preview infrastructure using Infrastructure Manager
         if: (! inputs.apply) && (! inputs.destroy)
         env:
-          SERVICE_ACCOUNT: ${{ inputs.infra-manager-service-account || inputs.workload-identity-service-account }}
           SOURCE_DIR: ${{ inputs.infra-manager-source-directory }}
           INPUT_VALUES: ${{ inputs.infra-manager-input-values }}
           INPUTS_FILE: ${{ inputs.infra-manager-inputs-file }}
@@ -169,9 +172,9 @@ jobs:
           ANNOTATIONS: ${{ inputs.infra-manager-annotations }}
           ASYNC: ${{ inputs.infra-manager-async }}
         run: |
-          create_args=(
-            --service-account="${SERVICE_ACCOUNT}"
+          create_options=(
             --local-source="${SOURCE_DIR}"
+            ${IM_SERVICE_ACCOUNT:+--service-account="${IM_SERVICE_ACCOUNT}"}
             ${INPUT_VALUES:+--input-values="${INPUT_VALUES}"}
             ${INPUTS_FILE:+--inputs-file="${INPUTS_FILE}"}
             ${ARTIFACTS_GCS_BUCKET:+--artifacts-gcs-bucket="${ARTIFACTS_GCS_BUCKET}"}
@@ -179,15 +182,23 @@ jobs:
             ${ANNOTATIONS:+--annotations="${ANNOTATIONS}"}
             ${ASYNC:+--async}
           )
-          gcloud infra-manager previews create "${PREVIEW}" "${create_args[@]}"
-      - name: Describe and delete Infrastructure Manager preview
-        if: (! inputs.apply) && (! inputs.destroy) && (! inputs.infra-manager-async)
+          gcloud infra-manager previews create "${IM_PREVIEW}" "${create_options[@]}"
+      - name: Preview destroy using Infrastructure Manager
+        if: (! inputs.apply) && inputs.destroy
         run: |
-          gcloud infra-manager previews describe "${PREVIEW}"
+          create_options=(
+            --preview-mode=DELETE
+            --deployment="${IM_DEPLOYMENT}"
+            ${IM_SERVICE_ACCOUNT:+--service-account="${IM_SERVICE_ACCOUNT}"}
+          )
+          gcloud infra-manager previews create "${IM_PREVIEW}" "${create_options[@]}"
+      - name: Describe and delete Infrastructure Manager preview
+        if: (! inputs.apply) && (! inputs.infra-manager-async)
+        run: |
+          gcloud infra-manager previews describe "${IM_PREVIEW}"
       - name: Create or update infrastructure using Infrastructure Manager
         if: inputs.apply && (! inputs.destroy)
         env:
-          SERVICE_ACCOUNT: ${{ inputs.infra-manager-service-account || inputs.workload-identity-service-account }}
           SOURCE_DIR: ${{ inputs.infra-manager-source-directory }}
           INPUT_VALUES: ${{ inputs.infra-manager-input-values }}
           INPUTS_FILE: ${{ inputs.infra-manager-inputs-file }}
@@ -197,9 +208,9 @@ jobs:
           IMPORT_EXISTING_RESOURCES: ${{ inputs.infra-manager-import-existing-resources }}
           ASYNC: ${{ inputs.infra-manager-async }}
         run: |
-          apply_args=(
-            --service-account="${SERVICE_ACCOUNT}"
+          apply_options=(
             --local-source="${SOURCE_DIR}"
+            ${IM_SERVICE_ACCOUNT:+--service-account="${IM_SERVICE_ACCOUNT}"}
             ${INPUT_VALUES:+--input-values="${INPUT_VALUES}"}
             ${INPUTS_FILE:+--inputs-file="${INPUTS_FILE}"}
             ${ARTIFACTS_GCS_BUCKET:+--artifacts-gcs-bucket="${ARTIFACTS_GCS_BUCKET}"}
@@ -208,19 +219,19 @@ jobs:
             ${IMPORT_EXISTING_RESOURCES:+--import-existing-resources}
             ${ASYNC:+--async}
           )
-          gcloud infra-manager deployments apply "${DEPLOYMENT}" "${apply_args[@]}"
+          gcloud infra-manager deployments apply "${IM_DEPLOYMENT}" "${apply_options[@]}"
       - name: Describe Infrastructure Manager deployment
         if: inputs.apply && (! inputs.destroy) && (! inputs.infra-manager-async)
         run: |
-          gcloud infra-manager deployments describe "${DEPLOYMENT}"
+          gcloud infra-manager deployments describe "${IM_DEPLOYMENT}"
       - name: Destroy infrastructure using Infrastructure Manager
         if: inputs.apply && inputs.destroy
         env:
           DELETE_POLICY: ${{ inputs.infra-manager-delete-policy }}
           ASYNC: ${{ inputs.infra-manager-async }}
         run: |
-          delete_args=(
+          delete_options=(
             ${DELETE_POLICY:+--delete-policy="${DELETE_POLICY}"}
             ${ASYNC:+--async}
           )
-          gcloud infra-manager deployments delete "${DEPLOYMENT}" "${delete_args[@]}"
+          gcloud infra-manager deployments delete "${IM_DEPLOYMENT}" "${delete_options[@]}"
