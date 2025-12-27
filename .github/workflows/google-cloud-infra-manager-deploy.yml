@@ -115,7 +115,6 @@ on:
         type: number
         description: Timeout in minutes for the job
         default: 360
-    secrets:
 permissions:
   contents: read
   id-token: write
