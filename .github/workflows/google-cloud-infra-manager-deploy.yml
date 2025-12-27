@@ -192,7 +192,7 @@ jobs:
             ${IM_SERVICE_ACCOUNT:+--service-account="${IM_SERVICE_ACCOUNT}"}
           )
           gcloud infra-manager previews create "${IM_PREVIEW}" "${create_options[@]}"
-      - name: Describe and delete Infrastructure Manager preview
+      - name: Describe Infrastructure Manager preview
         if: (! inputs.apply) && (! inputs.infra-manager-async)
         run: |
           gcloud infra-manager previews describe "${IM_PREVIEW}"
