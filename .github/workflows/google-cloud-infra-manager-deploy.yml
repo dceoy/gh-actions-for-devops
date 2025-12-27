@@ -74,7 +74,7 @@ on:
         required: false
         type: boolean
         description: Import existing resources into Infra Manager deployment
-        default: false
+        default: true
       infra-manager-delete-policy:
         required: false
         type: string
@@ -153,7 +153,7 @@ jobs:
         with:
           project_id: ${{ inputs.project-id }}
           workload_identity_provider: ${{ inputs.workload-identity-provider }}
-          service_account: ${{ env.WI_SERVICE_ACCOUNT }}
+          service_account: ${{ inputs.workload-identity-service-account-name && env.WI_SERVICE_ACCOUNT || null }}
       - name: Setup gcloud
         uses: google-github-actions/setup-gcloud@26f734c2779b00b7dda794207734c511110a4368  # v3.0.0
         with:
@@ -169,7 +169,7 @@ jobs:
           ARTIFACTS_GCS_BUCKET: ${{ inputs.infra-manager-artifacts-gcs-bucket }}
           LABELS: ${{ inputs.infra-manager-labels }}
           ANNOTATIONS: ${{ inputs.infra-manager-annotations }}
-          ASYNC: ${{ inputs.infra-manager-async }}
+          ASYNC: ${{ inputs.infra-manager-async && 'true' || '' }}
         run: |
           create_options=(
             --local-source="${SOURCE_DIR}"
@@ -204,8 +204,8 @@ jobs:
           ARTIFACTS_GCS_BUCKET: ${{ inputs.infra-manager-artifacts-gcs-bucket }}
           LABELS: ${{ inputs.infra-manager-labels }}
           ANNOTATIONS: ${{ inputs.infra-manager-annotations }}
-          IMPORT_EXISTING_RESOURCES: ${{ inputs.infra-manager-import-existing-resources }}
-          ASYNC: ${{ inputs.infra-manager-async }}
+          IMPORT_EXISTING_RESOURCES: ${{ inputs.infra-manager-import-existing-resources && 'true' || '' }}
+          ASYNC: ${{ inputs.infra-manager-async && 'true' || '' }}
         run: |
           apply_options=(
             --local-source="${SOURCE_DIR}"
@@ -227,7 +227,7 @@ jobs:
         if: inputs.apply && inputs.destroy
         env:
           DELETE_POLICY: ${{ inputs.infra-manager-delete-policy }}
-          ASYNC: ${{ inputs.infra-manager-async }}
+          ASYNC: ${{ inputs.infra-manager-async && 'true' || '' }}
         run: |
           delete_options=(
             ${DELETE_POLICY:+--delete-policy="${DELETE_POLICY}"}
