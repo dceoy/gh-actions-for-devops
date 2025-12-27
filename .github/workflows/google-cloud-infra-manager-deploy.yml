@@ -38,7 +38,7 @@ on:
       infra-manager-source-directory:
         required: false
         type: string
-        description: Local directory containing Terraform configuration for Infra Manager
+        description: Local directory containing Terraform configuration for Infrastructure Manager
         default: .
       infra-manager-input-values:
         required: false
@@ -48,17 +48,17 @@ on:
       infra-manager-inputs-file:
         required: false
         type: string
-        description: Path to inputs file for Infra Manager
+        description: Path to inputs file for Infrastructure Manager
         default: null
       infra-manager-service-account-name:
         required: false
         type: string
-        description: Service account name for Infra Manager deployment execution
+        description: Service account name for Infrastructure Manager deployment execution
         default: null
       infra-manager-artifacts-gcs-bucket:
         required: false
         type: string
-        description: GCS bucket to store Infra Manager artifacts
+        description: GCS bucket to store Infrastructure Manager artifacts
         default: null
       infra-manager-labels:
         required: false
@@ -73,17 +73,17 @@ on:
       infra-manager-import-existing-resources:
         required: false
         type: boolean
-        description: Import existing resources into Infra Manager deployment
+        description: Import existing resources into Infrastructure Manager deployment
         default: true
       infra-manager-delete-policy:
         required: false
         type: string
-        description: Delete policy for Infra Manager (abandon, delete, or delete-policy-unspecified)
+        description: Delete policy for Infrastructure Manager (abandon, delete, or delete-policy-unspecified)
         default: null
       infra-manager-async:
         required: false
         type: boolean
-        description: Run Infra Manager operations asynchronously
+        description: Run Infrastructure Manager operations asynchronously
         default: false
       apply:
         required: false
