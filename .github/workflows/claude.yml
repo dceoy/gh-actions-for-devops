@@ -43,27 +43,24 @@ jobs:
       additional-permissions: |
         actions: read
 
-      # Optional: Specify model (defaults to Claude Sonnet 4, uncomment for Claude Opus 4)
-      # model: "claude-opus-4-20250514"
-
       # Optional: Customize the trigger phrase (default: @claude)
       # trigger-phrase: "/claude"
 
       # Optional: Trigger when specific user is assigned to an issue
       # assignee-trigger: "claude-bot"
 
-      # Optional: Allow Claude to run specific commands
-      # allowed-tools: "Bash(npm install),Bash(npm run build),Bash(npm run test:*),Bash(npm run lint:*)"
+      # Optional: Add custom instructions via Claude CLI args
+      # claude-args: |
+      #   --system-prompt "Follow our coding standards"
+      #   --max-turns 10
 
-      # Optional: Add custom instructions for Claude to customize its behavior for your project
-      # custom-instructions: |
-      #   Follow our coding standards
-      #   Ensure all new code has tests
-      #   Use TypeScript for new files
+      # Optional: Allow Claude to run specific tools
+      # claude-args: |
+      #   --allowedTools "Bash(npm install),Bash(npm run build),Bash(npm run test:*),Bash(npm run lint:*)"
 
-      # Optional: Custom environment variables for Claude
-      # claude-env: |
-      #   NODE_ENV: test
+      # Optional: Custom environment variables for Claude (JSON settings)
+      # settings: |
+      #   {"env": {"NODE_ENV": "test"}}
     secrets:
       CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -82,40 +79,47 @@ jobs:
 #     id-token: write
 #   uses: ./.github/workflows/claude-code-action.yml
 #   with:
-#     # Optional: Specify model (defaults to Claude Sonnet 4, uncomment for Claude Opus 4)
-#     # model: "claude-opus-4-20250514"
-
 #     # Direct prompt for automated review (no @claude mention needed)
-#     direct-prompt: |
+#     prompt: |
+#       REPO: ${{ github.repository }}
+#       PR NUMBER: ${{ github.event.pull_request.number }}
+#
 #       Please review this pull request and provide feedback on:
 #       - Code quality and best practices
 #       - Potential bugs or issues
 #       - Performance considerations
 #       - Security concerns
 #       - Test coverage
-
+#
 #       Be constructive and helpful in your feedback.
-
+#
 #     # Optional: Use sticky comments to make Claude reuse the same comment on subsequent pushes to the same PR
 #     # use-sticky-comment: true
-
+#
 #     # Optional: Customize review based on file types
-#     # direct-prompt: |
+#     # prompt: |
+#     #   REPO: ${{ github.repository }}
+#     #   PR NUMBER: ${{ github.event.pull_request.number }}
+#     #
 #     #   Review this PR focusing on:
 #     #   - For TypeScript files: Type safety and proper interface usage
 #     #   - For API endpoints: Security, input validation, and error handling
 #     #   - For React components: Performance, accessibility, and best practices
 #     #   - For tests: Coverage, edge cases, and test quality
-
+#
 #     # Optional: Different prompts for different authors
-#     # direct-prompt: |
+#     # prompt: |
+#     #   REPO: ${{ github.repository }}
+#     #   PR NUMBER: ${{ github.event.pull_request.number }}
+#     #
 #     #   ${{ github.event.pull_request.author_association == 'FIRST_TIME_CONTRIBUTOR' &&
 #     #   'Welcome! Please review this PR from a first-time contributor. Be encouraging and provide detailed explanations for any suggestions.' ||
 #     #   'Please provide a thorough code review focusing on our coding standards and best practices.' }}
-
+#
 #     # Optional: Add specific tools for running tests or linting
-#     # allowed-tools: "Bash(npm run test),Bash(npm run lint),Bash(npm run typecheck)"
-
+#     # claude-args: |
+#     #   --allowedTools "Bash(npm run test),Bash(npm run lint),Bash(npm run typecheck)"
+#
 #     # Optional: Skip review for certain conditions
 #     # if: |
 #     #   !contains(github.event.pull_request.title, '[skip-review]') &&

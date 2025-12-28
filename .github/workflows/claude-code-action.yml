@@ -16,6 +16,26 @@ on:
   #     - submitted
   workflow_call:
     inputs:
+      prompt:
+        required: false
+        type: string
+        description: Instructions for Claude. Can be a direct prompt or custom template.
+        default: ''
+      claude-args:
+        required: false
+        type: string
+        description: Additional arguments to pass directly to Claude CLI
+        default: ''
+      track-progress:
+        required: false
+        type: boolean
+        description: Force tag mode with tracking comments for supported PR/issue events
+        default: false
+      include-fix-links:
+        required: false
+        type: boolean
+        description: Include 'Fix this' links in PR code review feedback
+        default: true
       trigger-phrase:
         required: false
         type: string
@@ -41,61 +61,16 @@ on:
         type: string
         description: The prefix to use for Claude branches (defaults to 'claude/', use 'claude-' for dash format)
         default: 'claude/'
-      model:
-        required: false
-        type: string
-        description: Model to use in provider-specific format required for Bedrock/Vertex (e.g., anthropic.claude-opus-4-20250514-v1:0)
-        default: null
-      fallback-model:
-        required: false
-        type: string
-        description: Fallback model to use if the primary model fails
-        default: null
-      allowed-tools:
-        required: false
-        type: string
-        description: Additional tools for Claude to use (the base GitHub tools will always be included)
-        default: null
-      disallowed-tools:
-        required: false
-        type: string
-        description: Tools that Claude should never use
-        default: null
-      custom-instructions:
-        required: false
-        type: string
-        description: Additional custom instructions to include in the prompt for Claude
-        default: null
-      override-prompt:
-        required: false
-        type: string
-        description: Complete replacement of Claude's prompt with custom template (supports variable substitution)
-        default: null
-      direct-prompt:
-        required: false
-        type: string
-        description: Direct instruction for Claude (bypasses normal trigger detection)
-        default: null
-      mcp-config:
-        required: false
-        type: string
-        description: Additional MCP configuration (JSON string) that merges with the built-in GitHub MCP servers
-        default: null
-      additional-permissions:
-        required: false
-        type: string
-        description: Additional permissions to enable.
-        default: null
-      claude-env:
-        required: false
-        type: string
-        description: Custom environment variables to pass to Claude Code execution (YAML format)
-        default: null
       settings:
         required: false
         type: string
         description: Claude Code settings as JSON string or path to settings JSON file
-        default: null
+        default: ''
+      additional-permissions:
+        required: false
+        type: string
+        description: "Additional permissions to enable (e.g., 'actions: read')"
+        default: ''
       use-sticky-comment:
         required: false
         type: boolean
@@ -106,26 +81,51 @@ on:
         type: boolean
         description: Enable commit signing using GitHub's commit signature verification
         default: false
-      experimental-allowed-domains:
+      bot-id:
         required: false
         type: string
-        description: Restrict network access to these domains only (newline-separated)
-        default: null
-      max-turns:
+        description: GitHub user ID to use for git operations (defaults to Claude's bot ID)
+        default: '41898282'
+      bot-name:
         required: false
         type: string
-        description: Maximum number of conversation turns
-        default: null
-      timeout-minutes:
-        required: false
-        type: number
-        description: Timeout in minutes for execution
-        default: 30
-      mode:
+        description: GitHub username to use for git operations (defaults to Claude's bot name)
+        default: 'claude[bot]'
+      allowed-bots:
         required: false
         type: string
-        description: Execution mode for the action
-        default: 'tag'
+        description: Comma-separated list of allowed bot usernames, or '*' to allow all bots
+        default: ''
+      allowed-non-write-users:
+        required: false
+        type: string
+        description: Comma-separated list of usernames to allow without write permissions; only works with github_token
+        default: ''
+      path-to-claude-code-executable:
+        required: false
+        type: string
+        description: Optional path to a custom Claude Code executable
+        default: ''
+      path-to-bun-executable:
+        required: false
+        type: string
+        description: Optional path to a custom Bun executable
+        default: ''
+      show-full-output:
+        required: false
+        type: boolean
+        description: 'Show full JSON output from Claude Code (WARNING: may expose sensitive data)'
+        default: false
+      plugin-marketplaces:
+        required: false
+        type: string
+        description: Newline-separated list of Claude Code plugin marketplace Git URLs
+        default: ''
+      plugins:
+        required: false
+        type: string
+        description: Newline-separated list of Claude Code plugin names to install
+        default: ''
       aws-iam-role-to-assume:
         required: false
         type: string
@@ -146,15 +146,37 @@ on:
         type: string
         description: Google Service Account to use for authentication
         default: null
+      use-foundry:
+        required: false
+        type: boolean
+        description: Use Microsoft Foundry with OIDC authentication instead of direct Anthropic API
+        default: false
       runs-on:
         required: false
         type: string
         description: Runner to use
         default: ubuntu-latest
+      timeout-minutes:
+        required: false
+        type: number
+        description: Timeout in minutes for execution
+        default: 30
     outputs:
       execution-file:
         description: Path to the Claude Code execution output file
         value: ${{ jobs.claude-code-action.outputs.execution-file }}
+      branch-name:
+        description: The branch created by Claude Code for this execution
+        value: ${{ jobs.claude-code-action.outputs.branch-name }}
+      github-token:
+        description: The GitHub token used by the action
+        value: ${{ jobs.claude-code-action.outputs.github-token }}
+      structured-output:
+        description: JSON string containing all structured output fields when --json-schema is provided in claude-args
+        value: ${{ jobs.claude-code-action.outputs.structured-output }}
+      session-id:
+        description: The Claude Code session ID that can be used with --resume
+        value: ${{ jobs.claude-code-action.outputs.session-id }}
     secrets:
       CLAUDE_CODE_OAUTH_TOKEN:
         required: false
@@ -176,6 +198,10 @@ jobs:
     timeout-minutes: ${{ inputs.timeout-minutes || 30 }}
     outputs:
       execution-file: ${{ steps.claude-code-action.outputs.execution_file }}
+      branch-name: ${{ steps.claude-code-action.outputs.branch_name }}
+      github-token: ${{ steps.claude-code-action.outputs.github_token }}
+      structured-output: ${{ steps.claude-code-action.outputs.structured_output }}
+      session-id: ${{ steps.claude-code-action.outputs.session_id }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6.0.1
@@ -198,32 +224,33 @@ jobs:
           service_account: ${{ inputs.google-service-account }}
       - name: Run Claude Code Action
         id: claude-code-action
-        uses: anthropics/claude-code-action@f0c8eb29807907de7f5412d04afceb5e24817127  # v1.0.23
+        uses: anthropics/claude-code-action@7145c3e0510bcdbdd29f67cc4a8c1958f1acfa2f  # v1.0.27
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
-          model: ${{ inputs.model }}
-          fallback_model: ${{ inputs.fallback-model }}
-          use_bedrock: ${{ inputs.aws-iam-role-to-assume != null }}
-          use_vertex: ${{ inputs.google-workload-identity-provider != null && inputs.google-service-account != null }}
-          additional_permissions: ${{ inputs.additional-permissions }}
-          timeout_minutes: ${{ inputs.timeout-minutes || 30 }}
+          prompt: ${{ inputs.prompt }}
+          claude_args: ${{ inputs.claude-args }}
+          track_progress: ${{ inputs.track-progress }}
+          include_fix_links: ${{ inputs.include-fix-links }}
           trigger_phrase: ${{ inputs.trigger-phrase || '@claude' }}
           assignee_trigger: ${{ inputs.assignee-trigger }}
           label_trigger: ${{ inputs.label-trigger }}
           base_branch: ${{ inputs.base-branch }}
           branch_prefix: ${{ inputs.branch-prefix }}
-          allowed_tools: ${{ inputs.allowed-tools }}
-          disallowed_tools: ${{ inputs.disallowed-tools }}
-          custom_instructions: ${{ inputs.custom-instructions }}
-          override_prompt: ${{ inputs.override-prompt }}
-          direct_prompt: ${{ inputs.direct-prompt }}
-          mcp_config: ${{ inputs.mcp-config }}
-          claude_env: ${{ inputs.claude-env }}
           settings: ${{ inputs.settings }}
-          max_turns: ${{ inputs.max-turns }}
-          mode: ${{ inputs.mode }}
+          additional_permissions: ${{ inputs.additional-permissions }}
           use_sticky_comment: ${{ inputs.use-sticky-comment }}
           use_commit_signing: ${{ inputs.use-commit-signing }}
-          experimental_allowed_domains: ${{ inputs.experimental-allowed-domains }}
+          bot_id: ${{ inputs.bot-id }}
+          bot_name: ${{ inputs.bot-name }}
+          allowed_bots: ${{ inputs.allowed-bots }}
+          allowed_non_write_users: ${{ inputs.allowed-non-write-users }}
+          path_to_claude_code_executable: ${{ inputs.path-to-claude-code-executable }}
+          path_to_bun_executable: ${{ inputs.path-to-bun-executable }}
+          show_full_output: ${{ inputs.show-full-output }}
+          plugin_marketplaces: ${{ inputs.plugin-marketplaces }}
+          plugins: ${{ inputs.plugins }}
+          use_bedrock: ${{ inputs.aws-iam-role-to-assume != null }}
+          use_vertex: ${{ inputs.google-workload-identity-provider != null && inputs.google-service-account != null }}
+          use_foundry: ${{ inputs.use-foundry }}
