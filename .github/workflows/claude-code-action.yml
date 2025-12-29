@@ -1,19 +1,6 @@
 ---
 name: Claude Code Action
 on:
-  # issue_comment:
-  #   types:
-  #     - created
-  # pull_request_review_comment:
-  #   types:
-  #     - created
-  # issues:
-  #   types:
-  #     - opened
-  #     - assigned
-  # pull_request_review:
-  #   types:
-  #     - submitted
   workflow_call:
     inputs:
       prompt:
@@ -31,11 +18,6 @@ on:
         type: boolean
         description: Force tag mode with tracking comments for supported PR/issue events
         default: false
-      include-fix-links:
-        required: false
-        type: boolean
-        description: Include 'Fix this' links in PR code review feedback
-        default: true
       trigger-phrase:
         required: false
         type: string
@@ -168,9 +150,6 @@ on:
       branch-name:
         description: The branch created by Claude Code for this execution
         value: ${{ jobs.claude-code-action.outputs.branch-name }}
-      github-token:
-        description: The GitHub token used by the action
-        value: ${{ jobs.claude-code-action.outputs.github-token }}
       structured-output:
         description: JSON string containing all structured output fields when --json-schema is provided in claude-args
         value: ${{ jobs.claude-code-action.outputs.structured-output }}
@@ -189,9 +168,10 @@ on:
         description: GitHub token for creating comments/issues
 permissions:
   contents: read
-  pull-requests: read
-  issues: read
+  pull-requests: write
+  issues: write
   id-token: write
+  actions: read
 jobs:
   claude-code-action:
     runs-on: ${{ inputs.runs-on }}
@@ -199,7 +179,6 @@ jobs:
     outputs:
       execution-file: ${{ steps.claude-code-action.outputs.execution_file }}
       branch-name: ${{ steps.claude-code-action.outputs.branch_name }}
-      github-token: ${{ steps.claude-code-action.outputs.github_token }}
       structured-output: ${{ steps.claude-code-action.outputs.structured_output }}
       session-id: ${{ steps.claude-code-action.outputs.session_id }}
     steps:
@@ -232,7 +211,6 @@ jobs:
           prompt: ${{ inputs.prompt }}
           claude_args: ${{ inputs.claude-args }}
           track_progress: ${{ inputs.track-progress }}
-          include_fix_links: ${{ inputs.include-fix-links }}
           trigger_phrase: ${{ inputs.trigger-phrase || '@claude' }}
           assignee_trigger: ${{ inputs.assignee-trigger }}
           label_trigger: ${{ inputs.label-trigger }}
