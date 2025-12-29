@@ -12,9 +12,6 @@ on:
       CLAUDE_CODE_OAUTH_TOKEN:
         required: false
         description: OAuth token for Claude Code
-      GH_TOKEN:
-        required: false
-        description: GitHub token for creating comments/issues
 #   pull_request:
 #     types:
 #       - opened
@@ -53,4 +50,3 @@ jobs:
       claude-args: ${{ inputs.claude-args }}
     secrets:
       CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
