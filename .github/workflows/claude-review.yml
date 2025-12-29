@@ -22,8 +22,9 @@ jobs:
     permissions:
       contents: read
       pull-requests: write
+      issues: write
       id-token: write
-      issues: read
+      actions: read
     uses: ./.github/workflows/claude-code-action.yml
     with:
       prompt: |
