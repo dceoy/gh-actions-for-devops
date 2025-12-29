@@ -187,7 +187,7 @@ jobs:
         with:
           fetch-depth: 1
           token: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
-          persist-credentials: true
+          persist-credentials: false
       - name: Configure AWS credentials
         if: inputs.aws-iam-role-to-assume != null
         uses: aws-actions/configure-aws-credentials@61815dcd50bd041e203e49132bacad1fd04d2708  # v5.1.1
