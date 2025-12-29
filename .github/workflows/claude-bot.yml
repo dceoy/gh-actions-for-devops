@@ -7,7 +7,7 @@ on:
         required: false
         type: string
         description: Additional arguments to pass directly to Claude Code Action
-        default: '--allowed-tools Bash(gh:*)'
+        default: '--allowed-tools "Bash(gh:*)"'
     secrets:
       CLAUDE_CODE_OAUTH_TOKEN:
         required: false
