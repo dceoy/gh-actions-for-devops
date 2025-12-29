@@ -2,6 +2,12 @@
 name: Pull request review using Claude Code
 on:
   workflow_call:
+    inputs:
+      claude-args:
+        required: false
+        type: string
+        description: Additional arguments to pass directly to Claude Code Action
+        default: '--allowed-tools "Bash(gh:*)"'
     secrets:
       CLAUDE_CODE_OAUTH_TOKEN:
         required: false
@@ -44,8 +50,7 @@ jobs:
 
       # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
       # or https://code.claude.com/docs/en/cli-reference for available options
-      claude-args: |
-        --allowed-tools "Bash(gh issue view:*),Bash(gh search:*),Bash(gh issue list:*),Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr list:*)"
+      claude-args: ${{ inputs.claude-args }}
     secrets:
       CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
