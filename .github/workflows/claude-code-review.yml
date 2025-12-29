@@ -41,7 +41,7 @@ jobs:
         with:
           fetch-depth: 1
           token: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
-          persist-credentials: true
+          persist-credentials: false
       - name: Run Claude Code Review
         uses: anthropics/claude-code-action@7145c3e0510bcdbdd29f67cc4a8c1958f1acfa2f  # v1.0.27
         with:
@@ -62,6 +62,7 @@ jobs:
 
             Use `gh pr comment` with your Bash tool to leave your review as a comment on the PR.
 
+            Use the author name and icon for Claude Code when leaving comments.
           # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
           # or https://code.claude.com/docs/en/cli-reference for available options
           claude_args: ${{ inputs.claude-args }}
