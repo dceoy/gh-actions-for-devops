@@ -1,36 +1,37 @@
 ---
 name: Claude Code
 on:
-  issue_comment:
-    types:
-      - created
-  pull_request_review_comment:
-    types:
-      - created
-  issues:
-    types:
-      - opened
-      - assigned
-  pull_request_review:
-    types:
-      - submitted
-# pull_request:
-#   types:
-#     - opened
-#     - synchronize
-#     # Optional: Only run on specific file changes
-#     # paths:
-#     #   - "src/**/*.ts"
-#     #   - "src/**/*.tsx"
-#     #   - "src/**/*.js"
-#     #   - "src/**/*.jsx"
+  workflow_call:
+    inputs:
+      claude-args:
+        required: false
+        type: string
+        description: Additional arguments to pass directly to Claude Code Action
+        default: '--allowed-tools Bash(gh *)'
+#   issue_comment:
+#     types:
+#       - created
+#   pull_request_review_comment:
+#     types:
+#       - created
+#   issues:
+#     types:
+#       - opened
+#       - assigned
+#   pull_request_review:
+#     types:
+#       - submitted
+#   pull_request:
+#     types:
+#       - opened
+#       - synchronize
 jobs:
-  claude:
-    if: >
-      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude'))
-      || (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude'))
-      || (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude'))
-      || (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')))
+  claude-agent:
+    # if: >
+    #   (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude'))
+    #   || (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude'))
+    #   || (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude'))
+    #   || (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')))
     permissions:
       contents: read
       pull-requests: read
@@ -43,87 +44,49 @@ jobs:
       additional-permissions: |
         actions: read
 
-      # Optional: Customize the trigger phrase (default: @claude)
-      # trigger-phrase: "/claude"
+      # Optional: Give a custom prompt to Claude. If this is not specified, Claude will perform the instructions specified in the comment that tagged it.
+      # prompt: 'Update the pull request description to include a summary of changes.'
 
-      # Optional: Trigger when specific user is assigned to an issue
-      # assignee-trigger: "claude-bot"
-
-      # Optional: Add custom instructions via Claude CLI args
-      # claude-args: |
-      #   --system-prompt "Follow our coding standards"
-      #   --max-turns 10
-
-      # Optional: Allow Claude to run specific tools
-      # claude-args: |
-      #   --allowedTools "Bash(npm install),Bash(npm run build),Bash(npm run test:*),Bash(npm run lint:*)"
-
-      # Optional: Custom environment variables for Claude (JSON settings)
-      # settings: |
-      #   {"env": {"NODE_ENV": "test"}}
+      # Optional: Add claude_args to customize behavior and configuration
+      # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
+      # or https://code.claude.com/docs/en/cli-reference for available options
+      # claude_args: '--allowed-tools Bash(gh pr:*)'
+      claude-args: ${{ inputs.claude-args }}
     secrets:
       CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-# claude-review:
-#   # Optional: Filter by PR author
-#   # if: >
-#   #   github.event.pull_request.user.login == 'external-contributor'
-#   #   || github.event.pull_request.user.login == 'new-developer'
-#   #   || github.event.pull_request.author_association == 'FIRST_TIME_CONTRIBUTOR'
-#   if: >
-#     github.event_name == 'pull_request'
-#   permissions:
-#     contents: read
-#     pull-requests: read
-#     issues: read
-#     id-token: write
-#   uses: ./.github/workflows/claude-code-action.yml
-#   with:
-#     # Direct prompt for automated review (no @claude mention needed)
-#     prompt: |
-#       REPO: ${{ github.repository }}
-#       PR NUMBER: ${{ github.event.pull_request.number }}
-#
-#       Please review this pull request and provide feedback on:
-#       - Code quality and best practices
-#       - Potential bugs or issues
-#       - Performance considerations
-#       - Security concerns
-#       - Test coverage
-#
-#       Be constructive and helpful in your feedback.
-#
-#     # Optional: Use sticky comments to make Claude reuse the same comment on subsequent pushes to the same PR
-#     # use-sticky-comment: true
-#
-#     # Optional: Customize review based on file types
-#     # prompt: |
-#     #   REPO: ${{ github.repository }}
-#     #   PR NUMBER: ${{ github.event.pull_request.number }}
-#     #
-#     #   Review this PR focusing on:
-#     #   - For TypeScript files: Type safety and proper interface usage
-#     #   - For API endpoints: Security, input validation, and error handling
-#     #   - For React components: Performance, accessibility, and best practices
-#     #   - For tests: Coverage, edge cases, and test quality
-#
-#     # Optional: Different prompts for different authors
-#     # prompt: |
-#     #   REPO: ${{ github.repository }}
-#     #   PR NUMBER: ${{ github.event.pull_request.number }}
-#     #
-#     #   ${{ github.event.pull_request.author_association == 'FIRST_TIME_CONTRIBUTOR' &&
-#     #   'Welcome! Please review this PR from a first-time contributor. Be encouraging and provide detailed explanations for any suggestions.' ||
-#     #   'Please provide a thorough code review focusing on our coding standards and best practices.' }}
-#
-#     # Optional: Add specific tools for running tests or linting
-#     # claude-args: |
-#     #   --allowedTools "Bash(npm run test),Bash(npm run lint),Bash(npm run typecheck)"
-#
-#     # Optional: Skip review for certain conditions
-#     # if: |
-#     #   !contains(github.event.pull_request.title, '[skip-review]') &&
-#     #   !contains(github.event.pull_request.title, '[WIP]')
-#   secrets:
-#     CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-#     GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  claude-review:
+    # if: >
+    #   github.event_name == 'pull_request'
+    #   && github.event.pull_request.draft == false
+    #   && (! endswith(github.event.pull_request.user.login, '[bot]') )
+    permissions:
+      contents: read
+      pull-requests: read
+      issues: read
+      id-token: write
+    uses: ./.github/workflows/claude-code-action.yml
+    with:
+      claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+      prompt: |
+        REPO: ${{ github.repository }}
+        PR NUMBER: ${{ github.event.pull_request.number }}
+
+        Please review this pull request and provide feedback on:
+        - Code quality and best practices
+        - Potential bugs or issues
+        - Performance considerations
+        - Security concerns
+        - Test coverage
+
+        Use the repository's CLAUDE.md for guidance on style and conventions. Be constructive and helpful in your feedback.
+
+        Use `gh pr comment` with your Bash tool to leave your review as a comment on the PR.
+
+      # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
+      # or https://code.claude.com/docs/en/cli-reference for available options
+      claude-args: >
+        --allowed-tools "Bash(gh issue view:*),Bash(gh search:*),Bash(gh issue list:*),Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr list:*)"
+    secrets:
+      CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
