@@ -69,13 +69,13 @@ The workflows are organized by category for easier navigation. Each workflow is 
 - [aws-parameter-store-update.yml](.github/workflows/aws-parameter-store-update.yml)
   - Update AWS Parameter Store values
 
-- [claude-bot.yml](.github/workflows/claude-bot.yml)
-  - Mention bot using Claude Code
-
 - [claude-code-action.yml](.github/workflows/claude-code-action.yml)
   - Claude Code Action
 
-- [claude-review.yml](.github/workflows/claude-review.yml)
+- [claude-code-bot.yml](.github/workflows/claude-code-bot.yml)
+  - Mention bot using Claude Code
+
+- [claude-code-review.yml](.github/workflows/claude-code-review.yml)
   - Pull request review using Claude Code
 
 - [dependabot-auto-merge.yml](.github/workflows/dependabot-auto-merge.yml)
