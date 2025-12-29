@@ -25,7 +25,7 @@ on:
 #       - opened
 #       - synchronize
 jobs:
-  claude-review:
+  claude-code-review:
     if: >
       github.event_name == 'pull_request'
     permissions:
