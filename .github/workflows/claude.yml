@@ -8,6 +8,13 @@ on:
         type: string
         description: Additional arguments to pass directly to Claude Code Action
         default: '--allowed-tools Bash(gh *)'
+    secrets:
+      CLAUDE_CODE_OAUTH_TOKEN:
+        required: false
+        description: OAuth token for Claude Code
+      GH_TOKEN:
+        required: false
+        description: GitHub token for creating comments/issues
 #   issue_comment:
 #     types:
 #       - created
