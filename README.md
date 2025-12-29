@@ -72,6 +72,9 @@ The workflows are organized by category for easier navigation. Each workflow is 
 - [claude-code-action.yml](.github/workflows/claude-code-action.yml)
   - Claude Code Action
 
+- [claude.yml](.github/workflows/claude.yml)
+  - Claude Code
+
 - [dependabot-auto-merge.yml](.github/workflows/dependabot-auto-merge.yml)
   - Dependabot auto-merge
 
