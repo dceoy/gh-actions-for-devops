@@ -24,6 +24,7 @@ on:
       - opened
       - synchronize
       - reopened
+      - ready_for_review
   workflow_dispatch:
     inputs:
       workflow:
@@ -40,7 +41,7 @@ jobs:
   go-lint-and-scan:
     if: >
       github.event_name == 'push'
-      || github.event_name == 'pull_request'
+      || (github.event_name == 'pull_request' && github.event.action != 'ready_for_review')
       || (github.event_name == 'workflow_dispatch' && inputs.workflow == 'lint')
     permissions:
       contents: read
@@ -51,7 +52,7 @@ jobs:
   github-actions-lint-and-scan:
     if: >
       github.event_name == 'push'
-      || github.event_name == 'pull_request'
+      || (github.event_name == 'pull_request' && github.event.action != 'ready_for_review')
       || (github.event_name == 'workflow_dispatch' && inputs.workflow == 'lint')
     permissions:
       contents: read
@@ -63,7 +64,7 @@ jobs:
   toml-lint:
     if: >
       github.event_name == 'push'
-      || github.event_name == 'pull_request'
+      || (github.event_name == 'pull_request' && github.event.action != 'ready_for_review')
       || (github.event_name == 'workflow_dispatch' && inputs.workflow == 'lint')
     permissions:
       contents: read
@@ -74,7 +75,7 @@ jobs:
   docker-lint-and-scan:
     if: >
       github.event_name == 'push'
-      || github.event_name == 'pull_request'
+      || (github.event_name == 'pull_request' && github.event.action != 'ready_for_review')
       || (github.event_name == 'workflow_dispatch' && inputs.workflow == 'lint')
     permissions:
       contents: write
@@ -114,7 +115,7 @@ jobs:
     if: >
       github.event_name == 'pull_request'
       && github.event.pull_request.draft == false
-      && (! endswith(github.event.pull_request.user.login, '[bot]') )
+      && (! endswith(github.event.pull_request.user.login, '[bot]'))
     permissions:
       contents: read
       pull-requests: write
@@ -174,7 +175,7 @@ jobs:
   update-readme-md:
     if: >
       github.event_name == 'push'
-      || github.event_name == 'pull_request'
+      || (github.event_name == 'pull_request' && github.event.action != 'ready_for_review')
       || github.event_name == 'workflow_dispatch'
     permissions:
       contents: write

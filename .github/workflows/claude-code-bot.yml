@@ -20,19 +20,6 @@ on:
       GH_TOKEN:
         required: false
         description: GitHub token for accessing the repository
-#   issue_comment:
-#     types:
-#       - created
-#   pull_request_review_comment:
-#     types:
-#       - created
-#   issues:
-#     types:
-#       - opened
-#       - assigned
-#   pull_request_review:
-#     types:
-#       - submitted
 jobs:
   claude-code-bot:
     if: >
@@ -52,6 +39,7 @@ jobs:
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6.0.1
         with:
           fetch-depth: 1
+          token: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
           persist-credentials: false
       - name: Run Claude Code
         uses: anthropics/claude-code-action@7145c3e0510bcdbdd29f67cc4a8c1958f1acfa2f  # v1.0.27

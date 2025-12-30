@@ -7,7 +7,7 @@ on:
         required: false
         type: string
         description: Additional arguments to pass directly to Claude Code Action
-        default: '--allowed-tools "Bash(gh:*)"'
+        default: '--allowed-tools "Bash(gh:*)",mcp__github_inline_comment__create_inline_comment'
       runs-on:
         required: false
         type: string
@@ -40,6 +40,7 @@ jobs:
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6.0.1
         with:
           fetch-depth: 1
+          token: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
           persist-credentials: false
       - name: Run Claude Code Review
         uses: anthropics/claude-code-action@7145c3e0510bcdbdd29f67cc4a8c1958f1acfa2f  # v1.0.27
