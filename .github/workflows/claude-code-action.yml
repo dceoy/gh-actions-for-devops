@@ -186,7 +186,7 @@ jobs:
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6.0.1
         with:
           fetch-depth: 1
-          persist-credentials: false
+          persist-credentials: true
       - name: Configure AWS credentials
         if: inputs.aws-iam-role-to-assume != null
         uses: aws-actions/configure-aws-credentials@61815dcd50bd041e203e49132bacad1fd04d2708  # v5.1.1
