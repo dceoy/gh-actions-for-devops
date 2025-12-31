@@ -42,25 +42,25 @@ if [[ "${N_TYPESCRIPT_FILES}" -gt 0 ]]; then
     PACKAGE_DIRECTORY="$(dirname "${PACKAGE_JSON_FILE}")"
     NODE_MODULES_BIN="${PACKAGE_DIRECTORY}/node_modules/.bin"
     PATH="${NODE_MODULES_BIN}:${PATH}"
+    prettier --write "${PACKAGE_DIRECTORY}/**/*.{js,jsx,ts,tsx,json,css,scss}"
     eslint --ext .js,.jsx,.ts,.tsx --no-error-on-unmatched-pattern "${PACKAGE_DIRECTORY}"
-    prettier --check "${PACKAGE_DIRECTORY}/**/*.{js,jsx,ts,tsx,json,css,scss}"
     tsc --noEmit --project "${PACKAGE_DIRECTORY}/tsconfig.json"
   else
+    prettier --write '**/*.{js,jsx,ts,tsx,json,css,scss}'
     eslint --ext .js,.jsx,.ts,.tsx --no-error-on-unmatched-pattern .
-    prettier --check '**/*.{js,jsx,ts,tsx,json,css,scss}'
     tsc --noEmit
   fi
 fi
 
 N_HTML_FILES=$(find . -maxdepth "${MAX_DEPTH}" \( -path '*/.*' -o -path '*/htmlcov/*' -o -path '*/coverage/*' \) -prune -o -type f \( -name '*.html' -o -name '*.htm' \) -print | wc -l)
 if [[ "${N_HTML_FILES}" -gt 0 ]]; then
-  prettier --check './**/*.{html,htm}'
+  prettier --write './**/*.{html,htm}'
 fi
 
 N_MARKDOWN_FILES=$(find . -maxdepth "${MAX_DEPTH}" -path '*/.*' -prune -o -type f -name '*.md' -print | wc -l)
 if [[ "${N_MARKDOWN_FILES}" -gt 0 ]]; then
-  prettier --check './**/*.md'
-  # markdownlint-cli2 './**/*.md'
+  prettier --write './**/*.md'
+  markdownlint-cli2 './**/*.md' || echo 'Skipping markdownlint-cli2 errors'
 fi
 
 N_GO_FILES=$(find . -maxdepth "${MAX_DEPTH}" -path '*/.*' -prune -o -type f -name '*.go' -print | wc -l)
