@@ -186,7 +186,8 @@ jobs:
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6.0.1
         with:
           fetch-depth: 1
-          persist-credentials: true
+          token: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
+          persist-credentials: false
       - name: Configure AWS credentials
         if: inputs.aws-iam-role-to-assume != null
         uses: aws-actions/configure-aws-credentials@61815dcd50bd041e203e49132bacad1fd04d2708  # v5.1.1
@@ -206,7 +207,6 @@ jobs:
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          github_token: ${{ secrets.GH_TOKEN }}
           prompt: ${{ inputs.prompt }}
           claude_args: ${{ inputs.claude-args }}
           track_progress: ${{ inputs.track-progress }}
