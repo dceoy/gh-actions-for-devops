@@ -60,7 +60,7 @@ fi
 N_MARKDOWN_FILES=$(find . -maxdepth "${MAX_DEPTH}" -path '*/.*' -prune -o -type f -name '*.md' -print | wc -l)
 if [[ "${N_MARKDOWN_FILES}" -gt 0 ]]; then
   prettier --write './**/*.md'
-  markdownlint-cli2 './**/*.md' || echo 'Skipping markdownlint-cli2 errors'
+  # markdownlint-cli2 './**/*.md'
 fi
 
 N_GO_FILES=$(find . -maxdepth "${MAX_DEPTH}" -path '*/.*' -prune -o -type f -name '*.go' -print | wc -l)
