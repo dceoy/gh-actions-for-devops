@@ -25,12 +25,25 @@
 
 ## Git Workflow
 
-- Run `./githook/auto-format-and-lint.sh` before committing changes
+### Pre-Commit Checklist
+
+**IMPORTANT**: Run the following on each change before committing:
+
+1. **Auto-format and lint**: `./githook/auto-format-and-lint.sh`
+2. **Type checking** (if applicable):
+   - Python: `pyright` (strict mode)
+   - Go: included in golangci-lint
+3. **Run tests**: Execute relevant test suites for modified code
+4. **Security scan** (periodically): `trivy filesystem --scanners vuln,secret,misconfig .`
+
+### Workflow Organization
+
 - Workflows stored at `.github/workflows/` with symlink at `workflows/`
 
 ## Commit & Pull Request Guidelines
 
 - Commit messages are short, imperative, sentence-case.
+- Branch names use appropriate prefixes on creation (e.g., `feature/short-description`, `bugfix/short-description`).
 - PRs should include: a clear summary, relevant context or linked issue.
 - When instructed to create a PR, create it as a draft with appropriate labels by default.
 
