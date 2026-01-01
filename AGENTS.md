@@ -28,6 +28,12 @@
 - Run `./githook/auto-format-and-lint.sh` before committing changes
 - Workflows stored at `.github/workflows/` with symlink at `workflows/`
 
+## Commit & Pull Request Guidelines
+
+- Commit messages are short, imperative, sentence-case.
+- PRs should include: a clear summary, relevant context or linked issue.
+- When instructed to create a PR, create it as a draft with appropriate labels by default.
+
 ## Testing Guidelines
 
 ### Test Desiderata
