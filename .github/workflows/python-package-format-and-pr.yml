@@ -82,7 +82,7 @@ jobs:
         if: steps.detect-lock-file.outputs.lock_file == 'uv.lock'
         working-directory: ${{ inputs.package-path }}
         run: |
-          uv sync --dev
+          uv sync --all-groups
           uv add --dev \
             ${{ inputs.use-black && 'black' || 'ruff' }} \
             ${{ inputs.use-isort && 'isort' || '' }}

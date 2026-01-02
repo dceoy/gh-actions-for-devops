@@ -67,7 +67,7 @@ jobs:
         env:
           INPUTS_ADDITIONAL_PYTHON_PACKAGES: ${{ inputs.additional-python-packages }}
         run: |
-          uv sync --dev
+          uv sync --all-groups
           for p in $(echo "${INPUTS_ADDITIONAL_PYTHON_PACKAGES}" | tr ' ' '\n'); do
             if [[ -n "${p}" ]]; then
               uv add --dev "${p}"

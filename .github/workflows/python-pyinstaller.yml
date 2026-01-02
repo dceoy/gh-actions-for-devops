@@ -77,7 +77,7 @@ jobs:
       - name: Install packages using uv
         if: steps.detect-lock-file.outputs.lock_file == 'uv.lock'
         run: |
-          uv sync --dev
+          uv sync --all-groups
           uv add --dev PyInstaller
           echo "EXECUTOR=uv run" | tee -a "${GITHUB_ENV}"
       - name: Set up Python

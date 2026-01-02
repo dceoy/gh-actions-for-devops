@@ -92,7 +92,7 @@ jobs:
         env:
           INPUTS_ADDITIONAL_PYTHON_PACKAGES: ${{ inputs.additional-python-packages }}
         run: |
-          uv sync --dev
+          uv sync --all-groups
           uv add --dev \
             ${{ inputs.use-flake8 && 'flake8' || '' }} \
             ${{ inputs.use-bandit && 'bandit' || '' }} \
