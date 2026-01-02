@@ -43,11 +43,11 @@ if [[ "${N_TYPESCRIPT_FILES}" -gt 0 ]]; then
     NODE_MODULES_BIN="${PACKAGE_DIRECTORY}/node_modules/.bin"
     PATH="${NODE_MODULES_BIN}:${PATH}"
     prettier --write "${PACKAGE_DIRECTORY}/**/*.{js,jsx,ts,tsx,json,css,scss}"
-    eslint --ext .js,.jsx,.ts,.tsx --no-error-on-unmatched-pattern "${PACKAGE_DIRECTORY}"
+    eslint --fix --ext .js,.jsx,.ts,.tsx --no-error-on-unmatched-pattern "${PACKAGE_DIRECTORY}"
     tsc --noEmit --project "${PACKAGE_DIRECTORY}/tsconfig.json"
   else
     prettier --write '**/*.{js,jsx,ts,tsx,json,css,scss}'
-    eslint --ext .js,.jsx,.ts,.tsx --no-error-on-unmatched-pattern .
+    eslint --fix --ext .js,.jsx,.ts,.tsx --no-error-on-unmatched-pattern .
     tsc --noEmit
   fi
 fi
