@@ -35,9 +35,9 @@ if [[ "${N_BASH_FILES}" -gt 0 ]]; then
     | xargs -0 -t shellcheck
 fi
 
-N_TYPESCRIPT_FILES=$(find . -maxdepth "${MAX_DEPTH}" \( -path '*/.*' -o -path '*/node_modules/*' -o -path '*/htmlcov/*' -o -path '*/coverage/*' -o -path '*/site/*' \) -prune -o -type f \( -name '*.ts' -o -name '*.tsx' -o -name '*.js' -o -name '*.jsx' \) -print | wc -l)
+N_TYPESCRIPT_FILES=$(find . -maxdepth "${MAX_DEPTH}" \( -path '*/.*' -o -path '*/.venv/*' -o -path '*/node_modules/*' -o -path '*/htmlcov/*' -o -path '*/coverage/*' -o -path '*/site/*' \) -prune -o -type f \( -name '*.ts' -o -name '*.tsx' -o -name '*.js' -o -name '*.jsx' \) -print | wc -l)
 if [[ "${N_TYPESCRIPT_FILES}" -gt 0 ]]; then
-  PACKAGE_JSON_FILE=$(find . -maxdepth "${MAX_DEPTH}" \( -path '*/.*' -o -path '*/node_modules/*' -o -path '*/htmlcov/*' -o -path '*/coverage/*' \) -prune -o -type f -name 'package.json' -print -quit)
+  PACKAGE_JSON_FILE=$(find . -maxdepth "${MAX_DEPTH}" \( -path '*/.*' -o -path '*/.venv/*' -o -path '*/node_modules/*' -o -path '*/htmlcov/*' -o -path '*/coverage/*' \) -prune -o -type f -name 'package.json' -print -quit)
   if [[ -n "${PACKAGE_JSON_FILE}" ]]; then
     PACKAGE_DIRECTORY="$(dirname "${PACKAGE_JSON_FILE}")"
     NODE_MODULES_BIN="${PACKAGE_DIRECTORY}/node_modules/.bin"
