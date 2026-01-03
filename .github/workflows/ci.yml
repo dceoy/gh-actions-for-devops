@@ -62,17 +62,6 @@ jobs:
       search-path: .github/workflows
       go-version: stable
       python-version: 3.x
-  toml-lint:
-    if: >
-      github.event_name == 'push'
-      || (github.event_name == 'pull_request' && github.event.action != 'ready_for_review')
-      || (github.event_name == 'workflow_dispatch' && inputs.workflow == 'lint')
-    permissions:
-      contents: read
-    uses: ./.github/workflows/toml-lint.yml
-    with:
-      search-path: .github/workflows
-      go-version: stable
   docker-lint-and-scan:
     if: >
       github.event_name == 'push'
@@ -116,9 +105,15 @@ jobs:
     if: >
       github.event_name == 'pull_request'
       && github.event.pull_request.draft == false
-      && (! endswith(github.event.pull_request.user.login, '[bot]'))
+      && (github.event.action == 'opened' || github.event.action == 'ready_for_review')
       && (! startsWith(github.head_ref, 'dependabot/'))
       && (! startsWith(github.head_ref, 'renovate/'))
+      && (! (failure() || cancelled()))
+    needs:
+      - go-lint-and-scan
+      - github-actions-lint-and-scan
+      - docker-lint-and-scan
+      - update-readme-md
     permissions:
       contents: read
       pull-requests: write
@@ -163,7 +158,6 @@ jobs:
     needs:
       - go-lint-and-scan
       - github-actions-lint-and-scan
-      - toml-lint
       - docker-lint-and-scan
     permissions:
       contents: write
