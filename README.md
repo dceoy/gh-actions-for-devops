@@ -102,6 +102,9 @@ The workflows are organized by category for easier navigation. Each workflow is 
 - [docker-save-and-terraform-deploy-to-aws.yml](.github/workflows/docker-save-and-terraform-deploy-to-aws.yml)
   - Docker image save and resource deployment to AWS using Terraform
 
+- [gcloud-infra-manager-deployments.yml](.github/workflows/gcloud-infra-manager-deployments.yml)
+  - Deployment of Google Cloud resources using Infrastructure Manager
+
 - [gemini-cli-to-slack.yml](.github/workflows/gemini-cli-to-slack.yml)
   - Gemini CLI with Slack notification
 
@@ -122,9 +125,6 @@ The workflows are organized by category for easier navigation. Each workflow is 
 
 - [go-package-lint-and-scan.yml](.github/workflows/go-package-lint-and-scan.yml)
   - Lint and security scan for Go
-
-- [google-cloud-infra-manager-deploy.yml](.github/workflows/google-cloud-infra-manager-deploy.yml)
-  - Deployment of Google Cloud resources using Infrastructure Manager
 
 - [html-lint-and-scan.yml](.github/workflows/html-lint-and-scan.yml)
   - Lint and scan for HTML/CSS
