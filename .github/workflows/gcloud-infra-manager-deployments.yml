@@ -241,8 +241,7 @@ jobs:
     runs-on: ${{ inputs.runs-on }}
     timeout-minutes: ${{ inputs.timeout-minutes }}
     env:
-      WI_SERVICE_ACCOUNT: ${{ inputs.workload-identity-service-account-name && format('projects/{0}/serviceAccounts/{1}@{0}.iam.gserviceaccount.com', inputs.project-id, inputs.workload-identity-service-account-name) || null }}
-      IM_SERVICE_ACCOUNT: ${{ inputs.infra-manager-service-account-name && format('projects/{0}/serviceAccounts/{1}@{0}.iam.gserviceaccount.com', inputs.project-id, inputs.infra-manager-service-account-name) || null }}
+      IM_SERVICE_ACCOUNT: ${{ inputs.infra-manager-service-account-name && format('projects/{0}/serviceAccounts/{1}', inputs.project-id, inputs.infra-manager-service-account-name) || null }}
       IM_PREVIEW: projects/${{ inputs.project-id }}/locations/${{ inputs.location }}/previews/${{ inputs.infra-manager-deployment-name }}-preview
       IM_DEPLOYMENT: projects/${{ inputs.project-id }}/locations/${{ inputs.location }}/deployments/${{ inputs.infra-manager-deployment-name }}
     steps:
@@ -268,7 +267,7 @@ jobs:
         with:
           project_id: ${{ inputs.project-id }}
           workload_identity_provider: ${{ inputs.workload-identity-provider }}
-          service_account: ${{ inputs.workload-identity-service-account-name && env.WI_SERVICE_ACCOUNT || null }}
+          service_account: ${{ inputs.workload-identity-service-account-name }}
       - name: Setup gcloud
         uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db  # v3.0.1
         with:
