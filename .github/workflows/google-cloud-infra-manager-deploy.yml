@@ -115,6 +115,120 @@ on:
         type: number
         description: Timeout in minutes for the job
         default: 360
+  workflow_dispatch:
+    inputs:
+      project-id:
+        required: true
+        type: string
+        description: Google Cloud project ID to use
+      infra-manager-deployment-name:
+        required: true
+        type: string
+        description: Infrastructure Manager deployment ID
+      workload-identity-provider:
+        required: true
+        type: string
+        description: Workload Identity Provider to use for authentication
+      workload-identity-service-account-name:
+        required: false
+        type: string
+        description: Service Account name to use for Workload Identity Federation
+        default: null
+      location:
+        required: false
+        type: string
+        description: Google Cloud location
+        default: us-central1
+      gcloud-version:
+        required: false
+        type: string
+        description: gcloud CLI version to use
+        default: latest
+      gcloud-components:
+        required: false
+        type: string
+        description: gcloud components to install (comma-separated)
+        default: null
+      infra-manager-source-directory:
+        required: false
+        type: string
+        description: Local directory containing Terraform configuration for Infrastructure Manager
+        default: .
+      infra-manager-input-values:
+        required: false
+        type: string
+        description: Comma-separated input values (e.g., "region=us-central1,env=prod")
+        default: null
+      infra-manager-inputs-file:
+        required: false
+        type: string
+        description: Path to inputs file for Infrastructure Manager
+        default: null
+      infra-manager-service-account-name:
+        required: false
+        type: string
+        description: Service account name for Infrastructure Manager deployment execution
+        default: null
+      infra-manager-artifacts-gcs-bucket:
+        required: false
+        type: string
+        description: GCS bucket to store Infrastructure Manager artifacts
+        default: null
+      infra-manager-labels:
+        required: false
+        type: string
+        description: Labels to set on the deployment (comma-separated key=value pairs)
+        default: null
+      infra-manager-annotations:
+        required: false
+        type: string
+        description: Annotations to set on the deployment (comma-separated key=value pairs)
+        default: null
+      infra-manager-import-existing-resources:
+        required: false
+        type: boolean
+        description: Import existing resources into Infrastructure Manager deployment
+        default: true
+      infra-manager-delete-policy:
+        required: false
+        type: string
+        description: Delete policy for Infrastructure Manager (abandon, delete, or delete-policy-unspecified)
+        default: null
+      infra-manager-async:
+        required: false
+        type: boolean
+        description: Run Infrastructure Manager operations asynchronously
+        default: false
+      apply:
+        required: false
+        type: boolean
+        description: Create or update infrastructure
+        default: false
+      destroy:
+        required: false
+        type: boolean
+        description: Destroy infrastructure
+        default: false
+      environment-variables:
+        required: false
+        type: string
+        description: Environment variables to set (e.g., "FOO=bar")
+        default: null
+      environment-file:
+        required: false
+        type: string
+        description: Environment file to set environment variables
+        default: null
+      runs-on:
+        required: false
+        type: string
+        description: GitHub Actions runner to use
+        default: ubuntu-slim
+      timeout-minutes:
+        required: false
+        type: number
+        description: Timeout in minutes for the job
+        default: 360
 permissions:
   contents: read
   id-token: write
