@@ -51,19 +51,19 @@ jobs:
         working-directory: ${{ inputs.package-path }}
         run: |
           if [[ -f uv.lock ]]; then
-            echo "lock_file=uv.lock" >> "${GITHUB_OUTPUT}"
+            echo "LOCK_FILE=uv.lock" >> "${GITHUB_ENV}"
           elif [[ -f poetry.lock ]]; then
-            echo "lock_file=poetry.lock" >> "${GITHUB_OUTPUT}"
+            echo "LOCK_FILE=poetry.lock" >> "${GITHUB_ENV}"
           else
-            echo "lock_file=" >> "${GITHUB_OUTPUT}"
+            echo "LOCK_FILE=" >> "${GITHUB_ENV}"
           fi
       - name: Set up uv
-        if: steps.detect-lock-file.outputs.lock_file == 'uv.lock'
+        if: env.LOCK_FILE == 'uv.lock'
         uses: astral-sh/setup-uv@681c641aba71e4a1c380be3ab5e12ad51f415867  # v7.1.6
         with:
           version: ${{ inputs.uv-version }}
       - name: Install packages using uv
-        if: steps.detect-lock-file.outputs.lock_file == 'uv.lock'
+        if: env.LOCK_FILE == 'uv.lock'
         working-directory: ${{ inputs.package-path }}
         env:
           INPUTS_ADDITIONAL_PYTHON_PACKAGES: ${{ inputs.additional-python-packages }}
@@ -76,14 +76,13 @@ jobs:
           done
           echo "EXECUTOR=uv run --directory ${PWD}" | tee -a "${GITHUB_ENV}"
       - name: Set up Python
-        if: steps.detect-lock-file.outputs.lock_file != 'uv.lock'
+        if: env.LOCK_FILE != 'uv.lock'
         uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548  # v6.1.0
         with:
           python-version: ${{ inputs.python-version }}
       - name: Install packages
-        if: steps.detect-lock-file.outputs.lock_file != 'uv.lock'
+        if: env.LOCK_FILE != 'uv.lock'
         env:
-          LOCK_FILE: ${{ steps.detect-lock-file.outputs.lock_file }}
           ADDITIONAL_PYTHON_PACKAGES: ${{ inputs.additional-python-packages }}
           REQUIREMENTS_TXT_PATH: ${{ inputs.requirements-txt }}
         working-directory: ${{ inputs.package-path }}
