@@ -1,5 +1,5 @@
 ---
-name: Test for Python Package
+name: Build and deployment of MkDocs documentation
 on:
   workflow_call:
     inputs:
@@ -18,27 +18,55 @@ on:
         type: string
         description: Version of uv to use (applicable only if uv.lock is present)
         default: latest
-      additional-python-packages:
+      mkdocs-args:
         required: false
         type: string
-        description: Additional Python packages to install
-        default: null
-      requirements-txt:
-        required: false
-        type: string
-        description: Path to the requirements.txt file (not applicable if uv.lock is present)
-        default: null
+        description: Extra arguments passed to mkdocs gh-deploy
+        default: --force --config-file=mkdocs.yml
       runs-on:
         required: false
         type: string
         description: GitHub Actions runner to use
-        default: ubuntu-latest
+        default: ubuntu-slim
+    secrets:
+      GH_TOKEN:
+        required: false
+        description: GitHub token
+  workflow_dispatch:
+    inputs:
+      package-path:
+        required: false
+        type: string
+        description: Path to a Python package or project
+        default: .
+      python-version:
+        required: false
+        type: string
+        description: Python version to use (not applicable if uv.lock is present)
+        default: 3.x
+      uv-version:
+        required: false
+        type: string
+        description: Version of uv to use (applicable only if uv.lock is present)
+        default: latest
+      mkdocs-args:
+        required: false
+        type: string
+        description: Extra arguments passed to mkdocs gh-deploy
+        default: --force --config-file=mkdocs.yml
+      runs-on:
+        required: false
+        type: string
+        description: GitHub Actions runner to use
+        default: ubuntu-slim
+permissions:
+  contents: write
 defaults:
   run:
     shell: bash -euo pipefail {0}
     working-directory: .
 jobs:
-  test:
+  build-and-deploy:
     runs-on: ${{ inputs.runs-on }}
     steps:
       - name: Checkout repository
@@ -64,15 +92,8 @@ jobs:
       - name: Install packages using uv
         if: env.LOCK_FILE == 'uv.lock'
         working-directory: ${{ inputs.package-path }}
-        env:
-          INPUTS_ADDITIONAL_PYTHON_PACKAGES: ${{ inputs.additional-python-packages }}
         run: |
           uv sync --all-groups
-          for p in $(echo "${INPUTS_ADDITIONAL_PYTHON_PACKAGES}" | tr ' ' '\n'); do
-            if [[ -n "${p}" ]]; then
-              uv add --dev "${p}"
-            fi
-          done
           echo "EXECUTOR=uv run --directory ${PWD}" | tee -a "${GITHUB_ENV}"
       - name: Set up Python
         if: env.LOCK_FILE != 'uv.lock'
@@ -81,34 +102,22 @@ jobs:
           python-version: ${{ inputs.python-version }}
       - name: Install packages
         if: env.LOCK_FILE != 'uv.lock'
-        env:
-          ADDITIONAL_PYTHON_PACKAGES: ${{ inputs.additional-python-packages }}
-          REQUIREMENTS_TXT_PATH: ${{ inputs.requirements-txt }}
         working-directory: ${{ inputs.package-path }}
         run: |
           pip install -U --no-cache-dir pip
-          if [[ -n "${REQUIREMENTS_TXT_PATH}" ]]; then
-            pip install -U --no-cache-dir -r "${REQUIREMENTS_TXT_PATH}"
-          fi
           if [[ "${LOCK_FILE}" == "poetry.lock" ]]; then
             pip install --no-cache-dir poetry
             poetry lock --no-interaction
-            for p in $(echo "${ADDITIONAL_PYTHON_PACKAGES}" | tr ' ' '\n'); do
-              if [[ -n "${p}" ]]; then
-                poetry add --group=dev --no-interaction "${p}"
-              fi
-            done
             poetry install --no-interaction --no-root
             echo "EXECUTOR=poetry run -C ${PWD}" | tee -a "${GITHUB_ENV}"
           else
-            for p in $(echo "${ADDITIONAL_PYTHON_PACKAGES}" | tr ' ' '\n'); do
-              if [[ -n "${p}" ]]; then
-                pip install --no-cache-dir "${p}"
-              fi
-            done
+            pip install -U --no-cache-dir mkdocs
             echo "EXECUTOR=" | tee -a "${GITHUB_ENV}"
           fi
-      - name: Run tests with pytest
+      - name: Deploy MkDocs
         working-directory: ${{ inputs.package-path }}
-        run: >  # zizmor: ignore[template-injection]
-          ${{ env.EXECUTOR }} pytest
+        env:
+          MKDOCS_ARGS: ${{ inputs.mkdocs-args }}
+        run: |  # zizmor: ignore[template-injection]
+          read -r -a args <<< "${MKDOCS_ARGS}"
+          ${{ env.EXECUTOR }} mkdocs gh-deploy "${args[@]:-}"

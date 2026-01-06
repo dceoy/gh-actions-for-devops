@@ -147,6 +147,9 @@ The workflows are organized by category for easier navigation. Each workflow is 
 - [python-package-lint-and-scan.yml](.github/workflows/python-package-lint-and-scan.yml)
   - Lint and security scan for Python
 
+- [python-package-mkdocs-gh-deploy.yml](.github/workflows/python-package-mkdocs-gh-deploy.yml)
+  - Build and deployment of MkDocs documentation
+
 - [python-package-release-on-pypi-and-github.yml](.github/workflows/python-package-release-on-pypi-and-github.yml)
   - Python package release on PyPI and GitHub
 
