@@ -47,7 +47,6 @@ jobs:
           fetch-depth: 1
           persist-credentials: false
       - name: Detect uv.lock or poetry.lock
-        id: detect-lock-file
         working-directory: ${{ inputs.package-path }}
         run: |
           if [[ -f uv.lock ]]; then

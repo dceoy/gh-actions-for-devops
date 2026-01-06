@@ -61,7 +61,6 @@ jobs:
           fetch-depth: 1
           persist-credentials: false
       - name: Detect uv.lock or poetry.lock
-        id: detect-lock-file
         run: |
           if [[ -f uv.lock ]]; then
             echo "LOCK_FILE=uv.lock" >> "${GITHUB_ENV}"

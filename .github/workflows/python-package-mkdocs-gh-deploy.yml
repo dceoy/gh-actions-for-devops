@@ -18,21 +18,16 @@ on:
         type: string
         description: Version of uv to use (applicable only if uv.lock is present)
         default: latest
-      mkdocs-config:
-        required: false
-        type: string
-        description: Path to the MkDocs config file
-        default: mkdocs.yml
       mkdocs-args:
         required: false
         type: string
         description: Extra arguments passed to mkdocs gh-deploy
-        default: null
+        default: --force --config-file=mkdocs.yml
       runs-on:
         required: false
         type: string
         description: GitHub Actions runner to use
-        default: ubuntu-latest
+        default: ubuntu-slim
     secrets:
       GH_TOKEN:
         required: false
@@ -54,21 +49,16 @@ on:
         type: string
         description: Version of uv to use (applicable only if uv.lock is present)
         default: latest
-      mkdocs-config:
-        required: false
-        type: string
-        description: Path to the MkDocs config file
-        default: mkdocs.yml
       mkdocs-args:
         required: false
         type: string
         description: Extra arguments passed to mkdocs gh-deploy
-        default: null
+        default: --force --config-file=mkdocs.yml
       runs-on:
         required: false
         type: string
         description: GitHub Actions runner to use
-        default: ubuntu-latest
+        default: ubuntu-slim
 permissions:
   contents: write
 defaults:
@@ -85,7 +75,6 @@ jobs:
           fetch-depth: 1
           persist-credentials: false
       - name: Detect uv.lock or poetry.lock
-        id: detect-lock-file
         working-directory: ${{ inputs.package-path }}
         run: |
           if [[ -f uv.lock ]]; then
@@ -128,12 +117,7 @@ jobs:
       - name: Deploy MkDocs
         working-directory: ${{ inputs.package-path }}
         env:
-          MKDOCS_CONFIG: ${{ inputs.mkdocs-config }}
           MKDOCS_ARGS: ${{ inputs.mkdocs-args }}
-        run: |
-          if [[ -n "${MKDOCS_ARGS}" ]]; then
-            read -r -a mkdocs_args <<< "${MKDOCS_ARGS}"
-          else
-            mkdocs_args=()
-          fi
-          ${EXECUTOR} mkdocs gh-deploy --force -f "${MKDOCS_CONFIG}" "${mkdocs_args[@]}"
+        run: |  # zizmor: ignore[template-injection]
+          read -r -a args <<< "${MKDOCS_ARGS}"
+          ${{ env.EXECUTOR }} mkdocs gh-deploy "${args[@]:-}"
