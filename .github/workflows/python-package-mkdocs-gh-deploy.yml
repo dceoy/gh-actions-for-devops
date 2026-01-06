@@ -1,0 +1,137 @@
+---
+name: Build and deployment of MkDocs documentation
+on:
+  workflow_dispatch:
+    inputs:
+      package-path:
+        required: false
+        type: string
+        description: Path to a Python package or project
+        default: .
+      python-version:
+        required: false
+        type: string
+        description: Python version to use (not applicable if uv.lock is present)
+        default: 3.x
+      uv-version:
+        required: false
+        type: string
+        description: Version of uv to use (applicable only if uv.lock is present)
+        default: latest
+      mkdocs-config:
+        required: false
+        type: string
+        description: Path to the MkDocs config file
+        default: mkdocs.yml
+      mkdocs-args:
+        required: false
+        type: string
+        description: Extra arguments passed to mkdocs gh-deploy
+        default: null
+      runs-on:
+        required: false
+        type: string
+        description: GitHub Actions runner to use
+        default: ubuntu-latest
+  workflow_call:
+    inputs:
+      package-path:
+        required: false
+        type: string
+        description: Path to a Python package or project
+        default: .
+      python-version:
+        required: false
+        type: string
+        description: Python version to use (not applicable if uv.lock is present)
+        default: 3.x
+      uv-version:
+        required: false
+        type: string
+        description: Version of uv to use (applicable only if uv.lock is present)
+        default: latest
+      mkdocs-config:
+        required: false
+        type: string
+        description: Path to the MkDocs config file
+        default: mkdocs.yml
+      mkdocs-args:
+        required: false
+        type: string
+        description: Extra arguments passed to mkdocs gh-deploy
+        default: null
+      runs-on:
+        required: false
+        type: string
+        description: GitHub Actions runner to use
+        default: ubuntu-latest
+permissions:
+  contents: write
+defaults:
+  run:
+    shell: bash -euo pipefail {0}
+    working-directory: .
+jobs:
+  build-and-deploy:
+    runs-on: ${{ inputs.runs-on }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6.0.1
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Detect uv.lock or poetry.lock
+        id: detect-lock-file
+        working-directory: ${{ inputs.package-path }}
+        run: |
+          if [[ -f uv.lock ]]; then
+            echo "lock_file=uv.lock" >> "${GITHUB_OUTPUT}"
+          elif [[ -f poetry.lock ]]; then
+            echo "lock_file=poetry.lock" >> "${GITHUB_OUTPUT}"
+          else
+            echo "lock_file=" >> "${GITHUB_OUTPUT}"
+          fi
+      - name: Set up uv
+        if: steps.detect-lock-file.outputs.lock_file == 'uv.lock'
+        uses: astral-sh/setup-uv@681c641aba71e4a1c380be3ab5e12ad51f415867  # v7.1.6
+        with:
+          version: ${{ inputs.uv-version }}
+      - name: Install packages using uv
+        if: steps.detect-lock-file.outputs.lock_file == 'uv.lock'
+        working-directory: ${{ inputs.package-path }}
+        run: |
+          uv sync --all-groups
+          echo "EXECUTOR=uv run --directory ${PWD}" | tee -a "${GITHUB_ENV}"
+      - name: Set up Python
+        if: steps.detect-lock-file.outputs.lock_file != 'uv.lock'
+        uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548  # v6.1.0
+        with:
+          python-version: ${{ inputs.python-version }}
+      - name: Install packages
+        if: steps.detect-lock-file.outputs.lock_file != 'uv.lock'
+        env:
+          LOCK_FILE: ${{ steps.detect-lock-file.outputs.lock_file }}
+        working-directory: ${{ inputs.package-path }}
+        run: |
+          pip install -U --no-cache-dir pip
+          if [[ "${LOCK_FILE}" == "poetry.lock" ]]; then
+            pip install --no-cache-dir poetry
+            poetry lock --no-interaction
+            poetry install --no-interaction --no-root
+            echo "EXECUTOR=poetry run -C ${PWD}" | tee -a "${GITHUB_ENV}"
+          else
+            pip install -U --no-cache-dir mkdocs
+            echo "EXECUTOR=" | tee -a "${GITHUB_ENV}"
+          fi
+      - name: Deploy MkDocs
+        working-directory: ${{ inputs.package-path }}
+        env:
+          MKDOCS_CONFIG: ${{ inputs.mkdocs-config }}
+          MKDOCS_ARGS: ${{ inputs.mkdocs-args }}
+        run: |
+          if [[ -n "${MKDOCS_ARGS}" ]]; then
+            read -r -a mkdocs_args <<< "${MKDOCS_ARGS}"
+          else
+            mkdocs_args=()
+          fi
+          ${EXECUTOR} mkdocs gh-deploy --force -f "${MKDOCS_CONFIG}" "${mkdocs_args[@]}"
