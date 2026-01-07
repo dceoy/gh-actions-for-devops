@@ -88,6 +88,8 @@ defaults:
 jobs:
   build-and-deploy:
     runs-on: ${{ inputs.runs-on }}
+    env:
+      MKDOCS_SITE_DIR: ${{ inputs.package-path }}/site
     steps:
       - name: Checkout repository
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6.0.1
@@ -134,21 +136,21 @@ jobs:
             pip install -U --no-cache-dir mkdocs
             echo "EXECUTOR=" | tee -a "${GITHUB_ENV}"
           fi
-      - name: Deploy MkDocs
+      - name: Build MkDocs site
         working-directory: ${{ inputs.package-path }}
         env:
           MKDOCS_CONFIG_FILE: ${{ inputs.mkdocs-config-file }}
           MKDOCS_STRICT: ${{ inputs.mkdocs-strict && 'true' || null }}
           MKDOCS_THEME: ${{ inputs.mkdocs-theme }}
-          GITHUB_TOKEN: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
-        run: |  # zizmor: ignore[template-injection]
-          git config --global user.name 'github-actions[bot]'
-          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+        run: | # zizmor: ignore[template-injection]
           args=(
-            --clean
-            --force
             ${MKDOCS_CONFIG_FILE:+--config-file="${MKDOCS_CONFIG_FILE}"}
             ${MKDOCS_STRICT:+--strict}
             ${MKDOCS_THEME:+--theme="${MKDOCS_THEME}"}
           )
-          ${{ env.EXECUTOR }} mkdocs gh-deploy "${args[@]:-}"
+          ${{ env.EXECUTOR }} mkdocs build --clean --site-dir="${MKDOCS_SITE_DIR}" "${args[@]:-}"
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@4f9cc6602d3f66b9c108549d475ec49e8ef4d45e  # v4.0.0
+        with:
+          github_token: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
+          publish_dir: ${{ env.MKDOCS_SITE_DIR }}
