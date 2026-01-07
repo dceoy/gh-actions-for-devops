@@ -83,7 +83,7 @@ jobs:
           git config --global user.email "${GITHUB_ACTOR}@users.noreply.github.com"
       - name: Merge the branches
         run: |
-          jq -r '.[]' <<< "${BRANCHES_JSON}" | xargs -I{} -t git merge --no-edit origin/{}
+          jq -r '.[]' <<< "${BRANCHES_JSON}" | xargs -I{} -t git merge --allow-unrelated-histories --no-edit origin/{}
       - name: Push the changes
         run: |
           git push origin "HEAD:${HEAD_REF}"
