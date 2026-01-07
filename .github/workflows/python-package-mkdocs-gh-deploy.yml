@@ -142,6 +142,8 @@ jobs:
           MKDOCS_THEME: ${{ inputs.mkdocs-theme }}
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
         run: |  # zizmor: ignore[template-injection]
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
           args=(
             --clean
             --force
