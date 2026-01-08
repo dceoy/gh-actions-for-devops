@@ -83,35 +83,10 @@ jobs:
           ADDITIONAL_NPM_PACKAGES: ${{ inputs.additional-npm-packages }}
         working-directory: ${{ inputs.package-path }}
         run: |
-          if [[ "${PACKAGE_MANAGER:-}" == "npm" ]]; then
-            if [[ -f package-lock.json ]]; then
-              npm ci
-            else
-              npm install
-            fi
-          elif [[ "${PACKAGE_MANAGER:-}" == "yarn" ]]; then
-            npm install -g yarn
-            yarn install --frozen-lockfile
-          elif [[ "${PACKAGE_MANAGER:-}" == "pnpm" ]]; then
-            npm install -g pnpm
-            pnpm install --frozen-lockfile
-          elif [[ -f package.json ]]; then
-            npm install
-          else
-            npm upgrade -g
-          fi
           case "${PACKAGE_MANAGER:-}" in
-            yarn)
-              yarn add --dev \
-                eslint \
-                eslint-plugin-security \
-                typescript \
-                @typescript-eslint/eslint-plugin \
-                @typescript-eslint/parser \
-                ${{ inputs.use-react && 'eslint-plugin-react eslint-plugin-react-hooks' || '' }} \
-                ${{ inputs.use-prettier && 'eslint-config-prettier eslint-plugin-prettier' || '' }}
-              ;;
-            pnpm)
+            pnpm )
+              npm install -g pnpm
+              pnpm install --frozen-lockfile
               pnpm add --save-dev \
                 eslint \
                 eslint-plugin-security \
@@ -121,7 +96,26 @@ jobs:
                 ${{ inputs.use-react && 'eslint-plugin-react eslint-plugin-react-hooks' || '' }} \
                 ${{ inputs.use-prettier && 'eslint-config-prettier eslint-plugin-prettier' || '' }}
               ;;
-            *)
+            yarn )
+              npm install -g yarn
+              yarn install --frozen-lockfile
+              yarn add --dev \
+                eslint \
+                eslint-plugin-security \
+                typescript \
+                @typescript-eslint/eslint-plugin \
+                @typescript-eslint/parser \
+                ${{ inputs.use-react && 'eslint-plugin-react eslint-plugin-react-hooks' || '' }} \
+                ${{ inputs.use-prettier && 'eslint-config-prettier eslint-plugin-prettier' || '' }}
+              ;;
+            * )
+              if [[ -f package-lock.json ]]; then
+                npm ci
+              elif [[ -f package.json ]]; then
+                npm install
+              else
+                npm upgrade -g
+              fi
               npm install --save-dev \
                 eslint \
                 eslint-plugin-security \
@@ -135,13 +129,13 @@ jobs:
           for p in $(echo "${ADDITIONAL_NPM_PACKAGES}" | tr ' ' '\n'); do
             if [[ -n "${p}" ]]; then
               case "${PACKAGE_MANAGER:-}" in
-                yarn)
-                  yarn add --dev "${p}"
-                  ;;
-                pnpm)
+                pnpm )
                   pnpm add --save-dev "${p}"
                   ;;
-                *)
+                yarn )
+                  yarn add --dev "${p}"
+                  ;;
+                * )
                   npm install --save-dev "${p}"
                   ;;
               esac
@@ -164,3 +158,17 @@ jobs:
         working-directory: ${{ inputs.package-path }}
         run: >
           tsc --noEmit
+      - name: Run security audit
+        working-directory: ${{ inputs.package-path }}
+        run: |
+          case "${PACKAGE_MANAGER:-}" in
+            pnpm )
+              pnpm audit
+              ;;
+            yarn )
+              yarn audit
+              ;;
+            * )
+              npm audit
+              ;;
+          esac

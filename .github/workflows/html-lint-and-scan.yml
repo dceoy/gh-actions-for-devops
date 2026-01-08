@@ -108,39 +108,33 @@ jobs:
           ADDITIONAL_NPM_PACKAGES: ${{ inputs.additional-npm-packages }}
         working-directory: ${{ inputs.package-path }}
         run: |
-          if [[ "${PACKAGE_MANAGER:-}" == "npm" ]]; then
-            if [[ -f package-lock.json ]]; then
-              npm ci
-            else
-              npm install
-            fi
-          elif [[ "${PACKAGE_MANAGER:-}" == "yarn" ]]; then
-            npm install -g yarn
-            yarn install --frozen-lockfile
-          elif [[ "${PACKAGE_MANAGER:-}" == "pnpm" ]]; then
-            npm install -g pnpm
-            pnpm install --frozen-lockfile
-          elif [[ -f package.json ]]; then
-            npm install
-          else
-            npm upgrade -g
-          fi
           case "${PACKAGE_MANAGER:-}" in
-            yarn)
-              yarn add --dev \
-                ${{ inputs.use-prettier && 'prettier' || '' }} \
-                ${{ inputs.use-htmlhint && 'htmlhint' || '' }} \
-                ${{ inputs.use-stylelint && 'stylelint stylelint-config-standard stylelint-config-prettier' || '' }} \
-                ${{ inputs.lint-html-embedded-css && 'postcss-html' || '' }}
-              ;;
-            pnpm)
+            pnpm )
+              npm install -g pnpm
+              pnpm install --frozen-lockfile
               pnpm add --save-dev \
                 ${{ inputs.use-prettier && 'prettier' || '' }} \
                 ${{ inputs.use-htmlhint && 'htmlhint' || '' }} \
                 ${{ inputs.use-stylelint && 'stylelint stylelint-config-standard stylelint-config-prettier' || '' }} \
                 ${{ inputs.lint-html-embedded-css && 'postcss-html' || '' }}
               ;;
-            *)
+            yarn )
+              npm install -g yarn
+              yarn install --frozen-lockfile
+              yarn add --dev \
+                ${{ inputs.use-prettier && 'prettier' || '' }} \
+                ${{ inputs.use-htmlhint && 'htmlhint' || '' }} \
+                ${{ inputs.use-stylelint && 'stylelint stylelint-config-standard stylelint-config-prettier' || '' }} \
+                ${{ inputs.lint-html-embedded-css && 'postcss-html' || '' }}
+              ;;
+            * )
+              if [[ -f package-lock.json ]]; then
+                npm ci
+              elif [[ -f package.json ]]; then
+                npm install
+              else
+                npm upgrade -g
+              fi
               npm install --save-dev --legacy-peer-deps \
                 ${{ inputs.use-prettier && 'prettier' || '' }} \
                 ${{ inputs.use-htmlhint && 'htmlhint' || '' }} \
@@ -151,13 +145,13 @@ jobs:
           for p in $(echo "${ADDITIONAL_NPM_PACKAGES}" | tr ' ' '\n'); do
             if [[ -n "${p}" ]]; then
               case "${PACKAGE_MANAGER:-}" in
-                yarn)
-                  yarn add --dev "${p}"
-                  ;;
-                pnpm)
+                pnpm )
                   pnpm add --save-dev "${p}"
                   ;;
-                *)
+                yarn )
+                  yarn add --dev "${p}"
+                  ;;
+                * )
                   npm install --save-dev --legacy-peer-deps "${p}"
                   ;;
               esac
