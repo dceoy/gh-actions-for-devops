@@ -85,7 +85,7 @@ jobs:
         run: |
           case "${PACKAGE_MANAGER:-}" in
             pnpm )
-              npm install -g pnpm
+              corepack enable pnpm
               pnpm install --frozen-lockfile
               pnpm add --save-dev \
                 eslint \
@@ -97,7 +97,7 @@ jobs:
                 ${{ inputs.use-prettier && 'eslint-config-prettier eslint-plugin-prettier' || '' }}
               ;;
             yarn )
-              npm install -g yarn
+              corepack enable yarn
               yarn install --frozen-lockfile
               yarn add --dev \
                 eslint \

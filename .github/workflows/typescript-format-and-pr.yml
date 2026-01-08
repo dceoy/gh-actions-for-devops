@@ -92,14 +92,14 @@ jobs:
         run: |
           case "${PACKAGE_MANAGER:-}" in
             pnpm )
-              npm install -g pnpm
+              corepack enable pnpm
               pnpm install --frozen-lockfile
               pnpm add --save-dev \
                 ${{ inputs.use-eslint && 'eslint typescript @typescript-eslint/eslint-plugin @typescript-eslint/parser' || '' }} \
                 ${{ inputs.use-prettier && 'prettier eslint-config-prettier' || '' }}
               ;;
             yarn )
-              npm install -g yarn
+              corepack enable yarn
               yarn install --frozen-lockfile
               yarn add --dev \
                 ${{ inputs.use-eslint && 'eslint typescript @typescript-eslint/eslint-plugin @typescript-eslint/parser' || '' }} \
