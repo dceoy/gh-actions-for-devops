@@ -168,6 +168,9 @@ The workflows are organized by category for easier navigation. Each workflow is 
 - [shell-lint.yml](.github/workflows/shell-lint.yml)
   - Lint for Shell
 
+- [speckit-init.yml](.github/workflows/speckit-init.yml)
+  - Spec Kit initialization
+
 - [terraform-deploy-to-aws.yml](.github/workflows/terraform-deploy-to-aws.yml)
   - Deployment of AWS resources using Terraform
 
