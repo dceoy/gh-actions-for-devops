@@ -90,35 +90,29 @@ jobs:
           ADDITIONAL_NPM_PACKAGES: ${{ inputs.additional-npm-packages }}
         working-directory: ${{ inputs.package-path }}
         run: |
-          if [[ "${PACKAGE_MANAGER:-}" == "npm" ]]; then
-            if [[ -f package-lock.json ]]; then
-              npm ci
-            else
-              npm install
-            fi
-          elif [[ "${PACKAGE_MANAGER:-}" == "yarn" ]]; then
-            npm install -g yarn
-            yarn install --frozen-lockfile
-          elif [[ "${PACKAGE_MANAGER:-}" == "pnpm" ]]; then
-            npm install -g pnpm
-            pnpm install --frozen-lockfile
-          elif [[ -f package.json ]]; then
-            npm install
-          else
-            npm upgrade -g
-          fi
           case "${PACKAGE_MANAGER:-}" in
-            yarn)
-              yarn add --dev \
-                ${{ inputs.use-eslint && 'eslint typescript @typescript-eslint/eslint-plugin @typescript-eslint/parser' || '' }} \
-                ${{ inputs.use-prettier && 'prettier eslint-config-prettier' || '' }}
-              ;;
-            pnpm)
+            pnpm )
+              npm install -g pnpm
+              pnpm install --frozen-lockfile
               pnpm add --save-dev \
                 ${{ inputs.use-eslint && 'eslint typescript @typescript-eslint/eslint-plugin @typescript-eslint/parser' || '' }} \
                 ${{ inputs.use-prettier && 'prettier eslint-config-prettier' || '' }}
               ;;
-            *)
+            yarn )
+              npm install -g yarn
+              yarn install --frozen-lockfile
+              yarn add --dev \
+                ${{ inputs.use-eslint && 'eslint typescript @typescript-eslint/eslint-plugin @typescript-eslint/parser' || '' }} \
+                ${{ inputs.use-prettier && 'prettier eslint-config-prettier' || '' }}
+              ;;
+            * )
+              if [[ -f package-lock.json ]]; then
+                npm ci
+              elif [[ -f package.json ]]; then
+                npm install
+              else
+                npm upgrade -g
+              fi
               npm install --save-dev \
                 ${{ inputs.use-eslint && 'eslint typescript @typescript-eslint/eslint-plugin @typescript-eslint/parser' || '' }} \
                 ${{ inputs.use-prettier && 'prettier eslint-config-prettier' || '' }}
@@ -127,19 +121,30 @@ jobs:
           for p in $(echo "${ADDITIONAL_NPM_PACKAGES}" | tr ' ' '\n'); do
             if [[ -n "${p}" ]]; then
               case "${PACKAGE_MANAGER:-}" in
-                yarn)
+                yarn )
                   yarn add --dev "${p}"
                   ;;
-                pnpm)
+                pnpm )
                   pnpm add --save-dev "${p}"
                   ;;
-                *)
+                * )
                   npm install --save-dev "${p}"
                   ;;
               esac
             fi
           done
           echo "PATH=${PWD}/node_modules/.bin:${PATH}" >> "${GITHUB_ENV}"
+      - name: Fix security vulnerabilities
+        working-directory: ${{ inputs.package-path }}
+        run: |
+          case "${PACKAGE_MANAGER:-}" in
+            pnpm )
+              pnpm audit --fix || :
+              ;;
+            npm )
+              npm audit fix || :
+              ;;
+          esac
       - name: Format the code using Prettier
         if: inputs.use-prettier
         working-directory: ${{ inputs.package-path }}
@@ -169,7 +174,7 @@ jobs:
             formatters='TypeScript formatters'
           fi
           {
-            echo "commit_message=Reformat TypeScript code using ${formatters}"
+            echo "commit_message=Reformat TypeScript code using ${formatters} and fix security vulnerabilities"
             echo "pr_base=${PR_BASE}"
             echo "pr_branch=automatedpr/${PR_BASE}"
           } >> "${GITHUB_OUTPUT}"
