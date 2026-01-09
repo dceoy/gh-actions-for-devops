@@ -192,10 +192,10 @@ The workflows are organized by category for easier navigation. Each workflow is 
 - [toml-lint.yml](.github/workflows/toml-lint.yml)
   - Lint for TOML
 
-- [typescript-format-and-pr.yml](.github/workflows/typescript-format-and-pr.yml)
+- [typescript-package-format-and-pr.yml](.github/workflows/typescript-package-format-and-pr.yml)
   - Formatting for TypeScript
 
-- [typescript-lint-and-scan.yml](.github/workflows/typescript-lint-and-scan.yml)
+- [typescript-package-lint-and-scan.yml](.github/workflows/typescript-package-lint-and-scan.yml)
   - Lint and security scan for TypeScript
 
 - [web-api-monitoring-with-slack.yml](.github/workflows/web-api-monitoring-with-slack.yml)
