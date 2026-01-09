@@ -198,6 +198,9 @@ The workflows are organized by category for easier navigation. Each workflow is 
 - [typescript-package-lint-and-scan.yml](.github/workflows/typescript-package-lint-and-scan.yml)
   - Lint and security scan for TypeScript
 
+- [typescript-package-script.yml](.github/workflows/typescript-package-script.yml)
+  - Package script run for a TypeScript project
+
 - [web-api-monitoring-with-slack.yml](.github/workflows/web-api-monitoring-with-slack.yml)
   - Synthetic web API monitoring with Slack notification
 
