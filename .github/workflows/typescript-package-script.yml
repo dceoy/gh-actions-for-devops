@@ -3,10 +3,10 @@ name: Package script run for a TypeScript project
 on:
   workflow_call:
     inputs:
-      package-script:
+      package-scripts:
         required: false
         type: string
-        description: Script name defined in package.json to run
+        description: Script names defined in package.json to run (comma-separated)
         default: test
       package-path:
         required: false
@@ -85,16 +85,7 @@ jobs:
       - name: Run a package script
         working-directory: ${{ inputs.package-path }}
         env:
-          PACKAGE_SCRIPT: ${{ inputs.package-script }}
-        run: |
-          case "${PACKAGE_MANAGER:-}" in
-            pnpm )
-              pnpm run "${PACKAGE_SCRIPT}"
-              ;;
-            yarn )
-              yarn run "${PACKAGE_SCRIPT}"
-              ;;
-            * )
-              npm run "${PACKAGE_SCRIPT}"
-              ;;
-          esac
+          PACKAGE_SCRIPTS: ${{ inputs.package-scripts }}
+        run: >
+          tr ',' '\n' <<< "${PACKAGE_SCRIPTS}"
+          | xargs -L1 -t "${PACKAGE_MANAGER:-npm}" run

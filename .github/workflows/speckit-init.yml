@@ -6,7 +6,7 @@ on:
       ai-assistants:
         required: false
         type: string
-        description: AI assistants to use
+        description: AI assistants to use (comma-separated)
         default: claude,codex,gemini,copilot
       script-type:
         required: false
@@ -80,8 +80,7 @@ jobs:
           AI_ASSISTANTS: ${{ inputs.ai-assistants }}
           SCRIPT_TYPE: ${{ inputs.script-type }}
         run: >
-          echo "${AI_ASSISTANTS}"
-          | tr ',' '\n'
+          tr ',' '\n' <<< "${AI_ASSISTANTS}"
           | xargs -L1 -t specify init --force --here --ignore-agent-tools --script "${SCRIPT_TYPE}" --ai
       - name: Prettify output files
         if: inputs.prettify-md-and-json
