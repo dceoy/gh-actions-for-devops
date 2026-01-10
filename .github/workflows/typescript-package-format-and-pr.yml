@@ -33,6 +33,11 @@ on:
         type: boolean
         description: Run lint before creating a pull request
         default: true
+      audit:
+        required: false
+        type: boolean
+        description: Fix known security issues with the installed packages
+        default: true
       additional-npm-packages:
         required: false
         type: string
@@ -135,6 +140,7 @@ jobs:
           done
           echo "PATH=${PWD}/node_modules/.bin:${PATH}" >> "${GITHUB_ENV}"
       - name: Fix security vulnerabilities
+        if: inputs.audit
         working-directory: ${{ inputs.package-path }}
         run: |
           case "${PACKAGE_MANAGER:-}" in

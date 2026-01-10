@@ -33,6 +33,11 @@ on:
         type: boolean
         description: Use TypeScript to check types
         default: true
+      audit:
+        required: false
+        type: boolean
+        description: Fix known security issues with the installed packages
+        default: true
       additional-npm-packages:
         required: false
         type: string
@@ -159,6 +164,7 @@ jobs:
         run: >
           tsc --noEmit
       - name: Run security audit
+        if: inputs.audit
         working-directory: ${{ inputs.package-path }}
         run: |
           case "${PACKAGE_MANAGER:-}" in

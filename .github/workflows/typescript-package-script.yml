@@ -18,6 +18,11 @@ on:
         type: string
         description: Node.js version to use
         default: latest
+      audit:
+        required: false
+        type: boolean
+        description: Check known security issues with the installed packages
+        default: false
       runs-on:
         required: false
         type: string
@@ -89,3 +94,18 @@ jobs:
         run: >
           tr ',' '\n' <<< "${PACKAGE_SCRIPTS}"
           | xargs -L1 -t "${PACKAGE_MANAGER:-npm}" run
+      - name: Run security audit
+        if: inputs.audit
+        working-directory: ${{ inputs.package-path }}
+        run: |
+          case "${PACKAGE_MANAGER:-}" in
+            pnpm )
+              pnpm audit
+              ;;
+            yarn )
+              yarn audit
+              ;;
+            * )
+              npm audit
+              ;;
+          esac
