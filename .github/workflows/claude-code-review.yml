@@ -3,11 +3,6 @@ name: Pull request review using Claude Code
 on:
   workflow_call:
     inputs:
-      pr-review-toolkit-review-pr-args:
-        required: false
-        type: string
-        description: Arguments to pass to PR review toolkit review-pr command
-        default: all parallel
       claude-args:
         required: false
         type: string
@@ -40,21 +35,41 @@ jobs:
       id-token: write
       actions: read
     runs-on: ${{ inputs.runs-on }}
+    env:
+      CLAUDE_CODE_ACTION: anthropics/claude-code-action@7145c3e0510bcdbdd29f67cc4a8c1958f1acfa2f  # v1.0.27
     steps:
       - name: Checkout repository
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6.0.1
         with:
           fetch-depth: 1
           token: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
-          persist-credentials: true
-      - name: Copy Claude Code Action agents and commands
+          persist-credentials: false
+      - name: Set environment variables
+        run: >
+          {
+            echo "CLAUDE_CODE_ACTION_SHA=${CLAUDE_CODE_ACTION##*@}";
+            echo "CLAUDE_CODE_ACTION_CACHE_DIR=${RUNNER_TEMP}/claude-code-action-cache";
+          } >> "${GITHUB_ENV}"
+      - name: Cache Claude Code Action assets
+        id: claude-code-action-cache
+        uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb  # v5.0.1
+        with:
+          path: ${{ env.RUNNER_TEMP }}/claude-code-action-cache
+          key: claude-code-action-${{ env.CLAUDE_CODE_ACTION_SHA }}
+      - name: Download Claude Code Action (if not cached)
+        if: (! steps.claude-code-action-cache.outputs.cache-hit)
+        run: |
+          mkdir -p "${CLAUDE_CODE_ACTION_CACHE_DIR}"
+          curl -fsSL \
+            -o "${CLAUDE_CODE_ACTION_CACHE_DIR}/${CLAUDE_CODE_ACTION_SHA}.tar.gz" \
+            "https://github.com/anthropics/claude-code-action/archive/${CLAUDE_CODE_ACTION_SHA}.tar.gz"
+      - name: Extract and install agents and commands from Claude Code Action
         run: |
           [[ -d .claude ]] || mkdir -p .claude
-          curl -SL -o "${RUNNER_TEMP}/main.tar.gz" 'https://github.com/anthropics/claude-code-action/archive/refs/heads/main.tar.gz'
-          tar -xzf "${RUNNER_TEMP}/main.tar.gz" -C "${RUNNER_TEMP}/" --remove-files
-          rsync -av "${RUNNER_TEMP}/claude-code-action-main/.claude/agents/" .claude/agents/
-          rsync -av "${RUNNER_TEMP}/claude-code-action-main/.claude/commands/" .claude/commands/
-          rm -rf "${RUNNER_TEMP}/claude-code-action-main"
+          tar -xzf "${CLAUDE_CODE_ACTION_CACHE_DIR}/${CLAUDE_CODE_ACTION_SHA}.tar.gz" -C "${RUNNER_TEMP}/"
+          rsync -av "${RUNNER_TEMP}/claude-code-action-${CLAUDE_CODE_ACTION_SHA}/.claude/agents/" .claude/agents/
+          rsync -av "${RUNNER_TEMP}/claude-code-action-${CLAUDE_CODE_ACTION_SHA}/.claude/commands/" .claude/commands/
+          [[ -f .claude/commands/review-pr.md ]] || exit 1
       - name: Run PR review with Claude Code
         uses: anthropics/claude-code-action@7145c3e0510bcdbdd29f67cc4a8c1958f1acfa2f  # v1.0.27
         with:
