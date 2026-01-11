@@ -3,17 +3,42 @@ name: Pull request review using Claude Code
 on:
   workflow_call:
     inputs:
+      review-mode:
+        required: false
+        type: string
+        description: >-
+          Review mode: 'general' (default), 'security' (OWASP-focused),
+          or 'checklist' (team standards)
+        default: general
+      custom-prompt:
+        required: false
+        type: string
+        description: Custom prompt to append to the base review instructions
+        default: ''
       claude-args:
         required: false
         type: string
         description: Additional arguments to pass directly to Claude Code Action
-        default: '--allowed-tools "Bash(gh:*)",mcp__github_inline_comment__create_inline_comment'
+        default: ''
+      use-sticky-comment:
+        required: false
+        type: boolean
+        description: Use a single updatable comment instead of multiple comments
+        default: false
+      include-fix-links:
+        required: false
+        type: boolean
+        description: Add fix links in PR reviews for easy issue resolution
+        default: true
       runs-on:
         required: false
         type: string
         description: Runner to use
         default: ubuntu-latest
     secrets:
+      ANTHROPIC_API_KEY:
+        required: false
+        description: Anthropic API key for direct authentication
       CLAUDE_CODE_OAUTH_TOKEN:
         required: false
         description: OAuth token for Claude Code
@@ -24,6 +49,8 @@ on:
 #     types:
 #       - opened
 #       - synchronize
+#       - ready_for_review
+#       - reopened
 jobs:
   claude-code-review:
     if: >
@@ -34,7 +61,10 @@ jobs:
       issues: write
       id-token: write
       actions: read
+      security-events: write
     runs-on: ${{ inputs.runs-on }}
+    env:
+      REVIEW_MODE: ${{ inputs.review-mode }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6.0.1
@@ -42,25 +72,141 @@ jobs:
           fetch-depth: 1
           token: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
           persist-credentials: false
-      - name: Run Claude Code Review
+
+      - name: Run Claude Code Review (General)
+        if: inputs.review-mode == 'general'
         uses: anthropics/claude-code-action@7145c3e0510bcdbdd29f67cc4a8c1958f1acfa2f  # v1.0.27
         with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          use_sticky_comment: ${{ inputs.use-sticky-comment }}
+          include_fix_links: ${{ inputs.include-fix-links }}
           prompt: |
             REPO: ${{ github.repository }}
             PR NUMBER: ${{ github.event.pull_request.number }}
 
-            Please review this pull request and provide feedback on:
+            Please review this pull request with a focus on:
             - Code quality and best practices
             - Potential bugs or issues
+            - Security implications
             - Performance considerations
-            - Security concerns
             - Test coverage
 
-            Use the repository's CLAUDE.md for guidance on style and conventions. Be constructive and helpful in your feedback.
+            Note: The PR branch is already checked out in the current working directory.
 
-            Use `gh pr comment` with your Bash tool to leave your review as a comment on the PR.
+            Use the repository's CLAUDE.md for guidance on style and conventions.
+            Be constructive and helpful in your feedback.
 
+            Use `gh pr comment` for top-level feedback.
+            Use `mcp__github_inline_comment__create_inline_comment` to highlight specific code issues.
+            Only post GitHub comments - don't submit review text as messages.
+
+            ${{ inputs.custom-prompt }}
           # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
           # or https://code.claude.com/docs/en/cli-reference for available options
-          claude_args: ${{ inputs.claude-args }}
+          claude_args: >-
+            --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*)"
+            ${{ inputs.claude-args }}
+
+      - name: Run Claude Code Review (Security)
+        if: inputs.review-mode == 'security'
+        uses: anthropics/claude-code-action@7145c3e0510bcdbdd29f67cc4a8c1958f1acfa2f  # v1.0.27
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          use_sticky_comment: ${{ inputs.use-sticky-comment }}
+          include_fix_links: ${{ inputs.include-fix-links }}
+          prompt: |
+            REPO: ${{ github.repository }}
+            PR NUMBER: ${{ github.event.pull_request.number }}
+
+            Perform a comprehensive security review:
+
+            ## OWASP Top 10 Analysis
+            - SQL Injection vulnerabilities
+            - Cross-Site Scripting (XSS)
+            - Broken Authentication
+            - Sensitive Data Exposure
+            - XML External Entities (XXE)
+            - Broken Access Control
+            - Security Misconfiguration
+            - Cross-Site Request Forgery (CSRF)
+            - Using Components with Known Vulnerabilities
+            - Insufficient Logging & Monitoring
+
+            ## Additional Security Checks
+            - Hardcoded secrets or credentials
+            - Insecure cryptographic practices
+            - Unsafe deserialization
+            - Server-Side Request Forgery (SSRF)
+            - Race conditions or TOCTOU issues
+            - Command injection vulnerabilities
+            - Path traversal vulnerabilities
+
+            Rate severity as: CRITICAL, HIGH, MEDIUM, LOW, or NONE.
+            Post detailed findings with recommendations.
+
+            Use the repository's CLAUDE.md for guidance on security standards.
+
+            Use `gh pr comment` for top-level feedback.
+            Use `mcp__github_inline_comment__create_inline_comment` to highlight specific security issues.
+
+            ${{ inputs.custom-prompt }}
+          claude_args: >-
+            --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*)"
+            ${{ inputs.claude-args }}
+
+      - name: Run Claude Code Review (Checklist)
+        if: inputs.review-mode == 'checklist'
+        uses: anthropics/claude-code-action@7145c3e0510bcdbdd29f67cc4a8c1958f1acfa2f  # v1.0.27
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          use_sticky_comment: ${{ inputs.use-sticky-comment }}
+          include_fix_links: ${{ inputs.include-fix-links }}
+          prompt: |
+            REPO: ${{ github.repository }}
+            PR NUMBER: ${{ github.event.pull_request.number }}
+
+            Review this PR against our team checklist:
+
+            ## Code Quality
+            - [ ] Code follows our style guide (see CLAUDE.md)
+            - [ ] No commented-out code
+            - [ ] Meaningful variable and function names
+            - [ ] DRY principle followed
+            - [ ] SOLID principles applied where appropriate
+
+            ## Testing
+            - [ ] Unit tests for new functions
+            - [ ] Integration tests for new endpoints
+            - [ ] Edge cases covered
+            - [ ] Tests are isolated and deterministic
+
+            ## Documentation
+            - [ ] README updated if needed
+            - [ ] API docs updated
+            - [ ] Inline comments for complex logic
+            - [ ] CHANGELOG updated if applicable
+
+            ## Security
+            - [ ] No hardcoded credentials or secrets
+            - [ ] Input validation implemented
+            - [ ] Proper error handling
+            - [ ] No sensitive data in logs
+
+            ## Performance
+            - [ ] No obvious performance regressions
+            - [ ] Efficient algorithms and data structures
+            - [ ] Database queries optimized (if applicable)
+
+            For each item, check if it's satisfied and comment on any that need attention.
+            Post a summary comment with checklist results formatted as a markdown table.
+
+            Use `gh pr comment` for the checklist summary.
+            Use `mcp__github_inline_comment__create_inline_comment` to highlight specific issues.
+
+            ${{ inputs.custom-prompt }}
+          claude_args: >-
+            --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*)"
+            ${{ inputs.claude-args }}
