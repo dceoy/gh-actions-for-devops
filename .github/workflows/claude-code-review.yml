@@ -46,16 +46,12 @@ jobs:
         with:
           fetch-depth: 1
           token: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
-          persist-credentials: false
-      - name: Add official Claude Code plugin marketplace
-        run: >
-          npx -y @anthropic-ai/claude-code@stable plugin marketplace add anthropics/claude-plugins-official
-      - name: Install PR review toolkit plugin
-        run: >
-          npx -y @anthropic-ai/claude-code@stable plugin install --scope=user pr-review-toolkit@claude-plugin-directory
+          persist-credentials: true
       - name: Run PR review with Claude Code
         uses: anthropics/claude-code-action@7145c3e0510bcdbdd29f67cc4a8c1958f1acfa2f  # v1.0.27
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt: /pr-review-toolkit:review-pr ${{ inputs.pr-review-toolkit-review-pr-args }}
           claude_args: ${{ inputs.claude-args }}
+          plugins: pr-review-toolkit
+          plugin_marketplaces: https://github.com/anthropics/claude-plugins-official.git
