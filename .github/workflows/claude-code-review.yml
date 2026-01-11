@@ -3,6 +3,11 @@ name: Pull request review using Claude Code
 on:
   workflow_call:
     inputs:
+      pr-review-toolkit-review-pr-args:
+        required: false
+        type: string
+        description: Arguments to pass to PR review toolkit review-pr command
+        default: all parallel
       claude-args:
         required: false
         type: string
@@ -42,25 +47,13 @@ jobs:
           fetch-depth: 1
           token: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
           persist-credentials: false
-      - name: Run Claude Code Review
+      - name: Install PR review toolkit plugin
+        run: >
+          npx -y @anthropic-ai/claude-code@stable plugin install --scope=user
+          pr-review-toolkit@claude-plugin-directory
+      - name: Run PR review with Claude Code
         uses: anthropics/claude-code-action@7145c3e0510bcdbdd29f67cc4a8c1958f1acfa2f  # v1.0.27
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          prompt: |
-            REPO: ${{ github.repository }}
-            PR NUMBER: ${{ github.event.pull_request.number }}
-
-            Please review this pull request and provide feedback on:
-            - Code quality and best practices
-            - Potential bugs or issues
-            - Performance considerations
-            - Security concerns
-            - Test coverage
-
-            Use the repository's CLAUDE.md for guidance on style and conventions. Be constructive and helpful in your feedback.
-
-            Use `gh pr comment` with your Bash tool to leave your review as a comment on the PR.
-
-          # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
-          # or https://code.claude.com/docs/en/cli-reference for available options
+          prompt: /pr-review-toolkit:review-pr ${{ inputs.pr-review-toolkit-review-pr-args }}
           claude_args: ${{ inputs.claude-args }}
