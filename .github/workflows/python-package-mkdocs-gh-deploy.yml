@@ -108,7 +108,7 @@ jobs:
           fi
       - name: Set up uv
         if: env.LOCK_FILE == 'uv.lock'
-        uses: astral-sh/setup-uv@681c641aba71e4a1c380be3ab5e12ad51f415867  # v7.1.6
+        uses: astral-sh/setup-uv@61cb8a9741eeb8a550a1b8544337180c0fc8476b  # v7.2.0
         with:
           version: ${{ inputs.uv-version }}
       - name: Install packages using uv
