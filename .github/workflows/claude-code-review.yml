@@ -36,7 +36,7 @@ jobs:
       actions: read
     runs-on: ${{ inputs.runs-on }}
     env:
-      CLAUDE_CODE_ACTION: anthropics/claude-code-action@7145c3e0510bcdbdd29f67cc4a8c1958f1acfa2f  # v1.0.27
+      CLAUDE_CODE_ACTION: anthropics/claude-code-action@1b8ee3b94104046d71fde52ec3557651ad8c0d71  # v1.0.29
     steps:
       - name: Checkout repository
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6.0.1
@@ -71,7 +71,7 @@ jobs:
           rsync -av "${RUNNER_TEMP}/claude-code-action-${CLAUDE_CODE_ACTION_SHA}/.claude/commands/" .claude/commands/
           [[ -f .claude/commands/review-pr.md ]] || exit 1
       - name: Run PR review with Claude Code
-        uses: anthropics/claude-code-action@7145c3e0510bcdbdd29f67cc4a8c1958f1acfa2f  # v1.0.27
+        uses: anthropics/claude-code-action@1b8ee3b94104046d71fde52ec3557651ad8c0d71  # v1.0.29
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt: '/review-pr REPO: ${{ github.repository }} PR_NUMBER: ${{ github.event.pull_request.number }}'
