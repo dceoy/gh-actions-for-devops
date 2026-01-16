@@ -145,7 +145,7 @@ jobs:
         run: |
           case "${PACKAGE_MANAGER:-}" in
             pnpm )
-              pnpm audit --fix || :
+              pnpm audit --fix && pnpm install || :
               ;;
             npm )
               npm audit fix || :
