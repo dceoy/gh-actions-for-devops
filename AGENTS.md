@@ -66,15 +66,6 @@ Desirable properties of tests:
 - **Predictive**: passing suite signals production readiness.
 - **Inspiring**: green builds build team confidence.
 
-## Serena MCP Usage (Prioritize When Available)
-
-- **If Serena MCP is available, use it first.** Treat Serena MCP tools as the primary interface over local commands or ad-hoc scripts.
-- **Glance at the Serena MCP docs/help before calling a tool** to confirm tool names, required args, and limits.
-- **Use the MCP-exposed tools for supported actions** (e.g., reading/writing files, running tasks, fetching data) instead of re-implementing workflows.
-- **Never hardcode secrets.** Reference environment variables or the MCP’s configured credential store; avoid printing tokens or sensitive paths.
-- **If Serena MCP isn’t enabled or lacks a needed capability, say so and propose a safe fallback.** Mention enabling it via `.mcp.json` when relevant.
-- **Be explicit and reproducible.** Name the exact MCP tool and arguments you intend to use in your steps.
-
 ## Code Design Principles
 
 Follow Robert C. Martin's SOLID and Clean Code principles:
