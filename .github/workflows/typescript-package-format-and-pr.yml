@@ -145,10 +145,14 @@ jobs:
         run: |
           case "${PACKAGE_MANAGER:-}" in
             pnpm )
-              pnpm audit --fix && pnpm install || :
+              if pnpm audit --fix; then
+                pnpm install
+              fi
               ;;
             npm )
-              npm audit fix || :
+              if npm audit fix; then
+                :
+              fi
               ;;
           esac
       - name: Format the code using Prettier
