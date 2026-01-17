@@ -95,7 +95,11 @@ if [[ "${N_TERRAFORM_FILES}" -gt 0 ]]; then
   tflint --recursive --chdir=.
 fi
 
-# N_DOCKER_FILES=$(find . -maxdepth "${MAX_DEPTH}" -path '*/.*' -prune -o -type f -name 'Dockerfile' -print | wc -l)
+N_DOCKER_FILES=$(find . -maxdepth "${MAX_DEPTH}" -path '*/.*' -prune -o -type f -name 'Dockerfile' -print | wc -l)
 # if [[ "${N_DOCKER_FILES}" -gt 0 ]] || [[ "${N_TERRAFORM_FILES}" -gt 0 ]]; then
 #   trivy filesystem --scanners vuln,secret,misconfig --skip-dirs .venv --skip-dirs .terraform --skip-dirs .terragrunt-cache --skip-dirs .git .
 # fi
+
+if [[ -d '.github/workflows' ]] || [[ "${N_TERRAFORM_FILES}" -gt 0 ]] || [[ "${N_DOCKER_FILES}" -gt 0 ]]; then
+  checkov --framework=all --skip-check=CKV_GHA_7 --directory=.
+fi

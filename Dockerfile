@@ -21,12 +21,18 @@ RUN \
 
 FROM public.ecr.aws/docker/library/golang:${GO_VERSION} AS base
 
-COPY --from=builder /opt/build_readme_md /app
-
 SHELL ["/bin/bash", "-euo", "pipefail", "-c"]
 
 ENV DEBIAN_FRONTEND=noninteractive
 
+RUN \
+      groupadd --system app \
+      && useradd --system --gid app --home-dir /app --shell /usr/sbin/nologin app
+
+COPY --from=builder --chown=app:app /opt/build_readme_md /app
+
 HEALTHCHECK NONE
+
+USER app
 
 ENTRYPOINT ["/app/build_readme_md"]
