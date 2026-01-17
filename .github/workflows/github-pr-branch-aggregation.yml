@@ -17,7 +17,7 @@ on:
         required: false
         type: string
         description: Runner to use
-        default: ubuntu-latest
+        default: ubuntu-slim
     outputs:
       merged-pr-branches-json:
         description: JSON array of the merged branches

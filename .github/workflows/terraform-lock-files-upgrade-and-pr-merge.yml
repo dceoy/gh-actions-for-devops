@@ -87,7 +87,7 @@ on:
         required: false
         type: string
         description: GitHub Actions runner to use
-        default: ubuntu-latest
+        default: ubuntu-slim
     secrets:
       GH_TOKEN:
         required: false
@@ -144,7 +144,7 @@ jobs:
       github.event_name == 'pull_request'
     needs:
       - terraform-lint-and-scan
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     env:
       PR_URL: ${{ github.event.pull_request.html_url }}
       GH_TOKEN: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}

@@ -16,7 +16,7 @@ defaults:
     working-directory: .
 jobs:
   copilot-setup-steps:  # The job MUST be called `copilot-setup-steps` or it will not be picked up by Copilot.
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions:  # Set the permissions to the lowest permissions possible needed for your steps. Copilot will be given its own token for its operations.
       contents: read  # If you want to clone the repository as part of your setup steps, for example to install dependencies, you'll need the `contents: read` permission. If you don't clone the repository in your setup steps, Copilot will do this for you automatically after the steps complete.
     steps:  # You can define any steps you want, and they will run before the agent starts. If you do not check out your code, Copilot will do this for you.

@@ -137,7 +137,7 @@ on:
         required: false
         type: string
         description: Runner to use
-        default: ubuntu-latest
+        default: ubuntu-slim
       timeout-minutes:
         required: false
         type: number
