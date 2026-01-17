@@ -83,11 +83,11 @@ on:
         type: string
         description: Path to a Checkov config file
         default: null
-      checkov-output:
+      checkov-output-format:
         required: false
         type: string
         description: Checkov output formats
-        default: cli
+        default: github_failed_only
       checkov-output-file-path:
         required: false
         type: string
@@ -159,7 +159,7 @@ jobs:
           check: ${{ inputs.checkov-check }}
           skip_check: ${{ inputs.checkov-skip-check }}
           config_file: ${{ inputs.checkov-config-file }}
-          output_format: ${{ inputs.checkov-output }}
+          output_format: ${{ inputs.checkov-output-format }}
           output_file_path: ${{ inputs.checkov-output-file-path }}
           soft_fail: ${{ inputs.checkov-soft-fail }}
           api-key: ${{ secrets.BC_API_KEY }}
