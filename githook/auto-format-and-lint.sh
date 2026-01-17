@@ -37,20 +37,29 @@ if [[ "${N_BASH_FILES}" -gt 0 ]]; then
     | xargs -0 -t shellcheck
 fi
 
-N_TYPESCRIPT_FILES=$(find . -maxdepth "${MAX_DEPTH}" "${TS_PRUNE[@]}" -type f \( -name '*.ts' -o -name '*.tsx' -o -name '*.js' -o -name '*.jsx' \) -print | wc -l)
-if [[ "${N_TYPESCRIPT_FILES}" -gt 0 ]]; then
+N_TYPESCRIPT_FILES=$(find . -maxdepth "${MAX_DEPTH}" "${TS_PRUNE[@]}" -type f \( -name '*.ts' -o -name '*.tsx' \) -print | wc -l)
+N_JAVASCRIPT_FILES=$(find . -maxdepth "${MAX_DEPTH}" "${TS_PRUNE[@]}" -type f \( -name '*.js' -o -name '*.jsx' \) -print | wc -l)
+if [[ "${N_TYPESCRIPT_FILES}" -gt 0 ]] || [[ "${N_JAVASCRIPT_FILES}" -gt 0 ]]; then
   PACKAGE_JSON_FILE=$(find . -maxdepth "${MAX_DEPTH}" "${COMMON_PRUNE[@]}" -type f -name 'package.json' -print -quit)
   if [[ -n "${PACKAGE_JSON_FILE}" ]]; then
     PACKAGE_DIRECTORY="$(dirname "${PACKAGE_JSON_FILE}")"
     NODE_MODULES_BIN="${PACKAGE_DIRECTORY}/node_modules/.bin"
+    TSCONFIG_JSON_FILE="${PACKAGE_DIRECTORY}/tsconfig.json"
     PATH="${NODE_MODULES_BIN}:${PATH}"
     prettier --write "${PACKAGE_DIRECTORY}/**/*.{js,jsx,ts,tsx,json,css,scss}"
     eslint --fix --ext .js,.jsx,.ts,.tsx --no-error-on-unmatched-pattern "${PACKAGE_DIRECTORY}"
-    tsc --noEmit --project "${PACKAGE_DIRECTORY}/tsconfig.json"
   else
+    PACKAGE_DIRECTORY='.'
     prettier --write '**/*.{js,jsx,ts,tsx,json,css,scss}'
     eslint --fix --ext .js,.jsx,.ts,.tsx --no-error-on-unmatched-pattern .
-    tsc --noEmit
+  fi
+  if [[ "${N_TYPESCRIPT_FILES}" -gt 0 ]]; then
+    TSCONFIG_JSON_FILE="${PACKAGE_DIRECTORY}/tsconfig.json"
+    if [[ -f "${TSCONFIG_JSON_FILE}" ]]; then
+      tsc --noEmit --project "${TSCONFIG_JSON_FILE}"
+    else
+      tsc --noEmit
+    fi
   fi
 fi
 
