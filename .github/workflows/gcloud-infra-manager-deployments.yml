@@ -115,7 +115,7 @@ on:
         type: number
         description: Timeout in minutes for the job
         default: 360
-  workflow_dispatch:
+  workflow_dispatch:  # checkov:skip=CKV_GHA_7:workflow_dispatch inputs are required for deployment parameters
     inputs:
       project-id:
         required: true

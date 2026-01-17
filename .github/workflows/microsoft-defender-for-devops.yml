@@ -13,6 +13,9 @@ on:
         type: string
         description: Runner to use
         default: windows-latest
+permissions:
+  contents: read
+  security-events: write
 jobs:
   msdo:
     runs-on: ${{ inputs.runs-on }}

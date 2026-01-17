@@ -42,7 +42,7 @@ on:
       GH_TOKEN:
         required: false
         description: GitHub token
-  workflow_dispatch:
+  workflow_dispatch:  # checkov:skip=CKV_GHA_7:workflow_dispatch inputs are required for MkDocs build settings
     inputs:
       package-path:
         required: false

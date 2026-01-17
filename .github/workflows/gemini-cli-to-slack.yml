@@ -1,7 +1,7 @@
 ---
 name: Gemini CLI with Slack notification
 on:
-  workflow_dispatch:
+  workflow_dispatch:  # checkov:skip=CKV_GHA_7:workflow_dispatch inputs are required for manual runs
     inputs:
       gemini-cli-prompt:
         required: true

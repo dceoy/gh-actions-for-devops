@@ -25,7 +25,7 @@ on:
   pull_request_review:
     types:
       - submitted
-  workflow_dispatch:
+  workflow_dispatch:  # checkov:skip=CKV_GHA_7:workflow_dispatch inputs are required to select the pipeline
     inputs:
       workflow:
         required: true
@@ -38,6 +38,8 @@ on:
           - update
         description: Choose the workflow to run
         default: lint
+permissions:
+  contents: read
 jobs:
   go-lint-and-scan:
     if: >

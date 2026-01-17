@@ -62,6 +62,8 @@ on:
       SLACK_API_TOKEN:
         required: true
         description: Slack API token
+permissions:
+  contents: read
 defaults:
   run:
     shell: bash -euo pipefail {0}

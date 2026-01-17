@@ -53,6 +53,51 @@ on:
         type: string
         description: Timeout for the Trivy scan
         default: 5m0s
+      use-checkov:
+        required: false
+        type: boolean
+        description: Use Checkov to scan Dockerfiles
+        default: true
+      checkov-framework:
+        required: false
+        type: string
+        description: Checkov frameworks to scan
+        default: dockerfile
+      checkov-skip-framework:
+        required: false
+        type: string
+        description: Checkov frameworks to skip
+        default: null
+      checkov-check:
+        required: false
+        type: string
+        description: Checkov checks to include
+        default: null
+      checkov-skip-check:
+        required: false
+        type: string
+        description: Checkov checks to skip
+        default: null
+      checkov-config-file:
+        required: false
+        type: string
+        description: Path to a Checkov config file
+        default: null
+      checkov-output-format:
+        required: false
+        type: string
+        description: Checkov output formats
+        default: github_failed_only
+      checkov-output-file-path:
+        required: false
+        type: string
+        description: Checkov output file path(s)
+        default: null
+      checkov-soft-fail:
+        required: false
+        type: boolean
+        description: Always return exit code 0 from Checkov
+        default: false
       runs-on:
         required: false
         type: string
@@ -62,6 +107,9 @@ on:
       GH_TOKEN:
         required: false
         description: GitHub token
+      BC_API_KEY:
+        required: false
+        description: Bridgecrew or Prisma Cloud API key
 permissions:
   contents: write
 defaults:
@@ -101,3 +149,17 @@ jobs:
           TRIVY_CHECKS_REPOSITORY: public.ecr.aws/aquasecurity/trivy-checks
           TRIVY_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-db
           TRIVY_JAVA_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-java-db
+      - name: Run Checkov
+        if: inputs.use-checkov
+        uses: bridgecrewio/checkov-action@8f61ce5b8a3afb4ca94d236b75201878ded6d2cd  # v12
+        with:
+          directory: ${{ inputs.trivy-scan-ref }}
+          framework: ${{ inputs.checkov-framework }}
+          skip_framework: ${{ inputs.checkov-skip-framework }}
+          check: ${{ inputs.checkov-check }}
+          skip_check: ${{ inputs.checkov-skip-check }}
+          config_file: ${{ inputs.checkov-config-file }}
+          output_format: ${{ inputs.checkov-output-format }}
+          output_file_path: ${{ inputs.checkov-output-file-path }}
+          soft_fail: ${{ inputs.checkov-soft-fail }}
+          api-key: ${{ secrets.BC_API_KEY }}
