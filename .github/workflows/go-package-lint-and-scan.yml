@@ -54,10 +54,8 @@ jobs:
         uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb  # v5.0.1
         with:
           path: ~/.cache/golangci-lint
-          key: golangci-lint-${{ runner.os }}-${{ inputs.go-version }}-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            golangci-lint-${{ runner.os }}-${{ inputs.go-version }}-
-            golangci-lint-${{ runner.os }}-
+          key: golangci-lint-${{ runner.os }}-${{ inputs.go-version }}-${{ hashFiles(format('{0}/go.sum', inputs.package-path), '.golangci.yml') }}
+          restore-keys: golangci-lint-${{ runner.os }}-${{ inputs.go-version }}-
       - name: Verify Go installation
         working-directory: ${{ inputs.package-path }}
         run: |
