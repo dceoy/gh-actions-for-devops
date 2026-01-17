@@ -55,6 +55,8 @@ on:
       GH_TOKEN:
         required: false
         description: GitHub token
+permissions:
+  contents: read
 defaults:
   run:
     shell: bash -euo pipefail {0}

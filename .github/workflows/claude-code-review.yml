@@ -24,6 +24,8 @@ on:
 #     types:
 #       - opened
 #       - synchronize
+permissions:
+  contents: read
 jobs:
   claude-code-review:
     if: >

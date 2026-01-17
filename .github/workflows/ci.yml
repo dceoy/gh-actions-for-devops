@@ -38,6 +38,8 @@ on:
           - update
         description: Choose the workflow to run
         default: lint
+permissions:
+  contents: read
 jobs:
   go-lint-and-scan:
     if: >

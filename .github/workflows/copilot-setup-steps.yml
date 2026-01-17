@@ -8,6 +8,8 @@ on:   # Automatically run the setup steps when they are changed to allow for eas
   pull_request:
     paths:
       - .github/workflows/copilot-setup-steps.yml
+permissions:
+  contents: read
 defaults:
   run:
     shell: bash -euo pipefail {0}

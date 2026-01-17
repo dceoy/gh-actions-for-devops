@@ -20,6 +20,8 @@ on:
       GH_TOKEN:
         required: false
         description: GitHub token for accessing the repository
+permissions:
+  contents: read
 jobs:
   claude-code-bot:
     if: >
