@@ -198,19 +198,17 @@ jobs:
           TRIVY_CHECKS_REPOSITORY: public.ecr.aws/aquasecurity/trivy-checks
           TRIVY_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-db
           TRIVY_JAVA_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-java-db
-  checkov-scan:
-    if: inputs.use-checkov
-    uses: ./.github/workflows/checkov-scan.yml
-    with:
-      scan-directory: ${{ inputs.search-path }}
-      framework: ${{ inputs.checkov-framework }}
-      skip-framework: ${{ inputs.checkov-skip-framework }}
-      check: ${{ inputs.checkov-check }}
-      skip-check: ${{ inputs.checkov-skip-check }}
-      config-file: ${{ inputs.checkov-config-file }}
-      output: ${{ inputs.checkov-output }}
-      output-file-path: ${{ inputs.checkov-output-file-path }}
-      soft-fail: ${{ inputs.checkov-soft-fail }}
-      runs-on: ${{ inputs.runs-on }}
-    secrets:
-      BC_API_KEY: ${{ secrets.BC_API_KEY }}
+      - name: Run Checkov
+        if: inputs.use-checkov
+        uses: bridgecrewio/checkov-action@8f61ce5b8a3afb4ca94d236b75201878ded6d2cd  # v12
+        with:
+          directory: ${{ inputs.search-path }}
+          framework: ${{ inputs.checkov-framework }}
+          skip_framework: ${{ inputs.checkov-skip-framework }}
+          check: ${{ inputs.checkov-check }}
+          skip_check: ${{ inputs.checkov-skip-check }}
+          config_file: ${{ inputs.checkov-config-file }}
+          output_format: ${{ inputs.checkov-output }}
+          output_file_path: ${{ inputs.checkov-output-file-path }}
+          soft_fail: ${{ inputs.checkov-soft-fail }}
+          api-key: ${{ secrets.BC_API_KEY }}
