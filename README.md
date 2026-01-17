@@ -69,6 +69,9 @@ The workflows are organized by category for easier navigation. Each workflow is 
 - [aws-parameter-store-update.yml](.github/workflows/aws-parameter-store-update.yml)
   - Update AWS Parameter Store values
 
+- [checkov-scan.yml](.github/workflows/checkov-scan.yml)
+  - Security scan for IaC with Checkov
+
 - [claude-code-action.yml](.github/workflows/claude-code-action.yml)
   - Claude Code Action
 

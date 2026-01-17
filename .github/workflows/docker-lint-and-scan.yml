@@ -53,6 +53,71 @@ on:
         type: string
         description: Timeout for the Trivy scan
         default: 5m0s
+      use-checkov:
+        required: false
+        type: boolean
+        description: Use Checkov to scan Dockerfiles
+        default: true
+      checkov-framework:
+        required: false
+        type: string
+        description: Checkov frameworks to scan
+        default: dockerfile
+      checkov-skip-framework:
+        required: false
+        type: string
+        description: Checkov frameworks to skip
+        default: null
+      checkov-check:
+        required: false
+        type: string
+        description: Checkov checks to include
+        default: null
+      checkov-skip-check:
+        required: false
+        type: string
+        description: Checkov checks to skip
+        default: null
+      checkov-skip-paths:
+        required: false
+        type: string
+        description: Paths to skip in Checkov scan
+        default: null
+      checkov-config-file:
+        required: false
+        type: string
+        description: Path to a Checkov config file
+        default: null
+      checkov-output:
+        required: false
+        type: string
+        description: Checkov output formats
+        default: cli
+      checkov-output-file-path:
+        required: false
+        type: string
+        description: Checkov output file path(s)
+        default: null
+      checkov-soft-fail:
+        required: false
+        type: boolean
+        description: Always return exit code 0 from Checkov
+        default: false
+      checkov-soft-fail-on:
+        required: false
+        type: string
+        description: Soft-fail on specified Checkov checks or severities
+        default: null
+      checkov-hard-fail-on:
+        required: false
+        type: string
+        description: Hard-fail on specified Checkov checks or severities
+        default: null
+      checkov-version:
+        required: false
+        type: string
+        description: Checkov version to install
+        default: latest
       runs-on:
         required: false
         type: string
@@ -62,6 +127,9 @@ on:
       GH_TOKEN:
         required: false
         description: GitHub token
+      BC_API_KEY:
+        required: false
+        description: Bridgecrew or Prisma Cloud API key
 permissions:
   contents: write
 defaults:
@@ -101,3 +169,23 @@ jobs:
           TRIVY_CHECKS_REPOSITORY: public.ecr.aws/aquasecurity/trivy-checks
           TRIVY_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-db
           TRIVY_JAVA_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-java-db
+  checkov-scan:
+    if: inputs.use-checkov
+    uses: ./.github/workflows/checkov-scan.yml
+    with:
+      scan-directory: ${{ inputs.trivy-scan-ref }}
+      framework: ${{ inputs.checkov-framework }}
+      skip-framework: ${{ inputs.checkov-skip-framework }}
+      check: ${{ inputs.checkov-check }}
+      skip-check: ${{ inputs.checkov-skip-check }}
+      skip-paths: ${{ inputs.checkov-skip-paths }}
+      config-file: ${{ inputs.checkov-config-file }}
+      output: ${{ inputs.checkov-output }}
+      output-file-path: ${{ inputs.checkov-output-file-path }}
+      soft-fail: ${{ inputs.checkov-soft-fail }}
+      soft-fail-on: ${{ inputs.checkov-soft-fail-on }}
+      hard-fail-on: ${{ inputs.checkov-hard-fail-on }}
+      checkov-version: ${{ inputs.checkov-version }}
+      runs-on: ${{ inputs.runs-on }}
+    secrets:
+      BC_API_KEY: ${{ secrets.BC_API_KEY }}
