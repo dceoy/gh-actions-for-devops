@@ -136,7 +136,7 @@ jobs:
         run: |
           echo "TF_PLUGIN_CACHE_DIR=${RUNNER_TEMP}/terraform-plugin-cache" >> "${GITHUB_ENV}"
       - name: Cache Terraform providers
-        uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb  # v4
+        uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb  # v5.0.1
         with:
           path: ${{ env.TF_PLUGIN_CACHE_DIR }}
           key: terraform-provider-cache-${{ runner.os }}-${{ inputs.terraform-version }}-${{ hashFiles('**/.terraform.lock.hcl') }}
