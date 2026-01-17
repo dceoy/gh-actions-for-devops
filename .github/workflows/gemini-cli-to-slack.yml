@@ -57,7 +57,7 @@ on:
         required: false
         type: string
         description: Runner to use
-        default: ubuntu-latest
+        default: ubuntu-slim
     secrets:
       GEMINI_API_KEY:
         required: true

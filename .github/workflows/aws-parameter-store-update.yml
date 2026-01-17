@@ -25,7 +25,7 @@ on:
         required: false
         type: string
         description: Runner to use
-        default: ubuntu-latest
+        default: ubuntu-slim
 permissions:
   contents: read
   id-token: write

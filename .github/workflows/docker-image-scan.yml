@@ -56,7 +56,7 @@ on:
         required: false
         type: string
         description: GitHub Actions runner to use
-        default: ubuntu-latest
+        default: ubuntu-slim
     secrets:
       DOCKER_TOKEN:
         required: false
