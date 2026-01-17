@@ -101,5 +101,5 @@ N_DOCKER_FILES=$(find . -maxdepth "${MAX_DEPTH}" -path '*/.*' -prune -o -type f 
 # fi
 
 if [[ -d '.github/workflows' ]] || [[ "${N_TERRAFORM_FILES}" -gt 0 ]] || [[ "${N_DOCKER_FILES}" -gt 0 ]]; then
-  checkov --framework=all --skip-check=CKV_GHA_7 --directory=.
+  checkov --framework=all --output=github_failed_only --directory=.
 fi
