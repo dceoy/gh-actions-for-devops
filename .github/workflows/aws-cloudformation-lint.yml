@@ -72,7 +72,7 @@ on:
         required: false
         type: string
         description: Runner to use
-        default: ubuntu-slim
+        default: ubuntu-latest
     secrets:
       BC_API_KEY:
         required: false

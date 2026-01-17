@@ -103,7 +103,6 @@ jobs:
     with:
       language: >
         ["go"]
-      runs-on: ubuntu-slim
   claude-code-review:
     if: >
       github.event_name == 'pull_request'
@@ -151,7 +150,6 @@ jobs:
     uses: ./.github/workflows/github-release.yml
     with:
       create-new-tag: false
-      runs-on: ubuntu-slim
     secrets:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   dependabot-auto-merge:
@@ -169,7 +167,6 @@ jobs:
     uses: ./.github/workflows/dependabot-auto-merge.yml
     with:
       unconditional: true
-      runs-on: ubuntu-slim
     secrets:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   update-readme-md:
