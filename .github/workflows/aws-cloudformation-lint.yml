@@ -48,11 +48,6 @@ on:
         type: string
         description: Checkov checks to skip
         default: null
-      checkov-skip-paths:
-        required: false
-        type: string
-        description: Paths to skip in Checkov scan
-        default: null
       checkov-config-file:
         required: false
         type: string
@@ -73,21 +68,6 @@ on:
         type: boolean
         description: Always return exit code 0 from Checkov
         default: false
-      checkov-soft-fail-on:
-        required: false
-        type: string
-        description: Soft-fail on specified Checkov checks or severities
-        default: null
-      checkov-hard-fail-on:
-        required: false
-        type: string
-        description: Hard-fail on specified Checkov checks or severities
-        default: null
-      checkov-version:
-        required: false
-        type: string
-        description: Checkov version to install
-        default: latest
       runs-on:
         required: false
         type: string
@@ -140,14 +120,10 @@ jobs:
       skip-framework: ${{ inputs.checkov-skip-framework }}
       check: ${{ inputs.checkov-check }}
       skip-check: ${{ inputs.checkov-skip-check }}
-      skip-paths: ${{ inputs.checkov-skip-paths }}
       config-file: ${{ inputs.checkov-config-file }}
       output: ${{ inputs.checkov-output }}
       output-file-path: ${{ inputs.checkov-output-file-path }}
       soft-fail: ${{ inputs.checkov-soft-fail }}
-      soft-fail-on: ${{ inputs.checkov-soft-fail-on }}
-      hard-fail-on: ${{ inputs.checkov-hard-fail-on }}
-      checkov-version: ${{ inputs.checkov-version }}
       runs-on: ${{ inputs.runs-on }}
     secrets:
       BC_API_KEY: ${{ secrets.BC_API_KEY }}

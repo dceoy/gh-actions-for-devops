@@ -11,27 +11,12 @@ on:
       scan-file:
         required: false
         type: string
-        description: File(s) to scan (comma or newline-separated)
-        default: null
-      skip-paths:
-        required: false
-        type: string
-        description: Paths to skip (comma or newline-separated)
-        default: null
-      external-checks-dir:
-        required: false
-        type: string
-        description: External checks directories (comma or newline-separated)
-        default: null
-      external-checks-git:
-        required: false
-        type: string
-        description: External checks git URLs (comma or newline-separated)
+        description: File to scan (overrides scan-directory)
         default: null
       framework:
         required: false
         type: string
-        description: Frameworks to scan (comma-separated or "all")
+        description: Frameworks to scan (comma-separated)
         default: all
       skip-framework:
         required: false
@@ -48,11 +33,11 @@ on:
         type: string
         description: Checks to skip (comma-separated IDs or severities)
         default: null
-      run-all-external-checks:
+      skip-cve-package:
         required: false
-        type: boolean
-        description: Run all external checks regardless of the check list
-        default: false
+        type: string
+        description: CVE packages to skip in SCA scans (comma-separated)
+        default: null
       output:
         required: false
         type: string
@@ -68,111 +53,66 @@ on:
         type: boolean
         description: Output Bridgecrew IDs instead of Checkov IDs
         default: false
-      include-all-checkov-policies:
-        required: false
-        type: boolean
-        description: Include Checkov-only policies when using an API key
-        default: false
       quiet:
         required: false
         type: boolean
         description: Display only failed checks in CLI output
-        default: false
-      compact:
-        required: false
-        type: boolean
-        description: Omit code blocks in CLI output
         default: false
       soft-fail:
         required: false
         type: boolean
         description: Always return exit code 0
         default: false
-      soft-fail-on:
+      download-external-modules:
+        required: false
+        type: boolean
+        description: Download external Terraform modules
+        default: false
+      repo-root-for-plan-enrichment:
         required: false
         type: string
-        description: Soft-fail on specified checks or severities
+        description: Directory containing HCL code for plan enrichment
         default: null
-      hard-fail-on:
+      var-file:
         required: false
         type: string
-        description: Hard-fail on specified checks or severities
+        description: Variable files to load
+        default: null
+      log-level:
+        required: false
+        type: string
+        description: Log level for Checkov
         default: null
       config-file:
         required: false
         type: string
         description: Checkov config file path
         default: null
-      create-baseline:
-        required: false
-        type: boolean
-        description: Create .checkov.baseline file
-        default: false
       baseline:
         required: false
         type: string
         description: Baseline file path
         default: null
-      output-baseline-as-skipped:
+      container-user:
+        required: false
+        type: string
+        description: Container user ID or UID:GID
+        default: null
+      use-enforcement-rules:
         required: false
         type: boolean
-        description: Output baseline results as skipped
+        description: Use enforcement rules from the platform
         default: false
-      skip-results-upload:
-        required: false
-        type: boolean
-        description: Skip uploading results to the platform
-        default: false
-      download-external-modules:
-        required: false
-        type: boolean
-        description: Download external Terraform modules
-        default: false
-      evaluate-variables:
-        required: false
-        type: boolean
-        description: Evaluate variable and local values
-        default: false
-      var-file:
+      docker-image:
         required: false
         type: string
-        description: Variable files to load
+        description: Docker image name or ID to scan
         default: null
-      external-modules-download-path:
+      dockerfile-path:
         required: false
         type: string
-        description: Path for downloaded external modules
+        description: Path to Dockerfile for image scanning
         default: null
-      repo-id:
-        required: false
-        type: string
-        description: Repository ID (owner/name)
-        default: null
-      branch:
-        required: false
-        type: string
-        description: Branch name for platform integration
-        default: null
-      prisma-api-url:
-        required: false
-        type: string
-        description: Prisma Cloud API URL
-        default: null
-      custom-tool-name:
-        required: false
-        type: string
-        description: Custom tool name for output tagging
-        default: null
-      checkov-version:
-        required: false
-        type: string
-        description: Checkov version to install
-        default: latest
-      python-version:
-        required: false
-        type: string
-        description: Python version to use
-        default: 3.x
       runs-on:
         required: false
         type: string
@@ -182,12 +122,11 @@ on:
       BC_API_KEY:
         required: false
         description: Bridgecrew or Prisma Cloud API key
+      GH_PAT:
+        required: false
+        description: GitHub PAT for private module downloads
 permissions:
   contents: read
-defaults:
-  run:
-    shell: bash -euo pipefail {0}
-    working-directory: .
 jobs:
   checkov-scan:
     runs-on: ${{ inputs.runs-on }}
@@ -197,132 +136,30 @@ jobs:
         with:
           fetch-depth: 1
           persist-credentials: false
-      - name: Setup Python
-        uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548  # v6.1.0
-        with:
-          python-version: ${{ inputs.python-version }}
-      - name: Install Checkov
-        env:
-          CHECKOV_VERSION: ${{ inputs.checkov-version }}
-        run: |
-          pip install -U --no-cache-dir pip
-          if [[ -z "${CHECKOV_VERSION}" || "${CHECKOV_VERSION}" == "latest" ]]; then
-            pip install -U --no-cache-dir checkov
-          else
-            pip install -U --no-cache-dir "checkov==${CHECKOV_VERSION}"
-          fi
       - name: Run Checkov
-        env:
-          SCAN_DIRECTORY: ${{ inputs.scan-directory }}
-          SCAN_FILE: ${{ inputs.scan-file }}
-          SKIP_PATHS: ${{ inputs.skip-paths }}
-          EXTERNAL_CHECKS_DIR: ${{ inputs.external-checks-dir }}
-          EXTERNAL_CHECKS_GIT: ${{ inputs.external-checks-git }}
-          FRAMEWORK: ${{ inputs.framework }}
-          SKIP_FRAMEWORK: ${{ inputs.skip-framework }}
-          CHECK: ${{ inputs.check }}
-          SKIP_CHECK: ${{ inputs.skip-check }}
-          RUN_ALL_EXTERNAL_CHECKS: ${{ inputs.run-all-external-checks }}
-          OUTPUT: ${{ inputs.output }}
-          OUTPUT_FILE_PATH: ${{ inputs.output-file-path }}
-          OUTPUT_BC_IDS: ${{ inputs.output-bc-ids }}
-          INCLUDE_ALL_CHECKOV_POLICIES: ${{ inputs.include-all-checkov-policies }}
-          QUIET: ${{ inputs.quiet }}
-          COMPACT: ${{ inputs.compact }}
-          SOFT_FAIL: ${{ inputs.soft-fail }}
-          SOFT_FAIL_ON: ${{ inputs.soft-fail-on }}
-          HARD_FAIL_ON: ${{ inputs.hard-fail-on }}
-          CONFIG_FILE: ${{ inputs.config-file }}
-          CREATE_BASELINE: ${{ inputs.create-baseline }}
-          BASELINE: ${{ inputs.baseline }}
-          OUTPUT_BASELINE_AS_SKIPPED: ${{ inputs.output-baseline-as-skipped }}
-          SKIP_RESULTS_UPLOAD: ${{ inputs.skip-results-upload }}
-          DOWNLOAD_EXTERNAL_MODULES: ${{ inputs.download-external-modules }}
-          EVALUATE_VARIABLES: ${{ inputs.evaluate-variables }}
-          VAR_FILE: ${{ inputs.var-file }}
-          EXTERNAL_MODULES_DOWNLOAD_PATH: ${{ inputs.external-modules-download-path }}
-          REPO_ID: ${{ inputs.repo-id }}
-          BRANCH: ${{ inputs.branch }}
-          PRISMA_API_URL: ${{ inputs.prisma-api-url }}
-          CUSTOM_TOOL_NAME: ${{ inputs.custom-tool-name }}
-          BC_API_KEY: ${{ secrets.BC_API_KEY }}
-        run: |
-          add_arg() {
-            local flag="$1"
-            local value="$2"
-            if [[ -n "${value}" && "${value}" != "null" ]]; then
-              args+=("${flag}" "${value}")
-            fi
-          }
-
-          add_flag() {
-            local flag="$1"
-            local value="$2"
-            if [[ "${value}" == "true" ]]; then
-              args+=("${flag}")
-            fi
-          }
-
-          add_list_arg() {
-            local flag="$1"
-            local list="$2"
-            if [[ -n "${list}" && "${list}" != "null" ]]; then
-              while IFS= read -r item; do
-                if [[ -n "${item}" ]]; then
-                  args+=("${flag}" "${item}")
-                fi
-              done < <(printf '%s\n' "${list}" | tr ',' '\n')
-            fi
-          }
-
-          args=()
-
-          if [[ -n "${SCAN_FILE}" && "${SCAN_FILE}" != "null" ]]; then
-            args+=("--file")
-            while IFS= read -r file_path; do
-              if [[ -n "${file_path}" ]]; then
-                args+=("${file_path}")
-              fi
-            done < <(printf '%s\n' "${SCAN_FILE}" | tr ',' '\n')
-          else
-            args+=("--directory" "${SCAN_DIRECTORY}")
-          fi
-
-          add_list_arg "--skip-path" "${SKIP_PATHS}"
-          add_list_arg "--external-checks-dir" "${EXTERNAL_CHECKS_DIR}"
-          add_list_arg "--external-checks-git" "${EXTERNAL_CHECKS_GIT}"
-          if [[ -n "${FRAMEWORK}" && "${FRAMEWORK}" != "null" && "${FRAMEWORK}" != "all" ]]; then
-            args+=("--framework" "${FRAMEWORK}")
-          fi
-          add_arg "--skip-framework" "${SKIP_FRAMEWORK}"
-          add_arg "--check" "${CHECK}"
-          add_arg "--skip-check" "${SKIP_CHECK}"
-          add_flag "--run-all-external-checks" "${RUN_ALL_EXTERNAL_CHECKS}"
-          add_list_arg "--output" "${OUTPUT}"
-          add_arg "--output-file-path" "${OUTPUT_FILE_PATH}"
-          add_flag "--output-bc-ids" "${OUTPUT_BC_IDS}"
-          add_flag "--include-all-checkov-policies" "${INCLUDE_ALL_CHECKOV_POLICIES}"
-          add_flag "--quiet" "${QUIET}"
-          add_flag "--compact" "${COMPACT}"
-          add_flag "--soft-fail" "${SOFT_FAIL}"
-          add_arg "--soft-fail-on" "${SOFT_FAIL_ON}"
-          add_arg "--hard-fail-on" "${HARD_FAIL_ON}"
-          add_arg "--config-file" "${CONFIG_FILE}"
-          add_flag "--create-baseline" "${CREATE_BASELINE}"
-          add_arg "--baseline" "${BASELINE}"
-          add_flag "--output-baseline-as-skipped" "${OUTPUT_BASELINE_AS_SKIPPED}"
-          add_flag "--skip-results-upload" "${SKIP_RESULTS_UPLOAD}"
-          if [[ "${DOWNLOAD_EXTERNAL_MODULES}" == "true" ]]; then
-            args+=("--download-external-modules" "true")
-          fi
-          if [[ "${EVALUATE_VARIABLES}" == "true" ]]; then
-            args+=("--evaluate-variables" "true")
-          fi
-          add_arg "--var-file" "${VAR_FILE}"
-          add_arg "--external-modules-download-path" "${EXTERNAL_MODULES_DOWNLOAD_PATH}"
-          add_arg "--repo-id" "${REPO_ID}"
-          add_arg "--branch" "${BRANCH}"
-          add_arg "--prisma-api-url" "${PRISMA_API_URL}"
-          add_arg "--custom-tool-name" "${CUSTOM_TOOL_NAME}"
-
-          python -m checkov "${args[@]}"
+        uses: bridgecrewio/checkov-action@8f61ce5b8a3afb4ca94d236b75201878ded6d2cd  # v12
+        with:
+          directory: ${{ inputs.scan-directory }}
+          file: ${{ inputs.scan-file }}
+          framework: ${{ inputs.framework }}
+          skip_framework: ${{ inputs.skip-framework }}
+          check: ${{ inputs.check }}
+          skip_check: ${{ inputs.skip-check }}
+          skip_cve_package: ${{ inputs.skip-cve-package }}
+          output_format: ${{ inputs.output }}
+          output_file_path: ${{ inputs.output-file-path }}
+          output_bc_ids: ${{ inputs.output-bc-ids }}
+          quiet: ${{ inputs.quiet }}
+          soft_fail: ${{ inputs.soft-fail }}
+          download_external_modules: ${{ inputs.download-external-modules }}
+          repo_root_for_plan_enrichment: ${{ inputs.repo-root-for-plan-enrichment }}
+          var_file: ${{ inputs.var-file }}
+          log_level: ${{ inputs.log-level }}
+          config_file: ${{ inputs.config-file }}
+          baseline: ${{ inputs.baseline }}
+          container_user: ${{ inputs.container-user }}
+          use_enforcement_rules: ${{ inputs.use-enforcement-rules }}
+          docker_image: ${{ inputs.docker-image }}
+          dockerfile_path: ${{ inputs.dockerfile-path }}
+          api-key: ${{ secrets.BC_API_KEY }}
+          github_pat: ${{ secrets.GH_PAT }}
