@@ -48,6 +48,8 @@ on:
         type: string
         description: GitHub Actions runner to use
         default: ubuntu-slim
+permissions:
+  contents: read
 defaults:
   run:
     shell: bash -euo pipefail {0}

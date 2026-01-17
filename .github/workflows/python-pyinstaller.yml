@@ -47,6 +47,8 @@ on:
         type: string
         description: Type of machine to run the job on
         default: windows-latest
+permissions:
+  contents: read
 defaults:
   run:
     shell: bash -euo pipefail {0}

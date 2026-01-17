@@ -28,6 +28,8 @@ on:
         type: boolean
         description: Run package lint
         default: true
+permissions:
+  contents: read
 defaults:
   run:
     shell: bash -euo pipefail {0}

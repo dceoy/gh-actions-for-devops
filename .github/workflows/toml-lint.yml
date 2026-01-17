@@ -18,6 +18,8 @@ on:
         type: string
         description: Runner to use
         default: ubuntu-slim
+permissions:
+  contents: read
 defaults:
   run:
     shell: bash -euo pipefail {0}
