@@ -48,6 +48,7 @@ jobs:
       || (github.event_name == 'workflow_dispatch' && inputs.workflow == 'lint')
     permissions:
       contents: read
+      security-events: write
     uses: ./.github/workflows/go-package-lint-and-scan.yml
     with:
       package-path: .
