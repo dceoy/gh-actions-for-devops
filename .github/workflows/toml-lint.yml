@@ -33,14 +33,13 @@ jobs:
         with:
           fetch-depth: 1
           persist-credentials: false
-      - name: Setup Go
-        uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c  # v6.1.0
-        with:
-          go-version: ${{ inputs.go-version }}
-          cache: false
       - name: Install tomll
-        run: >
-          go install github.com/pelletier/go-toml/v2/cmd/tomll@latest
+        run: |
+          curl -sS https://api.github.com/repos/pelletier/go-toml/releases/latest \
+            | jq -r '.assets[].browser_download_url' \
+            | grep -e "/tomll_.*_linux_$([[ "$(uname -m)" == 'x86_64' ]] && echo 'amd64' || echo 'arm64')\.tar\.xz$" \
+            | xargs -t curl -sSL -o /tmp/tomll.tar.xz
+          sudo tar xvf /tmp/tomll.tar.xz -C /usr/local/bin --remove-files
       - name: Execute tomllint
         working-directory: ${{ inputs.search-path }}
         run: >
