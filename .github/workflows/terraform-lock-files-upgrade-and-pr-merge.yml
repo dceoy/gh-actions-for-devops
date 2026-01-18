@@ -107,6 +107,7 @@ jobs:
     with:
       branch-prefix: ${{ inputs.merged-pr-branch-prefix }}
       delete-merged-branch: false
+      runs-on: ubuntu-slim
   terraform-lock-files-upgrade:
     if: >
       (! (failure() || cancelled()))

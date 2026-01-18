@@ -178,7 +178,7 @@ defaults:
     working-directory: .
 jobs:
   create-target-matrix:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     outputs:
       target-matrix-json: ${{ steps.create-target-matrix.outputs.target_matrix_json }}
     steps:
