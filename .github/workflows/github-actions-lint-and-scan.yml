@@ -107,14 +107,11 @@ jobs:
         with:
           fetch-depth: 1
           persist-credentials: false
-      - name: Setup Go
-        uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c  # v6.1.0
-        with:
-          go-version: ${{ inputs.go-version }}
-          cache: false
       - name: Install actionlint
-        run: >
-          go install github.com/rhysd/actionlint/cmd/actionlint@latest
+        run: |
+          curl -sSL -o /tmp/download-actionlint.bash \
+            https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash
+          bash /tmp/download-actionlint.bash latest /usr/local/bin
       - name: Install ShellCheck
         if: inputs.use-shellcheck
         run: |
