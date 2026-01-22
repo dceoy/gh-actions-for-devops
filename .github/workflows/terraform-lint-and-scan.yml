@@ -175,7 +175,8 @@ jobs:
         if: inputs.terraform-validate
         working-directory: ${{ inputs.search-path }}
         run: |
-          find . -type f -name '*.tf' -exec dirname {} \; \
+          git ls-files -z -- '*.tf' \
+            | xargs -0 -n1 dirname \
             | sort -u \
             | xargs -I{} -t bash -c \
               'cd {} && terraform init -backend=false && terraform validate'

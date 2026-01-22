@@ -43,4 +43,4 @@ jobs:
       - name: Execute jsonlint
         working-directory: ${{ inputs.search-path }}
         run: >
-          find . -type f -name '*.json' -print0 | xargs -0 -t jsonlint --quiet
+          git ls-files -z -- '*.json' | xargs -0 -t jsonlint --quiet

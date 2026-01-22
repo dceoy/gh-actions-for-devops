@@ -43,4 +43,4 @@ jobs:
       - name: Execute tomllint
         working-directory: ${{ inputs.search-path }}
         run: >
-          find . -type f -name '*.toml' -print0 | xargs -0 -t tomll
+          git ls-files -z -- '*.toml' | xargs -0 -t tomll

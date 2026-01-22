@@ -35,5 +35,5 @@ jobs:
       - name: Execute shellcheck
         working-directory: ${{ inputs.search-path }}
         run: >
-          find . -type f \( -name '*.sh' -o -name '*.bash' -o -name '*.bats' \) -print0
+          git ls-files -z -- '*.sh' '*.bash' '*.bats'
           | xargs -0 -t shellcheck --external-sources

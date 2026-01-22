@@ -70,6 +70,6 @@ jobs:
           RELATIVE_PATH_FROM_SCHEMA_DIRECTORY_TO_DATA_FILES: ${{ inputs.relative-path-from-schema-directory-to-data-files }}
         working-directory: ${{ inputs.search-path }}
         run: >
-          find . -name "${SCHEMA_FILE_NAME}" -print0
+          git ls-files -z -- "${SCHEMA_FILE_NAME}" "*/${SCHEMA_FILE_NAME}"
           | xargs -0 -I{} -t bash -c
           "cd \"\$(dirname {})\" && ajv validate -s \"\$(basename {})\" -d '${RELATIVE_PATH_FROM_SCHEMA_DIRECTORY_TO_DATA_FILES}'"

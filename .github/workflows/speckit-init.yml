@@ -85,7 +85,7 @@ jobs:
       - name: Prettify output files
         if: inputs.prettify-md-and-json
         run: >
-          find . -type f \( -name '*.md' -o -name '*.json' \) -exec npx prettier --write {} \;
+          npx prettier --write './**/*.{md,json}'
       - name: Commit and push the changes
         uses: EndBug/add-and-commit@a94899bca583c204427a224a7af87c02f9b325d5  # v9.1.4
         with:
