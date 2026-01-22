@@ -176,7 +176,7 @@ jobs:
         working-directory: ${{ inputs.search-path }}
         run: |
           git ls-files -z -- '*.tf' \
-            | xargs -0 -n1 dirname \
+            | xargs -0 dirname \
             | sort -u \
             | xargs -I{} -t bash -c \
               'cd {} && terraform init -backend=false && terraform validate'
