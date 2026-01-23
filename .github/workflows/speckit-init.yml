@@ -18,6 +18,11 @@ on:
         type: boolean
         description: Whether to prettify Markdown and JSON files after initialization
         default: true
+      disable-shellcheck:
+        required: false
+        type: boolean
+        description: Whether to disable shellcheck in Spec Kit shell scripts
+        default: true
       git-add-args:
         required: false
         type: string
@@ -86,6 +91,12 @@ jobs:
         if: inputs.prettify-md-and-json
         run: >
           npx prettier --write './**/*.{md,json}'
+      - name: Disable shellcheck in Spec Kit shell scripts
+        if: inputs.script-type == 'sh' && inputs.disable-shellcheck
+        working-directory: .specify/scripts
+        run: |
+          find . -type f -name '*.sh' -exec sed -ie '2i# shellcheck disable=all' {} \;
+          find . -type f -name '*.she' -delete
       - name: Commit and push the changes
         uses: EndBug/add-and-commit@a94899bca583c204427a224a7af87c02f9b325d5  # v9.1.4
         with:
