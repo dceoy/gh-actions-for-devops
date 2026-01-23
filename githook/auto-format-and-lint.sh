@@ -2,16 +2,18 @@
 
 set -euox pipefail
 
-MAX_DEPTH=7
-
 PYTHON_LINE_LENGTH=88
 RUFF_LINT_EXTEND_SELECT='F,E,W,C90,I,N,D,UP,S,B,A,COM,C4,PT,Q,SIM,ARG,ERA,PD,PLC,PLE,PLW,TRY,FLY,NPY,PERF,FURB,RUF'
 RUFF_LINT_IGNORE='D100,D103,D203,D213,S101,B008,A002,A004,COM812,PLC2701,TRY003'
-COMMON_PRUNE=(\( -path '*/.*' -o -path '*/.venv/*' -o -path '*/node_modules/*' -o -path '*/htmlcov/*' -o -path '*/coverage/*' \) -prune -o)
-TS_PRUNE=(\( -path '*/.*' -o -path '*/.venv/*' -o -path '*/node_modules/*' -o -path '*/htmlcov/*' -o -path '*/coverage/*' -o -path '*/site/*' \) -prune -o)
-N_PYTHON_FILES=$(find . -maxdepth "${MAX_DEPTH}" "${COMMON_PRUNE[@]}" -type f -name '*.py' -print | wc -l)
+
+N_PYTHON_FILES=$(git ls-files -- '*.py' | wc -l)
 if [[ "${N_PYTHON_FILES}" -gt 0 ]]; then
-  PACKAGE_DIRECTORY="$(find . -maxdepth "${MAX_DEPTH}" "${COMMON_PRUNE[@]}" -type f -name 'pyproject.toml' -exec dirname {} \; | head -n 1)"
+  PYPROJECT_FILE="$(git ls-files -- 'pyproject.toml' '*/pyproject.toml' | head -n 1)"
+  if [[ -n "${PYPROJECT_FILE}" ]]; then
+    PACKAGE_DIRECTORY="$(dirname "${PYPROJECT_FILE}")"
+  else
+    PACKAGE_DIRECTORY=''
+  fi
   if [[ -n "${PACKAGE_DIRECTORY}" ]] && [[ -f "${PACKAGE_DIRECTORY}/uv.lock" ]]; then
     uv run --directory "${PACKAGE_DIRECTORY}" ruff format .
     uv run --directory "${PACKAGE_DIRECTORY}" ruff check --fix .
@@ -31,16 +33,16 @@ if [[ "${N_PYTHON_FILES}" -gt 0 ]]; then
   fi
 fi
 
-N_BASH_FILES=$(find . -maxdepth "${MAX_DEPTH}" "${COMMON_PRUNE[@]}" -type f \( -name '*.sh' -o -name '*.bash' -o -name '*.bats' \) -print | wc -l)
+N_BASH_FILES=$(git ls-files -- '*.sh' '*.bash' '*.bats' | wc -l)
 if [[ "${N_BASH_FILES}" -gt 0 ]]; then
-  find . -maxdepth "${MAX_DEPTH}" "${COMMON_PRUNE[@]}" -type f \( -name '*.sh' -o -name '*.bash' -o -name '*.bats' \) -print0 \
+  git ls-files -z -- '*.sh' '*.bash' '*.bats' \
     | xargs -0 -t shellcheck
 fi
 
-N_TYPESCRIPT_FILES=$(find . -maxdepth "${MAX_DEPTH}" "${TS_PRUNE[@]}" -type f \( -name '*.ts' -o -name '*.tsx' \) -print | wc -l)
-N_JAVASCRIPT_FILES=$(find . -maxdepth "${MAX_DEPTH}" "${TS_PRUNE[@]}" -type f \( -name '*.js' -o -name '*.jsx' \) -print | wc -l)
+N_TYPESCRIPT_FILES=$(git ls-files -- '*.ts' '*.tsx' | wc -l)
+N_JAVASCRIPT_FILES=$(git ls-files -- '*.js' '*.jsx' | wc -l)
 if [[ "${N_TYPESCRIPT_FILES}" -gt 0 ]] || [[ "${N_JAVASCRIPT_FILES}" -gt 0 ]]; then
-  PACKAGE_JSON_FILE=$(find . -maxdepth "${MAX_DEPTH}" "${COMMON_PRUNE[@]}" -type f -name 'package.json' -print -quit)
+  PACKAGE_JSON_FILE=$(git ls-files -- 'package.json' '*/package.json' | head -n 1)
   if [[ -n "${PACKAGE_JSON_FILE}" ]]; then
     PACKAGE_DIRECTORY="$(dirname "${PACKAGE_JSON_FILE}")"
     NODE_MODULES_BIN="${PACKAGE_DIRECTORY}/node_modules/.bin"
@@ -63,18 +65,18 @@ if [[ "${N_TYPESCRIPT_FILES}" -gt 0 ]] || [[ "${N_JAVASCRIPT_FILES}" -gt 0 ]]; t
   fi
 fi
 
-N_HTML_FILES=$(find . -maxdepth "${MAX_DEPTH}" "${COMMON_PRUNE[@]}" -type f \( -name '*.html' -o -name '*.htm' \) -print | wc -l)
+N_HTML_FILES=$(git ls-files -- '*.html' '*.htm' | wc -l)
 if [[ "${N_HTML_FILES}" -gt 0 ]]; then
   prettier --write './**/*.{html,htm}'
 fi
 
-N_MARKDOWN_FILES=$(find . -maxdepth "${MAX_DEPTH}" "${COMMON_PRUNE[@]}" -type f -name '*.md' -print | wc -l)
+N_MARKDOWN_FILES=$(git ls-files -- '*.md' | wc -l)
 if [[ "${N_MARKDOWN_FILES}" -gt 0 ]]; then
   prettier --write './**/*.md'
   # markdownlint-cli2 './**/*.md'
 fi
 
-N_GO_FILES=$(find . -maxdepth "${MAX_DEPTH}" "${COMMON_PRUNE[@]}" -type f -name '*.go' -print | wc -l)
+N_GO_FILES=$(git ls-files -- '*.go' | wc -l)
 if [[ "${N_GO_FILES}" -gt 0 ]]; then
   golangci-lint fmt --enable=gofumpt --enable=goimports
   golangci-lint run --fix
@@ -82,20 +84,23 @@ fi
 
 if [[ -d '.github/workflows' ]]; then
   zizmor --fix=safe .github/workflows
-  find .github/workflows "${COMMON_PRUNE[@]}" -type f \( -name '*.yml' -o -name '*.yaml' \) -print0 \
-    | xargs -0 -t actionlint
-  find .github/workflows "${COMMON_PRUNE[@]}" -type f \( -name '*.yml' -o -name '*.yaml' \) -print0 \
-    | xargs -0 -t yamllint -d '{"extends": "relaxed", "rules": {"line-length": "disable"}}'
+  N_WORKFLOW_YAML_FILES=$(git ls-files -- '.github/workflows/**.yml' '.github/workflows/**.yaml' | wc -l)
+  if [[ "${N_WORKFLOW_YAML_FILES}" -gt 0 ]]; then
+    git ls-files -z -- '.github/workflows/*.yml' '.github/workflows/*.yaml' \
+      | xargs -0 -t actionlint
+    git ls-files -z -- '.github/workflows/*.yml' '.github/workflows/*.yaml' \
+      | xargs -0 -t yamllint -d '{"extends": "relaxed", "rules": {"line-length": "disable"}}'
+  fi
 fi
 
-N_TERRAFORM_FILES=$(find . -maxdepth "${MAX_DEPTH}" "${COMMON_PRUNE[@]}" -type f \( -name '*.tf' -o -name '*.hcl' \) -print | wc -l)
+N_TERRAFORM_FILES=$(git ls-files -- '*.tf' '*.hcl' | wc -l)
 if [[ "${N_TERRAFORM_FILES}" -gt 0 ]]; then
   terraform fmt -recursive .
   terragrunt hcl format --diff --working-dir .
   tflint --recursive --chdir=.
 fi
 
-N_DOCKER_FILES=$(find . -maxdepth "${MAX_DEPTH}" -path '*/.*' -prune -o -type f -name 'Dockerfile' -print | wc -l)
+N_DOCKER_FILES=$(git ls-files -- 'Dockerfile' '*/Dockerfile' | wc -l)
 # if [[ "${N_DOCKER_FILES}" -gt 0 ]] || [[ "${N_TERRAFORM_FILES}" -gt 0 ]]; then
 #   trivy filesystem --scanners vuln,secret,misconfig --skip-dirs .venv --skip-dirs .terraform --skip-dirs .terragrunt-cache --skip-dirs .git .
 # fi

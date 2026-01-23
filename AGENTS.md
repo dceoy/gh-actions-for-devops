@@ -3,9 +3,9 @@
 ## Build and Lint Commands
 
 - **Shell linting**: `shellcheck githook/*.sh`
-- **GitHub Actions linting**: `find .github/workflows -name "*.yml" -o -name "*.yaml" | xargs actionlint`
+- **GitHub Actions linting**: `git ls-files -z -- '.github/workflows/**.yml' '.github/workflows/**.yaml' | xargs -0 actionlint`
 - **GitHub Actions scanning**: `zizmor --fix=safe .github/workflows`
-- **YAML linting**: `find .github/workflows -name "*.yml" | xargs yamllint -d '{"extends": "relaxed", "rules": {"line-length": "disable"}}'`
+- **YAML linting**: `git ls-files -z -- '.github/workflows/**.yml' | xargs -0 yamllint -d '{"extends": "relaxed", "rules": {"line-length": "disable"}}'`
 - **Go formatting and linting**: `golangci-lint fmt -E gofumpt -E goimports && golangci-lint run --fix && govulncheck ./... && gosec ./...`
 - **Terraform formatting and linting**: `terraform fmt -recursive . && terragrunt hcl format --diff && tflint --recursive`
 - **Security scanning**: `trivy filesystem --scanners vuln,secret,misconfig .`

@@ -94,14 +94,15 @@ jobs:
               | xargs -I{} -t bash -c '{}'
             echo "${TERRAFORM_WORKING_DIRECTORY_TO_VERSION_TF_JSON}" \
               | jq -r 'keys[]' \
-              | xargs -I{} find {} -type f -name "${TERRAFORM_LOCK_FILE}" \
+              | xargs -I{} git ls-files -- "{}" \
+              | grep -E "(/|^)${TERRAFORM_LOCK_FILE//./\\.}$" \
               | jq -rRs 'split("\n")[:-1] | "UPDATED_FILES_JSON=\(.)"' \
               | tee -a "${GITHUB_ENV}"
           elif [[ -n "${TERRAGRUNT_WORKING_DIRECTORIES}" ]]; then
             updated_files_txt="$(mktemp)"
-            echo "${TERRAGRUNT_WORKING_DIRECTORIES}" \
-              | tr ' ' '\n' \
-              | xargs -I{} find {} -type f -name "${TERRAFORM_LOCK_FILE}" \
+            IFS=$' \n\t' read -r -a terragrunt_dirs <<< "${TERRAGRUNT_WORKING_DIRECTORIES//$'\n'/ }"
+            git ls-files -- "${terragrunt_dirs[@]}" \
+              | grep -E "(/|^)${TERRAFORM_LOCK_FILE//./\\.}$" \
               > "${updated_files_txt}"
             xargs dirname < "${updated_files_txt}" \
               | xargs -I{} -t bash -c \
@@ -113,9 +114,9 @@ jobs:
             echo "${TERRAFORM_WORKING_DIRECTORIES}" \
               | tr ' ' '\n' \
               | xargs -I{} -t bash -c "cd {} && ${TERRAFORM_INIT}"
-            echo "${TERRAFORM_WORKING_DIRECTORIES}" \
-              | tr ' ' '\n' \
-              | xargs -I{} find {} -type f -name "${TERRAFORM_LOCK_FILE}" \
+            IFS=$' \n\t' read -r -a terraform_dirs <<< "${TERRAFORM_WORKING_DIRECTORIES//$'\n'/ }"
+            git ls-files -- "${terraform_dirs[@]}" \
+              | grep -E "(/|^)${TERRAFORM_LOCK_FILE//./\\.}$" \
               | jq -rRs 'split("\n")[:-1] | "UPDATED_FILES_JSON=\(.)"' \
               | tee -a "${GITHUB_ENV}"
           fi
@@ -134,9 +135,9 @@ jobs:
               | sort -u \
               | xargs -I{} -t bash -c "cd {} && ${TERRAFORM_VALIDATE}"
           elif [[ -n "${TERRAGRUNT_WORKING_DIRECTORIES}" ]]; then
-            echo "${TERRAGRUNT_WORKING_DIRECTORIES}" \
-              | tr ' ' '\n' \
-              | xargs -I{} find {} -type f -name "${TERRAFORM_LOCK_FILE}" \
+            IFS=$' \n\t' read -r -a terragrunt_dirs <<< "${TERRAGRUNT_WORKING_DIRECTORIES//$'\n'/ }"
+            git ls-files -- "${terragrunt_dirs[@]}" \
+              | grep -E "(/|^)${TERRAFORM_LOCK_FILE//./\\.}$" \
               | xargs dirname \
               | xargs -I{} -t bash -c \
                 "cd {} && mv terragrunt.hcl _ && grep -A 10 '^terraform {' _ > terragrunt.hcl && ${TERRAGRUNT_VALIDATE} && mv _ terragrunt.hcl"

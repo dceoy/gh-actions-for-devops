@@ -50,5 +50,5 @@ jobs:
           YAMLLINT_CONFIG_DATA: ${{ inputs.yamllint-config-data }}
         working-directory: ${{ inputs.search-path }}
         run: >
-          find . -type f \( -name '*.yml' -o -name '*.yaml' \) -print0
+          git ls-files -z -- '*.yml' '*.yaml'
           | xargs -0 -t yamllint --config-data="${YAMLLINT_CONFIG_DATA}"

@@ -102,7 +102,7 @@ jobs:
       - name: Execute cfn-lint
         working-directory: ${{ inputs.search-path }}
         run: >
-          find . -type f \( -name '*.cfn.yml' -o -name '*.cfn.yaml' \) -print0
+          git ls-files -z -- '*.cfn.yml' '*.cfn.yaml'
           | xargs -0 -t cfn-lint
       - name: Run Checkov
         if: inputs.use-checkov
