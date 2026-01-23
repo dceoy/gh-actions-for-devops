@@ -2,12 +2,7 @@
 
 ## Build and Lint Commands
 
-- **Shell linting**: `shellcheck githook/*.sh`
-- **GitHub Actions linting**: `git ls-files -z -- '.github/workflows/**.yml' '.github/workflows/**.yaml' | xargs -0 actionlint`
-- **GitHub Actions scanning**: `zizmor --fix=safe .github/workflows`
-- **YAML linting**: `git ls-files -z -- '.github/workflows/**.yml' | xargs -0 yamllint -d '{"extends": "relaxed", "rules": {"line-length": "disable"}}'`
-- **Go formatting and linting**: `golangci-lint fmt -E gofumpt -E goimports && golangci-lint run --fix && govulncheck ./... && gosec ./...`
-- **Terraform formatting and linting**: `terraform fmt -recursive . && terragrunt hcl format --diff && tflint --recursive`
+- **Linting and formatting**: Use the `local-qa` skill (do not run individual lint/format commands directly).
 - **Security scanning**: `trivy filesystem --scanners vuln,secret,misconfig .`
 - **Build README**: `go run ./src/build_readme_md.go`
 
@@ -29,12 +24,9 @@
 
 **IMPORTANT**: Run the following on each change before committing:
 
-1. **Auto-format and lint**: `./githook/auto-format-and-lint.sh`
-2. **Type checking** (if applicable):
-   - Python: `pyright` (strict mode)
-   - Go: included in golangci-lint
-3. **Run tests**: Execute relevant test suites for modified code
-4. **Security scan** (periodically): `trivy filesystem --scanners vuln,secret,misconfig .`
+1. **format and lint**: Use the `local-qa` skill.
+2. **Run tests**: Execute relevant test suites for modified code (if applicable).
+3. **Security scan** (periodically): `trivy filesystem --scanners vuln,secret,misconfig .`
 
 ### Workflow Organization
 
