@@ -27,11 +27,6 @@ on:
         type: string
         description: MCP server configuration JSON string
         default: null
-      timeout-minutes:
-        required: false
-        type: number
-        description: Timeout in minutes for the Amp execution
-        default: 60
       runs-on:
         required: false
         type: string
@@ -63,11 +58,6 @@ on:
         type: string
         description: MCP server configuration JSON string
         default: null
-      timeout-minutes:
-        required: false
-        type: number
-        description: Timeout in minutes for the Amp execution
-        default: 60
       runs-on:
         required: false
         type: string
@@ -97,7 +87,6 @@ defaults:
 jobs:
   amp-code:
     runs-on: ${{ inputs.runs-on }}
-    timeout-minutes: ${{ inputs.timeout-minutes || 60 }}
     outputs:
       summary: ${{ steps.run-amp.outputs.summary }}
     steps:
