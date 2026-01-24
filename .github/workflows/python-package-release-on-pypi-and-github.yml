@@ -47,7 +47,7 @@ on:
         required: false
         type: string
         description: GitHub Actions runner to use
-        default: ubuntu-slim
+        default: ubuntu-latest
     secrets:
       PYPI_API_TOKEN:
         required: true
