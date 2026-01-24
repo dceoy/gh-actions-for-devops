@@ -25,8 +25,8 @@
 **IMPORTANT**: Run the following on each change before committing:
 
 1. **format and lint**: Use the `local-qa` skill.
-2. **Run tests**: Execute relevant test suites for modified code (if applicable).
-3. **Security scan** (periodically): `trivy filesystem --scanners vuln,secret,misconfig .`
+2. **test**: Execute relevant test suites for modified code (if applicable).
+3. **security scan** (periodically): `trivy filesystem --scanners vuln,secret,misconfig .`
 
 ### Workflow Organization
 
@@ -38,25 +38,6 @@
 - Branch names use appropriate prefixes on creation (e.g., `feature/short-description`, `bugfix/short-description`).
 - PRs should include: a clear summary, relevant context or linked issue.
 - When instructed to create a PR, create it as a draft with appropriate labels by default.
-
-## Testing Guidelines
-
-### Test Desiderata
-
-Desirable properties of tests:
-
-- **Isolated**: results never depend on test order or shared state.
-- **Composable**: validate dimensions separately and combine results.
-- **Deterministic**: same inputs produce the same outcome.
-- **Fast**: keep runtime short to encourage frequent execution.
-- **Writable**: cheap to create relative to code value.
-- **Readable**: intent and motivation are obvious to reviewers.
-- **Behavioral**: sensitive to user-visible behavior changes.
-- **Structure-insensitive**: refactors shouldn’t flip results.
-- **Automated**: run without human intervention.
-- **Specific**: failures point clearly to the cause.
-- **Predictive**: passing suite signals production readiness.
-- **Inspiring**: green builds build team confidence.
 
 ## Code Design Principles
 
