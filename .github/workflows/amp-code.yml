@@ -1,89 +1,82 @@
 ---
 name: Amp Code
 on:
+  workflow_dispatch:  # checkov:skip=CKV_GHA_7:workflow_dispatch inputs are required for manual runs
+    inputs:
+      prompt:
+        required: true
+        type: string
+        description: Prompt string passed to Amp Code's `-x` argument for execution mode
+      amp-log-level:
+        required: false
+        type: string
+        description: Amp log level (error, warn, info, debug)
+        default: info
+      amp-settings-json:
+        required: false
+        type: string
+        description: JSON string for Amp settings (written to settings.json)
+        default: null
+      amp-dangerously-allow-all:
+        required: false
+        type: boolean
+        description: Toggle Amp CLI --dangerously-allow-all
+        default: true
+      mcp-config:
+        required: false
+        type: string
+        description: MCP server configuration JSON string
+        default: null
+      timeout-minutes:
+        required: false
+        type: number
+        description: Timeout in minutes for the Amp execution
+        default: 60
+      runs-on:
+        required: false
+        type: string
+        description: GitHub Actions runner to use
+        default: ubuntu-slim
   workflow_call:
     inputs:
       prompt:
         required: true
         type: string
         description: Prompt string passed to Amp Code's `-x` argument for execution mode
-      amp-version:
-        required: false
-        type: string
-        description: Version of @sourcegraph/amp to install (e.g., 'latest' or specific version)
-        default: latest
       amp-log-level:
         required: false
         type: string
         description: Amp log level (error, warn, info, debug)
         default: info
-      amp-settings:
+      amp-settings-json:
         required: false
         type: string
         description: JSON string for Amp settings (written to settings.json)
         default: null
-      amp-commands-allowlist:
+      amp-dangerously-allow-all:
         required: false
-        type: string
-        description: JSON array of allowed commands for Amp (e.g., '["npm run *", "make build"]')
-        default: null
+        type: boolean
+        description: Toggle Amp CLI --dangerously-allow-all
+        default: true
       mcp-config:
         required: false
         type: string
         description: MCP server configuration JSON string
         default: null
-      thread-id:
-        required: false
-        type: string
-        description: Thread ID to continue a previous Amp conversation
-        default: null
-      working-directory:
-        required: false
-        type: string
-        description: Working directory for Amp execution
-        default: .
-      node-version:
-        required: false
-        type: string
-        description: Node.js version for npm
-        default: '22'
-      aws-iam-role-to-assume:
-        required: false
-        type: string
-        description: AWS IAM role ARN to assume
-        default: null
-      aws-region:
-        required: false
-        type: string
-        description: AWS region to use
-        default: us-east-1
-      google-workload-identity-provider:
-        required: false
-        type: string
-        description: Google Workload Identity Provider for authentication
-        default: null
-      google-service-account:
-        required: false
-        type: string
-        description: Google Service Account for authentication
-        default: null
-      runs-on:
-        required: false
-        type: string
-        description: GitHub Actions runner to use
-        default: ubuntu-latest
       timeout-minutes:
         required: false
         type: number
         description: Timeout in minutes for the Amp execution
-        default: 30
+        default: 60
+      runs-on:
+        required: false
+        type: string
+        description: GitHub Actions runner to use
+        default: ubuntu-slim
     outputs:
       summary:
         description: Summary of Amp Code execution
         value: ${{ jobs.amp-code.outputs.summary }}
-      thread-id:
-        description: Thread ID from Amp Code execution (for resuming)
-        value: ${{ jobs.amp-code.outputs.thread-id }}
     secrets:
       AMP_API_KEY:
         required: true
@@ -93,85 +86,57 @@ on:
         description: GitHub token for repository operations
 permissions:
   contents: read
+  pull-requests: write
+  issues: write
   id-token: write
+  actions: read
 defaults:
   run:
     shell: bash -euo pipefail {0}
+    working-directory: .
 jobs:
   amp-code:
     runs-on: ${{ inputs.runs-on }}
-    timeout-minutes: ${{ inputs.timeout-minutes || 30 }}
+    timeout-minutes: ${{ inputs.timeout-minutes || 60 }}
     outputs:
       summary: ${{ steps.run-amp.outputs.summary }}
-      thread-id: ${{ steps.run-amp.outputs.thread_id }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6.0.1
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
         with:
           fetch-depth: 1
           token: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
           persist-credentials: false
-      - name: Set up Node.js
-        uses: actions/setup-node@cdca7365b2dadb8aad0a33bc7601856ffabcc48e  # v4.3.0
-        with:
-          node-version: ${{ inputs.node-version || '22' }}
-      - name: Configure AWS credentials
-        if: inputs.aws-iam-role-to-assume != null
-        uses: aws-actions/configure-aws-credentials@61815dcd50bd041e203e49132bacad1fd04d2708  # v5.1.1
-        with:
-          role-to-assume: ${{ inputs.aws-iam-role-to-assume }}
-          aws-region: ${{ inputs.aws-region || 'us-east-1' }}
-          role-session-name: github-actions-${{ github.run_id }}
-      - name: Authenticate to Google Cloud
-        if: inputs.google-workload-identity-provider != null && inputs.google-service-account != null
-        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093  # v3.0.0
-        with:
-          workload_identity_provider: ${{ inputs.google-workload-identity-provider }}
-          service_account: ${{ inputs.google-service-account }}
       - name: Install Amp CLI
-        env:
-          AMP_VERSION: ${{ inputs.amp-version || 'latest' }}
-        run: |
-          npm install -g "@sourcegraph/amp@${AMP_VERSION}"
-          amp --version
+        run: >
+          curl -fsSL https://ampcode.com/install.sh | bash
+      - name: Verify Amp installation
+        run: >
+          ~/.local/bin/amp --version
+          echo "PATH=${PATH}:${HOME}/.local/bin" | tee -a "${GITHUB_ENV}"
       - name: Configure Amp settings
-        if: inputs.amp-settings != null || inputs.amp-commands-allowlist != null
+        if: inputs.amp-settings-json != null
         env:
-          AMP_SETTINGS: ${{ inputs.amp-settings }}
-          AMP_COMMANDS_ALLOWLIST: ${{ inputs.amp-commands-allowlist }}
+          AMP_SETTINGS_JSON: ${{ inputs.amp-settings-json }}
+          AMP_SETTINGS_FILE: ${{ env.HOME }}/.config/amp/settings.json
         run: |
-          mkdir -p ~/.config/amp
-          settings_file=~/.config/amp/settings.json
-          if [[ -n "${AMP_SETTINGS}" ]]; then
-            echo "${AMP_SETTINGS}" > "${settings_file}"
-          else
-            echo '{}' > "${settings_file}"
-          fi
-          if [[ -n "${AMP_COMMANDS_ALLOWLIST}" ]]; then
-            jq --argjson allowlist "${AMP_COMMANDS_ALLOWLIST}" \
-              '.["amp.commands.allowlist"] = $allowlist' \
-              "${settings_file}" > "${settings_file}.tmp" \
-              && mv "${settings_file}.tmp" "${settings_file}"
-          fi
-          echo "Amp settings configured:"
-          cat "${settings_file}"
+          mkdir -p "$(dirname "${AMP_SETTINGS_FILE}")"
+          jq . <<< "${AMP_SETTINGS_JSON}" | tee "${AMP_SETTINGS_FILE}"
+          echo "AMP_SETTINGS_FILE=${AMP_SETTINGS_FILE}" | tee -a "${GITHUB_ENV}"
       - name: Run Amp Code
         id: run-amp
-        working-directory: ${{ inputs.working-directory }}
         env:
           AMP_API_KEY: ${{ secrets.AMP_API_KEY }}
-          AMP_LOG_LEVEL: ${{ inputs.amp-log-level || 'info' }}
+          AMP_URL: https://ampcode.com/
+          AMP_LOG_LEVEL: ${{ inputs.amp-log-level }}
+          AMP_DANGEROUSLY_ALLOW_ALL: ${{ inputs.amp-dangerously-allow-all }}
           MCP_CONFIG: ${{ inputs.mcp-config }}
-          THREAD_ID: ${{ inputs.thread-id }}
           PROMPT: ${{ inputs.prompt }}
         run: |
-          amp_args=()
-          if [[ -n "${MCP_CONFIG}" ]]; then
-            amp_args+=(--mcp-config "${MCP_CONFIG}")
-          fi
-          if [[ -n "${THREAD_ID}" ]]; then
-            amp_args+=(--thread "${THREAD_ID}")
-          fi
+          amp_args=(
+            ${MCP_CONFIG:+--mcp-config="${MCP_CONFIG}"}
+            ${AMP_DANGEROUSLY_ALLOW_ALL:+--dangerously-allow-all}
+          )
           output_file=$(mktemp)
           amp "${amp_args[@]}" -x "${PROMPT}" 2>&1 | tee "${output_file}"
           exit_code=${PIPESTATUS[0]}

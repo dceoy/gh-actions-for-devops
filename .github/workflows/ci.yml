@@ -40,6 +40,10 @@ on:
         default: lint
 permissions:
   contents: read
+defaults:
+  run:
+    shell: bash -euo pipefail {0}
+    working-directory: .
 jobs:
   go-lint-and-scan:
     if: >
@@ -177,10 +181,6 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
-    defaults:
-      run:
-        shell: bash -euo pipefail {0}
-        working-directory: .
     runs-on: ubuntu-slim
     steps:
       - name: Checkout repository
