@@ -8,7 +8,7 @@ description: Run local QA for the repository. Use when asked to run formatting, 
 Run the local QA script from the directory of this file:
 
 ```bash
-./scripts/format-and-lint.sh
+./scripts/qa.sh
 ```
 
 ## Procedure
