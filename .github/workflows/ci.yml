@@ -64,6 +64,8 @@ jobs:
       || (github.event_name == 'workflow_dispatch' && inputs.workflow == 'lint')
     permissions:
       contents: read
+      security-events: write
+      actions: read
     uses: ./.github/workflows/github-actions-lint-and-scan.yml
     with:
       search-path: .github/workflows
@@ -100,9 +102,9 @@ jobs:
       github.event_name == 'push'
       || (github.event_name == 'workflow_dispatch' && inputs.workflow == 'analyze')
     permissions:
-      actions: read
       contents: read
       security-events: write
+      actions: read
     uses: ./.github/workflows/github-codeql-analysis.yml
     with:
       language: >

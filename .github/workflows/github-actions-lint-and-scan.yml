@@ -132,6 +132,8 @@ on:
         description: Bridgecrew or Prisma Cloud API key
 permissions:
   contents: read
+  security-events: write
+  actions: read
 defaults:
   run:
     shell: bash -euo pipefail {0}
