@@ -38,6 +38,41 @@ on:
         type: string
         description: Configuration data for yamllint
         default: '{"extends": "relaxed", "rules": {"line-length": "disable"}}'
+      use-zizmor:
+        required: false
+        type: boolean
+        description: Whether to use zizmor for security auditing
+        default: true
+      zizmor-online-audits:
+        required: false
+        type: boolean
+        description: Whether to run zizmor online audits
+        default: true
+      zizmor-persona:
+        required: false
+        type: string
+        description: Auditing persona for zizmor (regular, pedantic, auditor)
+        default: regular
+      zizmor-min-severity:
+        required: false
+        type: string
+        description: Minimum severity threshold (unknown, informational, low, medium, high)
+        default: null
+      zizmor-min-confidence:
+        required: false
+        type: string
+        description: Minimum confidence threshold (unknown, low, medium, high)
+        default: null
+      zizmor-advanced-security:
+        required: false
+        type: boolean
+        description: Use GitHub Advanced Security with zizmor
+        default: true
+      zizmor-config:
+        required: false
+        type: string
+        description: Path to a zizmor configuration file
+        default: null
       use-checkov:
         required: false
         type: boolean
@@ -89,6 +124,9 @@ on:
         description: Runner to use
         default: ubuntu-latest
     secrets:
+      GH_TOKEN:
+        required: false
+        description: GitHub token
       BC_API_KEY:
         required: false
         description: Bridgecrew or Prisma Cloud API key
@@ -129,13 +167,19 @@ jobs:
         working-directory: ${{ inputs.search-path }}
         run: >
           git ls-files -z -- '*.yml' '*.yaml' | xargs -0 -t actionlint
-      - name: Install zizmor
-        run: >
-          pip install -U --no-cache-dir zizmor
-      - name: Execute zizmor
-        working-directory: ${{ inputs.search-path }}
-        run: >
-          zizmor "${PWD}"
+      - name: Run zizmor
+        if: inputs.use-zizmor
+        uses: zizmorcore/zizmor-action@135698455da5c3b3e55f73f4419e481ab68cdd95  # v0.4.1
+        with:
+          inputs: ${{ inputs.search-path }}
+          online-audits: ${{ inputs.zizmor-online-audits }}
+          persona: ${{ inputs.zizmor-persona }}
+          min-severity: ${{ inputs.zizmor-min-severity }}
+          min-confidence: ${{ inputs.zizmor-min-confidence }}
+          token: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
+          advanced-security: ${{ inputs.zizmor-advanced-security }}
+          annotations: ${{ ! inputs.zizmor-advanced-security }}
+          config: ${{ inputs.zizmor-config }}
       - name: Run Checkov
         if: inputs.use-checkov
         uses: bridgecrewio/checkov-action@8f61ce5b8a3afb4ca94d236b75201878ded6d2cd  # v12
