@@ -41,17 +41,17 @@ on:
       use-zizmor:
         required: false
         type: boolean
-        description: Whether to use zizmor for security auditing
+        description: Whether to use Zizmor for security auditing
         default: true
       zizmor-online-audits:
         required: false
         type: boolean
-        description: Whether to run zizmor online audits
+        description: Whether to run Zizmor online audits
         default: true
       zizmor-persona:
         required: false
         type: string
-        description: Auditing persona for zizmor (regular, pedantic, auditor)
+        description: Auditing persona for Zizmor (regular, pedantic, auditor)
         default: regular
       zizmor-min-severity:
         required: false
@@ -66,12 +66,12 @@ on:
       zizmor-advanced-security:
         required: false
         type: boolean
-        description: Use GitHub Advanced Security with zizmor
+        description: Whether to enable GitHub Advanced Security instead of GitHub annotations for Zizmor's results
         default: true
       zizmor-config:
         required: false
         type: string
-        description: Path to a zizmor configuration file
+        description: Path to a Zizmor configuration file
         default: null
       use-checkov:
         required: false
