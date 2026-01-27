@@ -42,7 +42,7 @@ jobs:
         with:
           fetch-depth: 1
           token: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
-          persist-credentials: false
+          persist-credentials: true
       - name: Run Claude Code
         uses: anthropics/claude-code-action@1b8ee3b94104046d71fde52ec3557651ad8c0d71  # v1.0.29
         with:
