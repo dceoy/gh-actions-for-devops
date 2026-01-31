@@ -139,7 +139,10 @@ The workflows are organized by category for easier navigation. Each workflow is 
   - Microsoft Defender for Devops
 
 - [opencode-action.yml](.github/workflows/opencode-action.yml)
-  - OpenCode
+  - OpenCode Action for GitHub issues and pull requests
+
+- [opencode-bot.yml](.github/workflows/opencode-bot.yml)
+  - Mention bot using OpenCode
 
 - [opencode-review.yml](.github/workflows/opencode-review.yml)
   - Pull request review using OpenCode
