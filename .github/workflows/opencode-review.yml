@@ -1,0 +1,87 @@
+---
+name: Pull request review using OpenCode
+on:
+  workflow_call:
+    inputs:
+      model:
+        required: true
+        type: string
+        description: The model to use with OpenCode (format provider/model, e.g., anthropic/claude-sonnet-4-20250514)
+      agent:
+        required: false
+        type: string
+        description: The agent to use (must be a primary agent)
+        default: null
+      share:
+        required: false
+        type: string
+        description: Whether to share the OpenCode session (true/false, defaults to true for public repositories)
+        default: ''
+      prompt:
+        required: false
+        type: string
+        description: Custom prompt for the review (defaults to a standard PR review prompt)
+        default: ''
+      use-github-token:
+        required: false
+        type: boolean
+        description: Use the GitHub Action runner's built-in GITHUB_TOKEN instead of the OpenCode GitHub App token
+        default: false
+      runs-on:
+        required: false
+        type: string
+        description: Runner to use
+        default: ubuntu-latest
+      timeout-minutes:
+        required: false
+        type: number
+        description: Timeout in minutes for execution
+        default: 30
+    secrets:
+      ANTHROPIC_API_KEY:
+        required: false
+        description: Anthropic API key for Claude models
+      OPENAI_API_KEY:
+        required: false
+        description: OpenAI API key for OpenAI models
+      GH_TOKEN:
+        required: false
+        description: GitHub token for accessing the repository
+#   pull_request:
+#     types:
+#       - opened
+#       - synchronize
+#       - reopened
+#       - ready_for_review
+permissions:
+  contents: read
+  pull-requests: read
+  issues: read
+  id-token: write
+jobs:
+  opencode-review:
+    if: github.event_name == 'pull_request'
+    runs-on: ${{ inputs.runs-on }}
+    timeout-minutes: ${{ inputs.timeout-minutes || 30 }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Run PR review with OpenCode
+        uses: anomalyco/opencode/github@a552652fcc024752fcd43d9117282307d15c44d1  # latest
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GITHUB_TOKEN: ${{ inputs.use-github-token && (secrets.GH_TOKEN || secrets.GITHUB_TOKEN) || '' }}
+        with:
+          model: ${{ inputs.model }}
+          agent: ${{ inputs.agent }}
+          share: ${{ inputs.share }}
+          use_github_token: ${{ inputs.use-github-token }}
+          prompt: |
+            ${{ inputs.prompt || 'Review this pull request:
+            - Check for code quality issues
+            - Look for potential bugs
+            - Suggest improvements' }}
