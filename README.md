@@ -141,6 +141,9 @@ The workflows are organized by category for easier navigation. Each workflow is 
 - [opencode-action.yml](.github/workflows/opencode-action.yml)
   - OpenCode
 
+- [opencode-review.yml](.github/workflows/opencode-review.yml)
+  - Pull request review using OpenCode
+
 - [pr-agent.yml](.github/workflows/pr-agent.yml)
   - PR-agent
 

@@ -14,9 +14,9 @@ on:
         default: null
       share:
         required: false
-        type: boolean
-        description: Whether to share the OpenCode session (defaults to true for public repositories)
-        default: null
+        type: string
+        description: Whether to share the OpenCode session (true/false, defaults to true for public repositories)
+        default: ''
       prompt:
         required: false
         type: string
