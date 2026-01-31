@@ -1,0 +1,124 @@
+---
+name: OpenCode
+on:
+  workflow_call:
+    inputs:
+      model:
+        required: true
+        type: string
+        description: The model to use with OpenCode (format provider/model, e.g., anthropic/claude-sonnet-4-20250514)
+      agent:
+        required: false
+        type: string
+        description: The agent to use (must be a primary agent)
+        default: null
+      share:
+        required: false
+        type: boolean
+        description: Whether to share the OpenCode session (defaults to true for public repositories)
+        default: null
+      prompt:
+        required: false
+        type: string
+        description: Optional custom prompt to override the default behavior
+        default: ''
+      use-github-token:
+        required: false
+        type: boolean
+        description: Use the GitHub Action runner's built-in GITHUB_TOKEN instead of the OpenCode GitHub App token
+        default: false
+      aws-iam-role-to-assume:
+        required: false
+        type: string
+        description: AWS IAM role ARN to assume
+        default: null
+      aws-region:
+        required: false
+        type: string
+        description: AWS region to use
+        default: us-east-1
+      google-workload-identity-provider:
+        required: false
+        type: string
+        description: Google Workload Identity Provider to use for authentication
+        default: null
+      google-service-account:
+        required: false
+        type: string
+        description: Google Service Account to use for authentication
+        default: null
+      runs-on:
+        required: false
+        type: string
+        description: Runner to use
+        default: ubuntu-latest
+      timeout-minutes:
+        required: false
+        type: number
+        description: Timeout in minutes for execution
+        default: 30
+    secrets:
+      ANTHROPIC_API_KEY:
+        required: false
+        description: Anthropic API key for Claude models
+      OPENAI_API_KEY:
+        required: false
+        description: OpenAI API key for OpenAI models
+      GH_TOKEN:
+        required: false
+        description: GitHub token for performing operations (creating comments, commits, PRs)
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  id-token: write
+jobs:
+  opencode:
+    if: >
+      github.event_name == 'schedule'
+      || github.event_name == 'workflow_dispatch'
+      || github.event_name == 'issues'
+      || github.event_name == 'pull_request'
+      || (
+        (
+          github.event_name == 'issue_comment'
+          || github.event_name == 'pull_request_review_comment'
+        )
+        && (
+          contains(github.event.comment.body, '/oc')
+          || contains(github.event.comment.body, '/opencode')
+        )
+      )
+    runs-on: ${{ inputs.runs-on }}
+    timeout-minutes: ${{ inputs.timeout-minutes || 30 }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Configure AWS credentials
+        if: inputs.aws-iam-role-to-assume != null
+        uses: aws-actions/configure-aws-credentials@61815dcd50bd041e203e49132bacad1fd04d2708  # v5.1.1
+        with:
+          role-to-assume: ${{ inputs.aws-iam-role-to-assume }}
+          aws-region: ${{ inputs.aws-region || 'us-east-1' }}
+          role-session-name: github-actions-${{ github.run_id }}
+      - name: Authenticate to Google Cloud
+        if: inputs.google-workload-identity-provider != null && inputs.google-service-account != null
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093  # v3.0.0
+        with:
+          workload_identity_provider: ${{ inputs.google-workload-identity-provider }}
+          service_account: ${{ inputs.google-service-account }}
+      - name: Run OpenCode
+        uses: anomalyco/opencode/github@a552652fcc024752fcd43d9117282307d15c44d1  # latest
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GITHUB_TOKEN: ${{ inputs.use-github-token && (secrets.GH_TOKEN || secrets.GITHUB_TOKEN) || '' }}
+        with:
+          model: ${{ inputs.model }}
+          agent: ${{ inputs.agent }}
+          share: ${{ inputs.share }}
+          prompt: ${{ inputs.prompt }}
+          use_github_token: ${{ inputs.use-github-token }}
