@@ -99,7 +99,7 @@ jobs:
           persist-credentials: false
       - name: Run Gemini CLI with the provided prompt
         id: gemini-cli-run
-        uses: google-github-actions/run-gemini-cli@5a3b23c898e09c9a9d00e75f7725e83ed603884d  # v0.1.19
+        uses: google-github-actions/run-gemini-cli@b7c22b00bd5a02e52eec973dc4b3bd391eb31512  # v0.1.20
         with:
           prompt: ${{ inputs.gemini-cli-prompt }}
           settings: ${{ inputs.gemini-cli-settings }}
