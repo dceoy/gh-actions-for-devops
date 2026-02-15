@@ -163,6 +163,9 @@ on:
       ANTHROPIC_API_KEY:
         required: false
         description: Anthropic API key for Claude
+      OPENROUTER_API_KEY:
+        required: false
+        description: OpenRouter API key for Claude via OpenRouter
       GH_TOKEN:
         required: false
         description: GitHub token for creating comments/issues
@@ -204,9 +207,11 @@ jobs:
       - name: Run Claude Code Action
         id: claude-code-action
         uses: anthropics/claude-code-action@1b8ee3b94104046d71fde52ec3557651ad8c0d71  # v1.0.29
+        env:
+          ANTHROPIC_BASE_URL: ${{ secrets.OPENROUTER_API_KEY != null && 'https://openrouter.ai/api/v1' || '' }}
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY || secrets.OPENROUTER_API_KEY }}
           prompt: ${{ inputs.prompt }}
           claude_args: ${{ inputs.claude-args }}
           track_progress: ${{ inputs.track-progress }}
