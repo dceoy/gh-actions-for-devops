@@ -133,6 +133,11 @@ on:
         type: boolean
         description: Use Microsoft Foundry with OIDC authentication instead of direct Anthropic API
         default: false
+      openrouter-model:
+        required: false
+        type: string
+        description: OpenRouter model to use when OPENROUTER_API_KEY is provided
+        default: openrouter/free
       runs-on:
         required: false
         type: string
@@ -213,7 +218,7 @@ jobs:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY || secrets.OPENROUTER_API_KEY }}
           prompt: ${{ inputs.prompt }}
-          claude_args: ${{ inputs.claude-args }}
+          claude_args: ${{ secrets.OPENROUTER_API_KEY && format('--model {0} {1}', inputs.openrouter-model, inputs.claude-args) || inputs.claude-args }}
           track_progress: ${{ inputs.track-progress }}
           trigger_phrase: ${{ inputs.trigger-phrase || '@claude' }}
           assignee_trigger: ${{ inputs.assignee-trigger }}
