@@ -37,7 +37,7 @@ on:
         required: false
         type: string
         description: GitHub Actions runner to use
-        default: ubuntu-slim
+        default: ubuntu-latest
     secrets:
       GH_TOKEN:
         required: false
