@@ -91,13 +91,14 @@ jobs:
           if [[ -n "${TERRAFORM_WORKING_DIRECTORY_TO_VERSION_TF_JSON}" ]]; then
             jq -r "to_entries[] | \"cp \\(.value) \\(.key) && cd \\(.key) && ${TERRAFORM_INIT} && rm -f \$(basename \\(.value))\"" <<< "${TERRAFORM_WORKING_DIRECTORY_TO_VERSION_TF_JSON}" \
               | xargs -I{} -t bash -c '{}'
-            jq -r 'keys[]' <<< "${TERRAFORM_WORKING_DIRECTORY_TO_VERSION_TF_JSON}" \
+            jq -r 'keys[] | sub("/$"; "")' <<< "${TERRAFORM_WORKING_DIRECTORY_TO_VERSION_TF_JSON}" \
               | xargs -I{} git ls-files -- "{}/${TERRAFORM_LOCK_FILE}" \
               | jq -rRs 'split("\n")[:-1] | "UPDATED_FILES_JSON=\(.)"' \
               | tee -a "${GITHUB_ENV}"
           elif [[ -n "${TERRAGRUNT_WORKING_DIRECTORIES}" ]]; then
             updated_files_txt="$(mktemp)"
             IFS=$' \n\t' read -r -a terragrunt_dirs <<< "${TERRAGRUNT_WORKING_DIRECTORIES//$'\n'/ }"
+            terragrunt_dirs=("${terragrunt_dirs[@]/%\//}")
             git ls-files -- "${terragrunt_dirs[@]/%//${TERRAFORM_LOCK_FILE}}" > "${updated_files_txt}"
             xargs dirname < "${updated_files_txt}" \
               | xargs -I{} -t bash -c \
@@ -109,6 +110,7 @@ jobs:
             tr ' ' '\n' <<< "${TERRAFORM_WORKING_DIRECTORIES}" \
               | xargs -I{} -t bash -c "cd {} && ${TERRAFORM_INIT}"
             IFS=$' \n\t' read -r -a terraform_dirs <<< "${TERRAFORM_WORKING_DIRECTORIES//$'\n'/ }"
+            terraform_dirs=("${terraform_dirs[@]/%\//}")
             git ls-files -- "${terraform_dirs[@]/%//${TERRAFORM_LOCK_FILE}}" \
               | jq -rRs 'split("\n")[:-1] | "UPDATED_FILES_JSON=\(.)"' \
               | tee -a "${GITHUB_ENV}"
@@ -128,6 +130,7 @@ jobs:
               | xargs -I{} -t bash -c "cd {} && ${TERRAFORM_VALIDATE}"
           elif [[ -n "${TERRAGRUNT_WORKING_DIRECTORIES}" ]]; then
             IFS=$' \n\t' read -r -a terragrunt_dirs <<< "${TERRAGRUNT_WORKING_DIRECTORIES//$'\n'/ }"
+            terragrunt_dirs=("${terragrunt_dirs[@]/%\//}")
             git ls-files -- "${terragrunt_dirs[@]/%//${TERRAFORM_LOCK_FILE}}" \
               | xargs dirname \
               | xargs -I{} -t bash -c \
