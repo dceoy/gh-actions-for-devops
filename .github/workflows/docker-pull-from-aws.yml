@@ -137,9 +137,9 @@ jobs:
         run: |
           {
             if [[ -n "${IMAGE_NAMES}" ]]; then
-              echo "${IMAGE_NAMES}" | tr ' ' '\n'
+              tr ' ' '\n' <<< "${IMAGE_NAMES}"
             elif [[ -n "${TAG_SOURCE_TO_TARGET_JSON}" ]]; then
-              echo "${TAG_SOURCE_TO_TARGET_JSON}" | jq -r 'keys[]'
+              jq -r 'keys[]' <<< "${TAG_SOURCE_TO_TARGET_JSON}"
             fi
           } | sort -u -o "${IMAGE_URI_LIST_TXT}"
           xargs -L1 -t docker pull < "${IMAGE_URI_LIST_TXT}"
@@ -150,10 +150,9 @@ jobs:
       - name: Tag the Docker images
         if: inputs.tag-source-to-target-json != null
         run: |
-          echo "${TAG_SOURCE_TO_TARGET_JSON}" \
-            | jq -r 'to_entries[] | "docker tag \(.key) \(.value)"' \
+          jq -r 'to_entries[] | "docker tag \(.key) \(.value)"' <<< "${TAG_SOURCE_TO_TARGET_JSON}" \
             | xargs -L1 -t bash -c
-          echo "${TAG_SOURCE_TO_TARGET_JSON}" | jq -r 'values[]' >> "${IMAGE_URI_LIST_TXT}"
+          jq -r 'values[]' <<< "${TAG_SOURCE_TO_TARGET_JSON}" >> "${IMAGE_URI_LIST_TXT}"
           sort -u -o "${IMAGE_URI_LIST_TXT}" "${IMAGE_URI_LIST_TXT}"
       - name: Save the Docker images to an image tarball
         run: |

@@ -142,5 +142,4 @@ jobs:
           TERRAGRUNT_COMMAND: ${{ inputs.start && 'apply' || 'destroy' }}
           TERRAGRUNT_TARGET_RESOURCE_DIRECTORIES: ${{ inputs.terragrunt-target-resource-directories }}
         run: |
-          echo "${TERRAGRUNT_TARGET_RESOURCE_DIRECTORIES}" \
-            | xargs -I{} -t terragrunt "${TERRAGRUNT_COMMAND}" --working-dir='{}' -auto-approve
+          xargs -I{} -t terragrunt "${TERRAGRUNT_COMMAND}" --working-dir='{}' -auto-approve <<< "${TERRAGRUNT_TARGET_RESOURCE_DIRECTORIES}"

@@ -89,21 +89,16 @@ jobs:
           TERRAGRUNT_INIT: terragrunt init --non-interactive -backend=false -upgrade -reconfigure && rm -rf .terragrunt-cache
         run: |
           if [[ -n "${TERRAFORM_WORKING_DIRECTORY_TO_VERSION_TF_JSON}" ]]; then
-            echo "${TERRAFORM_WORKING_DIRECTORY_TO_VERSION_TF_JSON}" \
-              | jq -r "to_entries[] | \"cp \\(.value) \\(.key) && cd \\(.key) && ${TERRAFORM_INIT} && rm -f \$(basename \\(.value))\"" \
+            jq -r "to_entries[] | \"cp \\(.value) \\(.key) && cd \\(.key) && ${TERRAFORM_INIT} && rm -f \$(basename \\(.value))\"" <<< "${TERRAFORM_WORKING_DIRECTORY_TO_VERSION_TF_JSON}" \
               | xargs -I{} -t bash -c '{}'
-            echo "${TERRAFORM_WORKING_DIRECTORY_TO_VERSION_TF_JSON}" \
-              | jq -r 'keys[]' \
+            jq -r --arg lock_file "${TERRAFORM_LOCK_FILE}" 'keys[] | "\(.)/\($lock_file)"' <<< "${TERRAFORM_WORKING_DIRECTORY_TO_VERSION_TF_JSON}" \
               | xargs -I{} git ls-files -- "{}" \
-              | grep -E "(/|^)${TERRAFORM_LOCK_FILE//./\\.}$" \
               | jq -rRs 'split("\n")[:-1] | "UPDATED_FILES_JSON=\(.)"' \
               | tee -a "${GITHUB_ENV}"
           elif [[ -n "${TERRAGRUNT_WORKING_DIRECTORIES}" ]]; then
             updated_files_txt="$(mktemp)"
             IFS=$' \n\t' read -r -a terragrunt_dirs <<< "${TERRAGRUNT_WORKING_DIRECTORIES//$'\n'/ }"
-            git ls-files -- "${terragrunt_dirs[@]}" \
-              | grep -E "(/|^)${TERRAFORM_LOCK_FILE//./\\.}$" \
-              > "${updated_files_txt}"
+            git ls-files -- "${terragrunt_dirs[@]/%//${TERRAFORM_LOCK_FILE}}" > "${updated_files_txt}"
             xargs dirname < "${updated_files_txt}" \
               | xargs -I{} -t bash -c \
                 "cd {} && mv terragrunt.hcl _ && grep -A 10 '^terraform {' _ > terragrunt.hcl && ${TERRAGRUNT_INIT} && mv _ terragrunt.hcl"
@@ -111,12 +106,10 @@ jobs:
               | tee -a "${GITHUB_ENV}"
             rm -f "${updated_files_txt}"
           else
-            echo "${TERRAFORM_WORKING_DIRECTORIES}" \
-              | tr ' ' '\n' \
+            tr ' ' '\n' <<< "${TERRAFORM_WORKING_DIRECTORIES}" \
               | xargs -I{} -t bash -c "cd {} && ${TERRAFORM_INIT}"
             IFS=$' \n\t' read -r -a terraform_dirs <<< "${TERRAFORM_WORKING_DIRECTORIES//$'\n'/ }"
-            git ls-files -- "${terraform_dirs[@]}" \
-              | grep -E "(/|^)${TERRAFORM_LOCK_FILE//./\\.}$" \
+            git ls-files -- "${terraform_dirs[@]/%//${TERRAFORM_LOCK_FILE}}" \
               | jq -rRs 'split("\n")[:-1] | "UPDATED_FILES_JSON=\(.)"' \
               | tee -a "${GITHUB_ENV}"
           fi
@@ -129,21 +122,18 @@ jobs:
           TERRAGRUNT_VALIDATE: terragrunt init --non-interactive -backend=false && terragrunt validate && rm -rf .terragrunt-cache
         run: |
           if [[ -n "${TERRAFORM_WORKING_DIRECTORY_TO_VERSION_TF_JSON}" ]]; then
-            echo "${TERRAFORM_WORKING_DIRECTORY_TO_VERSION_TF_JSON}" \
-              | jq -r 'values[]' \
+            jq -r 'values[]' <<< "${TERRAFORM_WORKING_DIRECTORY_TO_VERSION_TF_JSON}" \
               | xargs dirname \
               | sort -u \
               | xargs -I{} -t bash -c "cd {} && ${TERRAFORM_VALIDATE}"
           elif [[ -n "${TERRAGRUNT_WORKING_DIRECTORIES}" ]]; then
             IFS=$' \n\t' read -r -a terragrunt_dirs <<< "${TERRAGRUNT_WORKING_DIRECTORIES//$'\n'/ }"
-            git ls-files -- "${terragrunt_dirs[@]}" \
-              | grep -E "(/|^)${TERRAFORM_LOCK_FILE//./\\.}$" \
+            git ls-files -- "${terragrunt_dirs[@]/%//${TERRAFORM_LOCK_FILE}}" \
               | xargs dirname \
               | xargs -I{} -t bash -c \
                 "cd {} && mv terragrunt.hcl _ && grep -A 10 '^terraform {' _ > terragrunt.hcl && ${TERRAGRUNT_VALIDATE} && mv _ terragrunt.hcl"
           else
-            echo "${TERRAFORM_WORKING_DIRECTORIES}" \
-              | tr ' ' '\n' \
+            tr ' ' '\n' <<< "${TERRAFORM_WORKING_DIRECTORIES}" \
               | xargs -I{} -t bash -c "cd {} && ${TERRAFORM_VALIDATE}"
           fi
       - name: Commit and push the changes

@@ -123,7 +123,7 @@ jobs:
                 ${{ inputs.use-prettier && 'prettier eslint-config-prettier' || '' }}
               ;;
           esac
-          for p in $(echo "${ADDITIONAL_NPM_PACKAGES}" | tr ' ' '\n'); do
+          for p in $(tr ' ' '\n' <<< "${ADDITIONAL_NPM_PACKAGES}"); do
             if [[ -n "${p}" ]]; then
               case "${PACKAGE_MANAGER:-}" in
                 yarn )
