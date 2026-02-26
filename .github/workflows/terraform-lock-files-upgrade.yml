@@ -91,8 +91,8 @@ jobs:
           if [[ -n "${TERRAFORM_WORKING_DIRECTORY_TO_VERSION_TF_JSON}" ]]; then
             jq -r "to_entries[] | \"cp \\(.value) \\(.key) && cd \\(.key) && ${TERRAFORM_INIT} && rm -f \$(basename \\(.value))\"" <<< "${TERRAFORM_WORKING_DIRECTORY_TO_VERSION_TF_JSON}" \
               | xargs -I{} -t bash -c '{}'
-            jq -r --arg lock_file "${TERRAFORM_LOCK_FILE}" 'keys[] | "\(.)/\($lock_file)"' <<< "${TERRAFORM_WORKING_DIRECTORY_TO_VERSION_TF_JSON}" \
-              | xargs -I{} git ls-files -- "{}" \
+            jq -r 'keys[]' <<< "${TERRAFORM_WORKING_DIRECTORY_TO_VERSION_TF_JSON}" \
+              | xargs -I{} git ls-files -- "{}/${TERRAFORM_LOCK_FILE}" \
               | jq -rRs 'split("\n")[:-1] | "UPDATED_FILES_JSON=\(.)"' \
               | tee -a "${GITHUB_ENV}"
           elif [[ -n "${TERRAGRUNT_WORKING_DIRECTORIES}" ]]; then
