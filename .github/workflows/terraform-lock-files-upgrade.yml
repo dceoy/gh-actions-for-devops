@@ -80,13 +80,13 @@ jobs:
         uses: dceoy/setup-terragrunt@1cbef4029fa29d03260e3572cd1df1d45fd3f290  # v2.0.0
         with:
           terragrunt-version: ${{ inputs.terragrunt-version }}
-      - name: Upgrade Terraform lock files
+      - name: Upgrade and validate Terraform lock files
         env:
           TERRAFORM_WORKING_DIRECTORY_TO_VERSION_TF_JSON: ${{ inputs.terraform-working-directory-to-version-tf-json }}
           TERRAGRUNT_WORKING_DIRECTORIES: ${{ inputs.terragrunt-working-directories }}
           TERRAFORM_WORKING_DIRECTORIES: ${{ inputs.terraform-working-directories }}
-          TERRAFORM_INIT: terraform init -backend=false -upgrade -reconfigure && rm -rf .terraform
-          TERRAGRUNT_INIT: terragrunt init --non-interactive -backend=false -upgrade -reconfigure && rm -rf .terragrunt-cache
+          TERRAFORM_INIT: terraform init -backend=false -upgrade -reconfigure && terraform validate && rm -rf .terraform
+          TERRAGRUNT_INIT: terragrunt init --non-interactive -backend=false -upgrade -reconfigure && terragrunt validate && rm -rf .terragrunt-cache
         run: |
           if [[ -n "${TERRAFORM_WORKING_DIRECTORY_TO_VERSION_TF_JSON}" ]]; then
             jq -r "to_entries[] | \"cp \\(.value) \\(.key) && cd \\(.key) && ${TERRAFORM_INIT} && rm -f \$(basename \\(.value))\"" <<< "${TERRAFORM_WORKING_DIRECTORY_TO_VERSION_TF_JSON}" \
@@ -100,9 +100,13 @@ jobs:
             IFS=$' \n\t' read -r -a terragrunt_dirs <<< "${TERRAGRUNT_WORKING_DIRECTORIES//$'\n'/ }"
             terragrunt_dirs=("${terragrunt_dirs[@]/%\//}")
             git ls-files -- "${terragrunt_dirs[@]/%//${TERRAFORM_LOCK_FILE}}" > "${updated_files_txt}"
-            xargs dirname < "${updated_files_txt}" \
-              | xargs -I{} -t bash -c \
-                "cd {} && mv terragrunt.hcl _ && grep -A 10 '^terraform {' _ > terragrunt.hcl && ${TERRAGRUNT_INIT} && mv _ terragrunt.hcl"
+            xargs dirname < "${updated_files_txt}" | while read -r dir; do
+              if [[ -f "${dir}/terragrunt.hcl" ]]; then
+                bash -xc "cd ${dir} && mv terragrunt.hcl _ && grep -A 10 '^terraform {' _ > terragrunt.hcl && ${TERRAGRUNT_INIT} && mv _ terragrunt.hcl"
+              else
+                bash -xc "cd ${dir} && ${TERRAFORM_INIT}"
+              fi
+            done
             jq -rRs 'split("\n")[:-1] | "UPDATED_FILES_JSON=\(.)"' "${updated_files_txt}" \
               | tee -a "${GITHUB_ENV}"
             rm -f "${updated_files_txt}"
@@ -114,30 +118,6 @@ jobs:
             git ls-files -- "${terraform_dirs[@]/%//${TERRAFORM_LOCK_FILE}}" \
               | jq -rRs 'split("\n")[:-1] | "UPDATED_FILES_JSON=\(.)"' \
               | tee -a "${GITHUB_ENV}"
-          fi
-      - name: Validate the code using terraform validate
-        env:
-          TERRAFORM_WORKING_DIRECTORY_TO_VERSION_TF_JSON: ${{ inputs.terraform-working-directory-to-version-tf-json }}
-          TERRAGRUNT_WORKING_DIRECTORIES: ${{ inputs.terragrunt-working-directories }}
-          TERRAFORM_WORKING_DIRECTORIES: ${{ inputs.terraform-working-directories }}
-          TERRAFORM_VALIDATE: terraform init -backend=false && terraform validate && rm -rf .terraform
-          TERRAGRUNT_VALIDATE: terragrunt init --non-interactive -backend=false && terragrunt validate && rm -rf .terragrunt-cache
-        run: |
-          if [[ -n "${TERRAFORM_WORKING_DIRECTORY_TO_VERSION_TF_JSON}" ]]; then
-            jq -r 'values[]' <<< "${TERRAFORM_WORKING_DIRECTORY_TO_VERSION_TF_JSON}" \
-              | xargs dirname \
-              | sort -u \
-              | xargs -I{} -t bash -c "cd {} && ${TERRAFORM_VALIDATE}"
-          elif [[ -n "${TERRAGRUNT_WORKING_DIRECTORIES}" ]]; then
-            IFS=$' \n\t' read -r -a terragrunt_dirs <<< "${TERRAGRUNT_WORKING_DIRECTORIES//$'\n'/ }"
-            terragrunt_dirs=("${terragrunt_dirs[@]/%\//}")
-            git ls-files -- "${terragrunt_dirs[@]/%//${TERRAFORM_LOCK_FILE}}" \
-              | xargs dirname \
-              | xargs -I{} -t bash -c \
-                "cd {} && mv terragrunt.hcl _ && grep -A 10 '^terraform {' _ > terragrunt.hcl && ${TERRAGRUNT_VALIDATE} && mv _ terragrunt.hcl"
-          else
-            tr ' ' '\n' <<< "${TERRAFORM_WORKING_DIRECTORIES}" \
-              | xargs -I{} -t bash -c "cd {} && ${TERRAFORM_VALIDATE}"
           fi
       - name: Commit and push the changes
         if: (! inputs.create-pr)
