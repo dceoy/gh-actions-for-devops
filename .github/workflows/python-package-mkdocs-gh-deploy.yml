@@ -116,7 +116,7 @@ jobs:
         working-directory: ${{ inputs.package-path }}
         run: |
           uv sync --all-groups
-          echo "EXECUTOR=uv run --directory ${PWD}" | tee -a "${GITHUB_ENV}"
+          tee -a "${GITHUB_ENV}" <<< "EXECUTOR=uv run --directory ${PWD}"
       - name: Set up Python
         if: env.LOCK_FILE != 'uv.lock'
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.2.0
@@ -131,10 +131,10 @@ jobs:
             pip install --no-cache-dir poetry
             poetry lock --no-interaction
             poetry install --no-interaction --no-root
-            echo "EXECUTOR=poetry run -C ${PWD}" | tee -a "${GITHUB_ENV}"
+            tee -a "${GITHUB_ENV}" <<< "EXECUTOR=poetry run -C ${PWD}"
           else
             pip install -U --no-cache-dir mkdocs
-            echo "EXECUTOR=" | tee -a "${GITHUB_ENV}"
+            tee -a "${GITHUB_ENV}" <<< "EXECUTOR="
           fi
       - name: Build MkDocs site
         working-directory: ${{ inputs.package-path }}

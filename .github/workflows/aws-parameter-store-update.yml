@@ -128,12 +128,12 @@ jobs:
 
             while IFS= read -r param; do
               local name value type description key_id param_overwrite
-              name=$(echo "${param}" | jq -r '.name // empty')
-              value=$(echo "${param}" | jq -r '.value // empty')
-              type=$(echo "${param}" | jq -r '.type // "String"')
-              description=$(echo "${param}" | jq -r '.description // empty')
-              key_id=$(echo "${param}" | jq -r '.keyId // empty')
-              param_overwrite=$(echo "${param}" | jq -r '.overwrite // true')
+              name=$(jq -r '.name // empty' <<< "${param}")
+              value=$(jq -r '.value // empty' <<< "${param}")
+              type=$(jq -r '.type // "String"' <<< "${param}")
+              description=$(jq -r '.description // empty' <<< "${param}")
+              key_id=$(jq -r '.keyId // empty' <<< "${param}")
+              param_overwrite=$(jq -r '.overwrite // true' <<< "${param}")
 
               if [[ -z "${name}" ]]; then
                 echo "Error: Parameter name is required in JSON"
@@ -144,7 +144,7 @@ jobs:
                 echo "Error: Failed to update parameter '${name}'"
                 return 1
               fi
-            done < <(echo "${PARAMETERS_JSON}" | jq -c '.[]')
+            done < <(jq -c '.[]' <<< "${PARAMETERS_JSON}")
 
             if [[ "${DRY_RUN}" != "true" && ${#parameters_updated[@]} -gt 0 ]]; then
               echo "Verifying ${#parameters_updated[@]} updated parameters..."
@@ -157,7 +157,7 @@ jobs:
           if [[ -z "${PARAMETERS_JSON}" ]]; then
             echo "Error: parameters-from-json is required"
             exit 1
-          elif ! echo "${PARAMETERS_JSON}" | jq empty 2>/dev/null; then
+          elif ! jq empty <<< "${PARAMETERS_JSON}" 2>/dev/null; then
             echo "Error: Invalid JSON format in parameters-from-json"
             exit 1
           else

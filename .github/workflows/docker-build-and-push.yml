@@ -277,18 +277,18 @@ jobs:
           TAGS: ${{ steps.meta.outputs.tags }}
           DIGEST: ${{ steps.docker-build.outputs.digest }}
         run: >
-          echo "${TAGS}" | xargs -I{} -t cosign sign --yes "{}@${DIGEST}"
+          xargs -I{} -t cosign sign --yes "{}@${DIGEST}" <<< "${TAGS}"
       - name: Pull Docker images
         if: inputs.push
         env:
           TAGS: ${{ steps.meta.outputs.tags }}
         run: >
-          echo "${TAGS}" | xargs -L1 -t docker pull
+          xargs -L1 -t docker pull <<< "${TAGS}"
       - name: Save the image as a tarball
         env:
           TAGS: ${{ steps.meta.outputs.tags }}
         run: >
-          echo "${TAGS}" | xargs -t docker save -o "${IMAGE_TAR}"
+          xargs -t docker save -o "${IMAGE_TAR}" <<< "${TAGS}"
       - name: Upload the image tarball
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6.0.0
         with:

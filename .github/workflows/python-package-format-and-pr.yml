@@ -86,7 +86,7 @@ jobs:
           uv add --dev \
             ${{ inputs.use-black && 'black' || 'ruff' }} \
             ${{ inputs.use-isort && 'isort' || '' }}
-          echo "EXECUTOR=uv run --directory ${PWD}" | tee -a "${GITHUB_ENV}"
+          tee -a "${GITHUB_ENV}" <<< "EXECUTOR=uv run --directory ${PWD}"
       - name: Set up Python
         if: env.LOCK_FILE != 'uv.lock'
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.2.0
@@ -109,12 +109,12 @@ jobs:
               ${{ inputs.use-black && 'black' || 'ruff' }} \
               ${{ inputs.use-isort && 'isort' || '' }}
             poetry install --no-interaction
-            echo "EXECUTOR=poetry run -C ${PWD}" | tee -a "${GITHUB_ENV}"
+            tee -a "${GITHUB_ENV}" <<< "EXECUTOR=poetry run -C ${PWD}"
           else
             pip install --no-cache-dir \
               ${{ inputs.use-black && 'black' || 'ruff' }} \
               ${{ inputs.use-isort && 'isort' || '' }}
-            echo "EXECUTOR=" | tee -a "${GITHUB_ENV}"
+            tee -a "${GITHUB_ENV}" <<< "EXECUTOR="
           fi
       - name: Format the code using ruff
         if: (! inputs.use-black)

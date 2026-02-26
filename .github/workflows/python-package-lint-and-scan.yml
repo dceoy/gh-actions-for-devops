@@ -101,12 +101,12 @@ jobs:
             ${{ inputs.use-mypy && 'mypy' || '' }} \
             ${{ inputs.use-pyright && 'pyright' || '' }} \
             ruff
-          for p in $(echo "${INPUTS_ADDITIONAL_PYTHON_PACKAGES}" | tr ' ' '\n'); do
+          for p in $(tr ' ' '\n' <<< "${INPUTS_ADDITIONAL_PYTHON_PACKAGES}"); do
             if [[ -n "${p}" ]]; then
               uv add --dev "${p}"
             fi
           done
-          echo "EXECUTOR=uv run --directory ${PWD}" | tee -a "${GITHUB_ENV}"
+          tee -a "${GITHUB_ENV}" <<< "EXECUTOR=uv run --directory ${PWD}"
       - name: Set up Python
         if: env.LOCK_FILE != 'uv.lock'
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.2.0
@@ -132,13 +132,13 @@ jobs:
               ${{ inputs.use-mypy && 'mypy' || '' }} \
               ${{ inputs.use-pyright && 'pyright' || '' }} \
               ruff
-            for p in $(echo "${ADDITIONAL_PYTHON_PACKAGES}" | tr ' ' '\n'); do
+            for p in $(tr ' ' '\n' <<< "${ADDITIONAL_PYTHON_PACKAGES}"); do
               if [[ -n "${p}" ]]; then
                 poetry add --group=dev --no-interaction "${p}"
               fi
             done
             poetry install --no-interaction --no-root
-            echo "EXECUTOR=poetry run -C ${PWD}" | tee -a "${GITHUB_ENV}"
+            tee -a "${GITHUB_ENV}" <<< "EXECUTOR=poetry run -C ${PWD}"
           else
             pip install --no-cache-dir \
               ${{ inputs.use-flake8 && 'flake8' || '' }} \
@@ -146,12 +146,12 @@ jobs:
               ${{ inputs.use-mypy && 'mypy' || '' }} \
               ${{ inputs.use-pyright && 'pyright' || '' }} \
               ruff
-            for p in $(echo "${ADDITIONAL_PYTHON_PACKAGES}" | tr ' ' '\n'); do
+            for p in $(tr ' ' '\n' <<< "${ADDITIONAL_PYTHON_PACKAGES}"); do
               if [[ -n "${p}" ]]; then
                 pip install --no-cache-dir "${p}"
               fi
             done
-            echo "EXECUTOR=" | tee -a "${GITHUB_ENV}"
+            tee -a "${GITHUB_ENV}" <<< "EXECUTOR="
           fi
       - name: Lint the code using ruff check
         working-directory: ${{ inputs.package-path }}

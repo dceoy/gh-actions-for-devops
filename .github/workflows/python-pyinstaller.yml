@@ -81,7 +81,7 @@ jobs:
         run: |
           uv sync --all-groups
           uv add --dev PyInstaller
-          echo "EXECUTOR=uv run" | tee -a "${GITHUB_ENV}"
+          tee -a "${GITHUB_ENV}" <<< "EXECUTOR=uv run"
       - name: Set up Python
         if: env.LOCK_FILE != 'uv.lock'
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.2.0
@@ -97,14 +97,14 @@ jobs:
             poetry lock --no-interaction
             poetry add --group=dev --no-interaction PyInstaller
             poetry install --no-interaction
-            echo "EXECUTOR=poetry run" | tee -a "${GITHUB_ENV}"
+            tee -a "${GITHUB_ENV}" <<< "EXECUTOR=poetry run"
           else
             python -m pip install -U --no-cache-dir pip
             if [[ -n "${REQUIREMENTS_TXT_PATH}" ]]; then
               python -m pip install -U --no-cache-dir -r "${REQUIREMENTS_TXT_PATH}"
             fi
             python -m pip install --no-cache-dir PyInstaller
-            echo "EXECUTOR=python -m" | tee -a "${GITHUB_ENV}"
+            tee -a "${GITHUB_ENV}" <<< "EXECUTOR=python -m"
           fi
       - name: Build an executable file
         env:
