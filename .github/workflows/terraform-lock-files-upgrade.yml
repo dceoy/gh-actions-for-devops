@@ -95,29 +95,25 @@ jobs:
               | xargs -I{} git ls-files -- "{}/${TERRAFORM_LOCK_FILE}" \
               | jq -rRs 'split("\n")[:-1] | "UPDATED_FILES_JSON=\(.)"' \
               | tee -a "${GITHUB_ENV}"
-          elif [[ -n "${TERRAGRUNT_WORKING_DIRECTORIES}" ]]; then
+          else
             updated_files_txt="$(mktemp)"
-            IFS=$' \n\t' read -r -a terragrunt_dirs <<< "${TERRAGRUNT_WORKING_DIRECTORIES//$'\n'/ }"
-            terragrunt_dirs=("${terragrunt_dirs[@]/%\//}")
-            git ls-files -- "${terragrunt_dirs[@]/%//${TERRAFORM_LOCK_FILE}}" > "${updated_files_txt}"
-            xargs dirname < "${updated_files_txt}" | while read -r dir; do
-              if [[ -f "${dir}/terragrunt.hcl" ]]; then
-                bash -xc "cd ${dir} && mv terragrunt.hcl _ && grep -A 10 '^terraform {' _ > terragrunt.hcl && ${TERRAGRUNT_INIT} && mv _ terragrunt.hcl"
+            if [[ -n "${TERRAGRUNT_WORKING_DIRECTORIES}" ]]; then
+              target_dirs="${TERRAGRUNT_WORKING_DIRECTORIES}"
+            else
+              target_dirs="${TERRAFORM_WORKING_DIRECTORIES}"
+            fi
+            while IFS=$' \n\t' read -r d; do
+              [[ -z "${d}" ]] || git ls-files -- "${d%/}/**/${TERRAFORM_LOCK_FILE}" >> "${updated_files_txt}"
+            done <<< "${target_dirs}"
+            xargs dirname < "${updated_files_txt}" | while read -r d; do
+              if [[ -n "${TERRAGRUNT_WORKING_DIRECTORIES}" ]] && [[ -f "${d}/terragrunt.hcl" ]]; then
+                bash -xc "cd ${d} && mv terragrunt.hcl _ && grep -A 10 '^terraform {' _ > terragrunt.hcl && ${TERRAGRUNT_INIT} && mv _ terragrunt.hcl"
               else
-                bash -xc "cd ${dir} && ${TERRAFORM_INIT}"
+                bash -xc "cd ${d} && ${TERRAFORM_INIT}"
               fi
             done
-            jq -rRs 'split("\n")[:-1] | "UPDATED_FILES_JSON=\(.)"' "${updated_files_txt}" \
-              | tee -a "${GITHUB_ENV}"
+            jq -rRs 'split("\n")[:-1] | "UPDATED_FILES_JSON=\(.)"' "${updated_files_txt}" | tee -a "${GITHUB_ENV}"
             rm -f "${updated_files_txt}"
-          else
-            tr ' ' '\n' <<< "${TERRAFORM_WORKING_DIRECTORIES}" \
-              | xargs -I{} -t bash -c "cd {} && ${TERRAFORM_INIT}"
-            IFS=$' \n\t' read -r -a terraform_dirs <<< "${TERRAFORM_WORKING_DIRECTORIES//$'\n'/ }"
-            terraform_dirs=("${terraform_dirs[@]/%\//}")
-            git ls-files -- "${terraform_dirs[@]/%//${TERRAFORM_LOCK_FILE}}" \
-              | jq -rRs 'split("\n")[:-1] | "UPDATED_FILES_JSON=\(.)"' \
-              | tee -a "${GITHUB_ENV}"
           fi
       - name: Commit and push the changes
         if: (! inputs.create-pr)
