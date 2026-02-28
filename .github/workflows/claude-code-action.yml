@@ -133,6 +133,11 @@ on:
         type: boolean
         description: Use Microsoft Foundry with OIDC authentication instead of direct Anthropic API
         default: false
+      openrouter-model:
+        required: false
+        type: string
+        description: OpenRouter model to use when OPENROUTER_API_KEY is provided
+        default: openrouter/free
       runs-on:
         required: false
         type: string
@@ -163,6 +168,9 @@ on:
       ANTHROPIC_API_KEY:
         required: false
         description: Anthropic API key for Claude
+      OPENROUTER_API_KEY:
+        required: false
+        description: OpenRouter API key for Claude via OpenRouter
       GH_TOKEN:
         required: false
         description: GitHub token for creating comments/issues
@@ -204,11 +212,13 @@ jobs:
       - name: Run Claude Code Action
         id: claude-code-action
         uses: anthropics/claude-code-action@1b8ee3b94104046d71fde52ec3557651ad8c0d71  # v1.0.29
+        env:
+          ANTHROPIC_BASE_URL: ${{ secrets.OPENROUTER_API_KEY && 'https://openrouter.ai/api' || '' }}
         with:
-          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_code_oauth_token: ${{ secrets.OPENROUTER_API_KEY && null || secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY || secrets.OPENROUTER_API_KEY }}
           prompt: ${{ inputs.prompt }}
-          claude_args: ${{ inputs.claude-args }}
+          claude_args: ${{ secrets.OPENROUTER_API_KEY && format('--model {0} {1}', inputs.openrouter-model, inputs.claude-args) || inputs.claude-args }}
           track_progress: ${{ inputs.track-progress }}
           trigger_phrase: ${{ inputs.trigger-phrase || '@claude' }}
           assignee_trigger: ${{ inputs.assignee-trigger }}
