@@ -47,6 +47,8 @@ jobs:
       id-token: write
       actions: read  # Required for Claude to read CI results on PRs
     runs-on: ${{ inputs.runs-on }}
+    env:
+      OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
@@ -54,10 +56,27 @@ jobs:
           fetch-depth: 1
           token: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
           persist-credentials: true
+      - name: Setup Python for LiteLLM
+        if: env.OPENROUTER_API_KEY != null
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.2.0
+        with:
+          python-version: '3.x'
+      - name: Start LiteLLM proxy for OpenRouter
+        if: env.OPENROUTER_API_KEY != null
+        env:
+          OPENROUTER_MODEL: ${{ inputs.openrouter-model }}
+        run: |
+          python -m pip install --no-cache-dir "litellm[proxy]"
+          nohup python -m litellm --model "${OPENROUTER_MODEL}" --host 127.0.0.1 --port 4000 > "${RUNNER_TEMP}/litellm.log" 2>&1 &
+          for _ in $(seq 1 30); do
+            curl -fsS "http://127.0.0.1:4000/models" > /dev/null && break
+            sleep 1
+          done
+          curl -fsS "http://127.0.0.1:4000/models" > /dev/null
       - name: Run Claude Code
         uses: anthropics/claude-code-action@1b8ee3b94104046d71fde52ec3557651ad8c0d71  # v1.0.29
         env:
-          ANTHROPIC_BASE_URL: ${{ secrets.OPENROUTER_API_KEY && 'https://openrouter.ai/api' || '' }}
+          ANTHROPIC_BASE_URL: ${{ secrets.OPENROUTER_API_KEY && 'http://127.0.0.1:4000' || '' }}
         with:
           claude_code_oauth_token: ${{ secrets.OPENROUTER_API_KEY && null || secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY || secrets.OPENROUTER_API_KEY }}
