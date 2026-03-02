@@ -201,7 +201,7 @@ jobs:
           TRIVY_JAVA_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-java-db
       - name: Run Checkov
         if: inputs.use-checkov
-        uses: bridgecrewio/checkov-action@f34885219720066007f948b843e747bb136aa223  # v12.3080.0
+        uses: bridgecrewio/checkov-action@f99709f8ccc3496220c987b7d8729653237c23dc  # v12.3086.0
         with:
           directory: ${{ inputs.search-path }}
           framework: ${{ inputs.checkov-framework }}
