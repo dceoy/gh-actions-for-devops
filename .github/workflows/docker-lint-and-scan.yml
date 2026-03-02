@@ -132,7 +132,7 @@ jobs:
           failure-threshold: ${{ inputs.hadolint-failure-threshold }}
           recursive: ${{ inputs.hadolint-recursive }}
       - name: Run Trivy in GitHub SBOM mode and submit results to Dependency Graph
-        uses: aquasecurity/trivy-action@c1824fd6edce30d7ab345a9989de00bbd46ef284  # 0.34.0
+        uses: aquasecurity/trivy-action@e368e328979b113139d6f9068e03accaed98a518  # 0.34.1
         with:
           scan-type: filesystem
           scan-ref: ${{ inputs.trivy-scan-ref }}
