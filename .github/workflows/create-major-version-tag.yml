@@ -1,0 +1,60 @@
+---
+name: Create a major version tag
+on:
+  workflow_call:
+    inputs:
+      runs-on:
+        required: false
+        type: string
+        description: Runner to use
+        default: ubuntu-latest
+    secrets:
+      GH_TOKEN:
+        required: false
+        description: GitHub token
+  workflow_dispatch:  # checkov:skip=CKV_GHA_7:workflow_dispatch is used for manual trigger
+permissions:
+  contents: write
+defaults:
+  run:
+    shell: bash -euo pipefail {0}
+    working-directory: .
+jobs:
+  create-major-version-tag:
+    runs-on: ${{ inputs.runs-on }}
+    env:
+      GH_TOKEN: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+      - name: Determine the latest semantic version tag
+        id: semver
+        run: |
+          latest_tag="$(
+            gh release list --repo '${{ github.repository }}' --limit 100 \
+              | awk '$2 == "Latest" { print $1 }'
+          )"
+          if [[ -z "${latest_tag}" ]]; then
+            echo 'No latest release found' >&2
+            exit 1
+          fi
+          echo "tag=${latest_tag}" >> "${GITHUB_OUTPUT}"
+          major_tag="$(echo "${latest_tag}" | grep -oE '^v[0-9]+')"
+          if [[ -z "${major_tag}" ]]; then
+            echo "Invalid semantic version tag: ${latest_tag}" >&2
+            exit 2
+          fi
+          echo "major-tag=${major_tag}" >> "${GITHUB_OUTPUT}"
+          echo "Latest release tag: ${latest_tag}" >&2
+          echo "Major version tag:  ${major_tag}" >&2
+      - name: Create or update the major version tag
+        env:
+          SEMVER_TAG: ${{ steps.semver.outputs.tag }}
+          MAJOR_TAG: ${{ steps.semver.outputs.major-tag }}
+        run: |
+          git tag -f "${MAJOR_TAG}" "${SEMVER_TAG}"
+          git push -f origin "refs/tags/${MAJOR_TAG}"
+          echo "Tagged ${MAJOR_TAG} -> ${SEMVER_TAG}" >&2
