@@ -7,7 +7,12 @@ on:
         required: false
         type: string
         description: Runner to use
-        default: ubuntu-latest
+        default: ubuntu-slim
+      minor-version-tag:
+        required: false
+        type: boolean
+        description: Create a minor version tag (e.g., v1.1) in addition to the major version tag
+        default: false
       force:
         required: false
         type: boolean
@@ -26,7 +31,7 @@ defaults:
     working-directory: .
 jobs:
   create-major-version-tag:
-    runs-on: ${{ inputs.runs-on || 'ubuntu-latest' }}
+    runs-on: ${{ inputs.runs-on || 'ubuntu-slim' }}
     env:
       GH_TOKEN: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
       GITHUB_REPOSITORY: ${{ github.repository }}
@@ -54,8 +59,11 @@ jobs:
             exit 1
           fi
           major_tag="$(echo "${LATEST_TAG}" | grep -oE '^v[0-9]+')"
+          minor_tag="$(echo "${LATEST_TAG}" | grep -oE '^v[0-9]+\.[0-9]+')"
           echo "major-tag=${major_tag}" >> "${GITHUB_OUTPUT}"
+          echo "minor-tag=${minor_tag}" >> "${GITHUB_OUTPUT}"
           echo "Major version tag: ${major_tag}" >&2
+          echo "Minor version tag: ${minor_tag}" >&2
       - name: Resolve tag SHA
         id: sha
         env:
@@ -86,3 +94,23 @@ jobs:
               --method POST --field ref="refs/tags/${MAJOR_TAG}" --field sha="${TAG_SHA}" --silent
           fi
           echo "Tagged ${MAJOR_TAG} -> ${TAG_SHA}" >&2
+      - name: Create or update the minor version tag
+        if: inputs.minor-version-tag
+        env:
+          FORCE: ${{ inputs.force != false && 'true' || 'false' }}
+          MINOR_TAG: ${{ steps.semver.outputs.minor-tag }}
+          TAG_SHA: ${{ steps.sha.outputs.sha }}
+        run: |
+          if gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${MINOR_TAG}" \
+            --silent 2>/dev/null; then
+            if [[ "${FORCE}" != 'true' ]]; then
+              echo "Tag ${MINOR_TAG} already exists (use force to overwrite)" >&2
+              exit 1
+            fi
+            gh api "repos/${GITHUB_REPOSITORY}/git/refs/tags/${MINOR_TAG}" \
+              --method PATCH --field sha="${TAG_SHA}" --field force=true --silent
+          else
+            gh api "repos/${GITHUB_REPOSITORY}/git/refs" \
+              --method POST --field ref="refs/tags/${MINOR_TAG}" --field sha="${TAG_SHA}" --silent
+          fi
+          echo "Tagged ${MINOR_TAG} -> ${TAG_SHA}" >&2
