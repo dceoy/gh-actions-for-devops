@@ -95,15 +95,18 @@ jobs:
             gh api "${REPO_API}/git/matching-refs/tags/${MAJOR_TAG}" \
               --jq ".[] | select(.ref == \"refs/tags/${MAJOR_TAG}\") | .object.sha"
           )"
+          EXISTING_SHA="${EXISTING_SHA%%$'\n'*}"
           if [[ -z "${EXISTING_SHA:-}" ]]; then
             gh api "${REPO_API}/git/refs" \
-              --method POST --field ref="refs/tags/${MAJOR_TAG}" --field sha="${TAG_SHA}"
+              --method POST --field ref="refs/tags/${MAJOR_TAG}" --field sha="${TAG_SHA}" \
+              > /dev/null
             echo "Tagged ${MAJOR_TAG} -> ${TAG_SHA}" >&2
           elif [[ "${EXISTING_SHA}" == "${TAG_SHA}" ]]; then
             echo "${MAJOR_TAG} already points to ${TAG_SHA}" >&2
           else
             gh api "${REPO_API}/git/refs/tags/${MAJOR_TAG}" \
-              --method PATCH --field sha="${TAG_SHA}" --field force=true
+              --method PATCH --field sha="${TAG_SHA}" --field force=true \
+              > /dev/null
             echo "Tagged ${MAJOR_TAG} -> ${TAG_SHA}" >&2
           fi
       - name: Sync the minor version tag
@@ -113,14 +116,17 @@ jobs:
             gh api "${REPO_API}/git/matching-refs/tags/${MINOR_TAG}" \
               --jq ".[] | select(.ref == \"refs/tags/${MINOR_TAG}\") | .object.sha"
           )"
+          EXISTING_SHA="${EXISTING_SHA%%$'\n'*}"
           if [[ -z "${EXISTING_SHA:-}" ]]; then
             gh api "${REPO_API}/git/refs" \
-              --method POST --field ref="refs/tags/${MINOR_TAG}" --field sha="${TAG_SHA}"
+              --method POST --field ref="refs/tags/${MINOR_TAG}" --field sha="${TAG_SHA}" \
+              > /dev/null
             echo "Tagged ${MINOR_TAG} -> ${TAG_SHA}" >&2
           elif [[ "${EXISTING_SHA}" == "${TAG_SHA}" ]]; then
             echo "${MINOR_TAG} already points to ${TAG_SHA}" >&2
           else
             gh api "${REPO_API}/git/refs/tags/${MINOR_TAG}" \
-              --method PATCH --field sha="${TAG_SHA}" --field force=true
+              --method PATCH --field sha="${TAG_SHA}" --field force=true \
+              > /dev/null
             echo "Tagged ${MINOR_TAG} -> ${TAG_SHA}" >&2
           fi
