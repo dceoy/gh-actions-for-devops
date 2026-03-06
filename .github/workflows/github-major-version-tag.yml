@@ -11,11 +11,6 @@ on:
         type: boolean
         description: Create a minor version tag (e.g., v1.1) in addition to the major version tag
         default: false
-      overwrite:
-        required: false
-        type: boolean
-        description: Overwrite an existing major version tag
-        default: true
       runs-on:
         required: false
         type: string
@@ -32,11 +27,6 @@ on:
         type: boolean
         description: Create a minor version tag (e.g., v1.1) in addition to the major version tag
         default: false
-      overwrite:
-        required: false
-        type: boolean
-        description: Overwrite an existing major version tag
-        default: true
       runs-on:
         required: false
         type: string
@@ -86,16 +76,11 @@ jobs:
           )"
           echo "TAG_SHA=${TAG_SHA}" | tee -a "${GITHUB_ENV}"
       - name: Create or update the major version tag
-        env:
-          OVERWRITE: ${{ inputs.overwrite && 'true' || 'false' }}
         run: |
           if ! gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${MAJOR_TAG}" \
             --silent 2>/dev/null; then
             gh api "repos/${GITHUB_REPOSITORY}/git/refs" \
               --method POST --field ref="refs/tags/${MAJOR_TAG}" --field sha="${TAG_SHA}" --silent
-          elif [[ "${OVERWRITE}" != 'true' ]]; then
-            echo "Tag ${MAJOR_TAG} already exists (set overwrite=true to replace it)" >&2
-            exit 1
           else
             gh api "repos/${GITHUB_REPOSITORY}/git/refs/tags/${MAJOR_TAG}" \
               --method PATCH --field sha="${TAG_SHA}" --field force=true --silent
@@ -103,16 +88,11 @@ jobs:
           echo "Tagged ${MAJOR_TAG} -> ${TAG_SHA}" >&2
       - name: Create or update the minor version tag
         if: inputs.minor-version-tag
-        env:
-          OVERWRITE: ${{ inputs.overwrite && 'true' || 'false' }}
         run: |
           if ! gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${MINOR_TAG}" \
             --silent 2>/dev/null; then
             gh api "repos/${GITHUB_REPOSITORY}/git/refs" \
               --method POST --field ref="refs/tags/${MINOR_TAG}" --field sha="${TAG_SHA}" --silent
-          elif [[ "${OVERWRITE}" != 'true' ]]; then
-            echo "Tag ${MINOR_TAG} already exists (set overwrite=true to replace it)" >&2
-            exit 1
           else
             gh api "repos/${GITHUB_REPOSITORY}/git/refs/tags/${MINOR_TAG}" \
               --method PATCH --field sha="${TAG_SHA}" --field force=true --silent
