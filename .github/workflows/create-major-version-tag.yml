@@ -81,12 +81,15 @@ jobs:
           MAJOR_TAG: ${{ steps.semver.outputs.major-tag }}
           TAG_SHA: ${{ steps.sha.outputs.sha }}
         run: |
+          tag_exists=false
           if gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${MAJOR_TAG}" \
             --silent 2>/dev/null; then
-            if [[ "${FORCE}" != 'true' ]]; then
-              echo "Tag ${MAJOR_TAG} already exists (use force to overwrite)" >&2
-              exit 1
-            fi
+            tag_exists=true
+          fi
+          if [[ "${tag_exists}" == 'true' ]] && [[ "${FORCE}" != 'true' ]]; then
+            echo "Tag ${MAJOR_TAG} already exists (use force to overwrite)" >&2
+            exit 1
+          elif [[ "${tag_exists}" == 'true' ]]; then
             gh api "repos/${GITHUB_REPOSITORY}/git/refs/tags/${MAJOR_TAG}" \
               --method PATCH --field sha="${TAG_SHA}" --field force=true --silent
           else
@@ -101,12 +104,15 @@ jobs:
           MINOR_TAG: ${{ steps.semver.outputs.minor-tag }}
           TAG_SHA: ${{ steps.sha.outputs.sha }}
         run: |
+          tag_exists=false
           if gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${MINOR_TAG}" \
             --silent 2>/dev/null; then
-            if [[ "${FORCE}" != 'true' ]]; then
-              echo "Tag ${MINOR_TAG} already exists (use force to overwrite)" >&2
-              exit 1
-            fi
+            tag_exists=true
+          fi
+          if [[ "${tag_exists}" == 'true' ]] && [[ "${FORCE}" != 'true' ]]; then
+            echo "Tag ${MINOR_TAG} already exists (use force to overwrite)" >&2
+            exit 1
+          elif [[ "${tag_exists}" == 'true' ]]; then
             gh api "repos/${GITHUB_REPOSITORY}/git/refs/tags/${MINOR_TAG}" \
               --method PATCH --field sha="${TAG_SHA}" --field force=true --silent
           else
