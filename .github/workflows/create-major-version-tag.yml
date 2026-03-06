@@ -26,11 +26,6 @@ jobs:
       GH_TOKEN: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
       GITHUB_REPOSITORY: ${{ github.repository }}
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
-        with:
-          fetch-depth: 0
-          persist-credentials: true
       - name: Determine the latest semantic version tag
         id: semver
         run: |
@@ -56,6 +51,16 @@ jobs:
           SEMVER_TAG: ${{ steps.semver.outputs.tag }}
           MAJOR_TAG: ${{ steps.semver.outputs.major-tag }}
         run: |
-          git tag -f "${MAJOR_TAG}" "${SEMVER_TAG}"
-          git push -f origin "refs/tags/${MAJOR_TAG}"
-          echo "Tagged ${MAJOR_TAG} -> ${SEMVER_TAG}" >&2
+          tag_sha="$(
+            gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${SEMVER_TAG}" \
+              --jq '.object.sha'
+          )"
+          if gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${MAJOR_TAG}" \
+            --silent 2>/dev/null; then
+            gh api "repos/${GITHUB_REPOSITORY}/git/refs/tags/${MAJOR_TAG}" \
+              --method PATCH --field sha="${tag_sha}" --field force=true --silent
+          else
+            gh api "repos/${GITHUB_REPOSITORY}/git/refs" \
+              --method POST --field ref="refs/tags/${MAJOR_TAG}" --field sha="${tag_sha}" --silent
+          fi
+          echo "Tagged ${MAJOR_TAG} -> ${SEMVER_TAG} (${tag_sha})" >&2
