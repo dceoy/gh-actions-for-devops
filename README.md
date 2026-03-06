@@ -78,9 +78,6 @@ The workflows are organized by category for easier navigation. Each workflow is 
 - [claude-code-review.yml](.github/workflows/claude-code-review.yml)
   - Pull request review using Claude Code
 
-- [create-major-version-tag.yml](.github/workflows/create-major-version-tag.yml)
-  - Major version tag
-
 - [dependabot-auto-merge.yml](.github/workflows/dependabot-auto-merge.yml)
   - Dependabot auto-merge
 
@@ -116,6 +113,9 @@ The workflows are organized by category for easier navigation. Each workflow is 
 
 - [github-codeql-analysis.yml](.github/workflows/github-codeql-analysis.yml)
   - GitHub CodeQL Analysis
+
+- [github-major-version-tag.yml](.github/workflows/github-major-version-tag.yml)
+  - Major version tag on GitHub
 
 - [github-merged-branch-deletion.yml](.github/workflows/github-merged-branch-deletion.yml)
   - Deletion of merged branches on GitHub

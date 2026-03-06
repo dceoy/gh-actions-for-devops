@@ -1,28 +1,37 @@
 ---
-name: Major version tag
+name: Major version tag on GitHub
 on:
+  release:
+    types:
+      - released
   workflow_call:
     inputs:
-      runs-on:
-        required: false
-        type: string
-        description: Runner to use
-        default: ubuntu-slim
       minor-version-tag:
         required: false
         type: boolean
         description: Create a minor version tag (e.g., v1.1) in addition to the major version tag
         default: false
-      force:
+      runs-on:
         required: false
-        type: boolean
-        description: Overwrite an existing major version tag
-        default: true
+        type: string
+        description: Runner to use
+        default: ubuntu-slim
     secrets:
       GH_TOKEN:
         required: false
         description: GitHub token
   workflow_dispatch:  # checkov:skip=CKV_GHA_7:workflow_dispatch is used for manual trigger
+    inputs:
+      minor-version-tag:
+        required: false
+        type: boolean
+        description: Create a minor version tag (e.g., v1.1) in addition to the major version tag
+        default: false
+      runs-on:
+        required: false
+        type: string
+        description: Runner to use
+        default: ubuntu-slim
 permissions:
   contents: write
 defaults:
@@ -37,57 +46,41 @@ jobs:
       GITHUB_REPOSITORY: ${{ github.repository }}
     steps:
       - name: Fetch the latest release tag
-        id: release
         run: |
-          latest_tag="$(
+          LATEST_TAG="$(
             gh release list --repo "${GITHUB_REPOSITORY}" --json tagName,isLatest \
               --jq '.[] | select(.isLatest) | .tagName'
           )"
-          if [[ -z "${latest_tag}" ]]; then
+          echo "LATEST_TAG=${LATEST_TAG}" | tee -a "${GITHUB_ENV}"
+      - name: Validate semantic version format
+        run: |
+          if [[ -z "${LATEST_TAG:-}" ]]; then
             echo 'No latest release found' >&2
             exit 1
-          fi
-          echo "tag=${latest_tag}" >> "${GITHUB_OUTPUT}"
-          echo "Latest release tag: ${latest_tag}" >&2
-      - name: Validate semantic version format
-        id: semver
-        env:
-          LATEST_TAG: ${{ steps.release.outputs.tag }}
-        run: |
-          if [[ ! "${LATEST_TAG}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+ ]]; then
+          elif [[ ! "${LATEST_TAG}" =~ ^(v?)([0-9]+)\.([0-9]+)\.[0-9]+$ ]]; then
             echo "Not a semantic version tag: ${LATEST_TAG}" >&2
             exit 1
           fi
-          major_tag="$(echo "${LATEST_TAG}" | grep -oE '^v[0-9]+')"
-          minor_tag="$(echo "${LATEST_TAG}" | grep -oE '^v[0-9]+\.[0-9]+')"
-          echo "major-tag=${major_tag}" >> "${GITHUB_OUTPUT}"
-          echo "minor-tag=${minor_tag}" >> "${GITHUB_OUTPUT}"
-          echo "Major version tag: ${major_tag}" >&2
-          echo "Minor version tag: ${minor_tag}" >&2
+          TAG_PREFIX="${BASH_REMATCH[1]}"
+          MAJOR_VERSION="${BASH_REMATCH[2]}"
+          MINOR_VERSION="${BASH_REMATCH[3]}"
+          MAJOR_TAG="${TAG_PREFIX}${MAJOR_VERSION}"
+          MINOR_TAG="${TAG_PREFIX}${MAJOR_VERSION}.${MINOR_VERSION}"
+          echo "MAJOR_TAG=${MAJOR_TAG}" | tee -a "${GITHUB_ENV}"
+          echo "MINOR_TAG=${MINOR_TAG}" | tee -a "${GITHUB_ENV}"
       - name: Resolve tag SHA
-        id: sha
-        env:
-          SEMVER_TAG: ${{ steps.release.outputs.tag }}
         run: |
-          tag_sha="$(
-            gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${SEMVER_TAG}" \
+          TAG_SHA="$(
+            gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${LATEST_TAG}" \
               --jq '.object.sha'
           )"
-          echo "sha=${tag_sha}" >> "${GITHUB_OUTPUT}"
-          echo "Tag SHA: ${tag_sha}" >&2
+          echo "TAG_SHA=${TAG_SHA}" | tee -a "${GITHUB_ENV}"
       - name: Create or update the major version tag
-        env:
-          FORCE: ${{ inputs.force != false && 'true' || 'false' }}
-          MAJOR_TAG: ${{ steps.semver.outputs.major-tag }}
-          TAG_SHA: ${{ steps.sha.outputs.sha }}
         run: |
           if ! gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${MAJOR_TAG}" \
             --silent 2>/dev/null; then
             gh api "repos/${GITHUB_REPOSITORY}/git/refs" \
               --method POST --field ref="refs/tags/${MAJOR_TAG}" --field sha="${TAG_SHA}" --silent
-          elif [[ "${FORCE}" != 'true' ]]; then
-            echo "Tag ${MAJOR_TAG} already exists (use force to overwrite)" >&2
-            exit 1
           else
             gh api "repos/${GITHUB_REPOSITORY}/git/refs/tags/${MAJOR_TAG}" \
               --method PATCH --field sha="${TAG_SHA}" --field force=true --silent
@@ -95,18 +88,11 @@ jobs:
           echo "Tagged ${MAJOR_TAG} -> ${TAG_SHA}" >&2
       - name: Create or update the minor version tag
         if: inputs.minor-version-tag
-        env:
-          FORCE: ${{ inputs.force != false && 'true' || 'false' }}
-          MINOR_TAG: ${{ steps.semver.outputs.minor-tag }}
-          TAG_SHA: ${{ steps.sha.outputs.sha }}
         run: |
           if ! gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${MINOR_TAG}" \
             --silent 2>/dev/null; then
             gh api "repos/${GITHUB_REPOSITORY}/git/refs" \
               --method POST --field ref="refs/tags/${MINOR_TAG}" --field sha="${TAG_SHA}" --silent
-          elif [[ "${FORCE}" != 'true' ]]; then
-            echo "Tag ${MINOR_TAG} already exists (use force to overwrite)" >&2
-            exit 1
           else
             gh api "repos/${GITHUB_REPOSITORY}/git/refs/tags/${MINOR_TAG}" \
               --method PATCH --field sha="${TAG_SHA}" --field force=true --silent
