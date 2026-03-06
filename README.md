@@ -78,9 +78,6 @@ The workflows are organized by category for easier navigation. Each workflow is 
 - [claude-code-review.yml](.github/workflows/claude-code-review.yml)
   - Pull request review using Claude Code
 
-- [create-major-version-tag.yml](.github/workflows/create-major-version-tag.yml)
-  - Major version tag
-
 - [dependabot-auto-merge.yml](.github/workflows/dependabot-auto-merge.yml)
   - Dependabot auto-merge
 
@@ -137,6 +134,9 @@ The workflows are organized by category for easier navigation. Each workflow is 
 
 - [json-schema-validation.yml](.github/workflows/json-schema-validation.yml)
   - Schema validation for JSON
+
+- [major-version-tag.yml](.github/workflows/major-version-tag.yml)
+  - Major version tag
 
 - [microsoft-defender-for-devops.yml](.github/workflows/microsoft-defender-for-devops.yml)
   - Microsoft Defender for Devops
