@@ -8,6 +8,11 @@ on:
         type: string
         description: Runner to use
         default: ubuntu-latest
+      force:
+        required: false
+        type: boolean
+        description: Overwrite an existing major version tag
+        default: true
     secrets:
       GH_TOKEN:
         required: false
@@ -64,11 +69,16 @@ jobs:
           echo "Tag SHA: ${tag_sha}" >&2
       - name: Create or update the major version tag
         env:
+          FORCE: ${{ inputs.force != false && 'true' || 'false' }}
           MAJOR_TAG: ${{ steps.semver.outputs.major-tag }}
           TAG_SHA: ${{ steps.sha.outputs.sha }}
         run: |
           if gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${MAJOR_TAG}" \
             --silent 2>/dev/null; then
+            if [[ "${FORCE}" != 'true' ]]; then
+              echo "Tag ${MAJOR_TAG} already exists (use force to overwrite)" >&2
+              exit 1
+            fi
             gh api "repos/${GITHUB_REPOSITORY}/git/refs/tags/${MAJOR_TAG}" \
               --method PATCH --field sha="${TAG_SHA}" --field force=true --silent
           else
