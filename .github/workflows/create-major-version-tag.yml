@@ -1,5 +1,5 @@
 ---
-name: Create or update a major version tag
+name: Major version tag
 on:
   workflow_call:
     inputs:
@@ -26,8 +26,8 @@ jobs:
       GH_TOKEN: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
       GITHUB_REPOSITORY: ${{ github.repository }}
     steps:
-      - name: Determine the latest semantic version tag
-        id: semver
+      - name: Fetch the latest release tag
+        id: release
         run: |
           latest_tag="$(
             gh release list --repo "${GITHUB_REPOSITORY}" --json tagName,isLatest \
@@ -37,30 +37,42 @@ jobs:
             echo 'No latest release found' >&2
             exit 1
           fi
-          if [[ ! "${latest_tag}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+ ]]; then
-            echo "Not a semantic version tag: ${latest_tag}" >&2
-            exit 2
-          fi
           echo "tag=${latest_tag}" >> "${GITHUB_OUTPUT}"
-          major_tag="$(echo "${latest_tag}" | grep -oE '^v[0-9]+')"
-          echo "major-tag=${major_tag}" >> "${GITHUB_OUTPUT}"
           echo "Latest release tag: ${latest_tag}" >&2
-          echo "Major version tag:  ${major_tag}" >&2
-      - name: Create or update the major version tag
+      - name: Validate semantic version format
+        id: semver
         env:
-          SEMVER_TAG: ${{ steps.semver.outputs.tag }}
-          MAJOR_TAG: ${{ steps.semver.outputs.major-tag }}
+          LATEST_TAG: ${{ steps.release.outputs.tag }}
+        run: |
+          if [[ ! "${LATEST_TAG}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+ ]]; then
+            echo "Not a semantic version tag: ${LATEST_TAG}" >&2
+            exit 1
+          fi
+          major_tag="$(echo "${LATEST_TAG}" | grep -oE '^v[0-9]+')"
+          echo "major-tag=${major_tag}" >> "${GITHUB_OUTPUT}"
+          echo "Major version tag: ${major_tag}" >&2
+      - name: Resolve tag SHA
+        id: sha
+        env:
+          SEMVER_TAG: ${{ steps.release.outputs.tag }}
         run: |
           tag_sha="$(
             gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${SEMVER_TAG}" \
               --jq '.object.sha'
           )"
+          echo "sha=${tag_sha}" >> "${GITHUB_OUTPUT}"
+          echo "Tag SHA: ${tag_sha}" >&2
+      - name: Create or update the major version tag
+        env:
+          MAJOR_TAG: ${{ steps.semver.outputs.major-tag }}
+          TAG_SHA: ${{ steps.sha.outputs.sha }}
+        run: |
           if gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${MAJOR_TAG}" \
             --silent 2>/dev/null; then
             gh api "repos/${GITHUB_REPOSITORY}/git/refs/tags/${MAJOR_TAG}" \
-              --method PATCH --field sha="${tag_sha}" --field force=true --silent
+              --method PATCH --field sha="${TAG_SHA}" --field force=true --silent
           else
             gh api "repos/${GITHUB_REPOSITORY}/git/refs" \
-              --method POST --field ref="refs/tags/${MAJOR_TAG}" --field sha="${tag_sha}" --silent
+              --method POST --field ref="refs/tags/${MAJOR_TAG}" --field sha="${TAG_SHA}" --silent
           fi
-          echo "Tagged ${MAJOR_TAG} -> ${SEMVER_TAG} (${tag_sha})" >&2
+          echo "Tagged ${MAJOR_TAG} -> ${TAG_SHA}" >&2

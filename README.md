@@ -79,7 +79,7 @@ The workflows are organized by category for easier navigation. Each workflow is 
   - Pull request review using Claude Code
 
 - [create-major-version-tag.yml](.github/workflows/create-major-version-tag.yml)
-  - Create or update a major version tag
+  - Major version tag
 
 - [dependabot-auto-merge.yml](.github/workflows/dependabot-auto-merge.yml)
   - Dependabot auto-merge
