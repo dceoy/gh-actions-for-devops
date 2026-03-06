@@ -114,6 +114,9 @@ The workflows are organized by category for easier navigation. Each workflow is 
 - [github-codeql-analysis.yml](.github/workflows/github-codeql-analysis.yml)
   - GitHub CodeQL Analysis
 
+- [github-major-version-tag.yml](.github/workflows/github-major-version-tag.yml)
+  - Major version tag on GitHub
+
 - [github-merged-branch-deletion.yml](.github/workflows/github-merged-branch-deletion.yml)
   - Deletion of merged branches on GitHub
 
@@ -134,9 +137,6 @@ The workflows are organized by category for easier navigation. Each workflow is 
 
 - [json-schema-validation.yml](.github/workflows/json-schema-validation.yml)
   - Schema validation for JSON
-
-- [major-version-tag.yml](.github/workflows/major-version-tag.yml)
-  - Major version tag
 
 - [microsoft-defender-for-devops.yml](.github/workflows/microsoft-defender-for-devops.yml)
   - Microsoft Defender for Devops
