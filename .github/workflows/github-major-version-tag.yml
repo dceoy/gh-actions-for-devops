@@ -70,31 +70,47 @@ jobs:
           echo "MINOR_TAG=${MINOR_TAG}" | tee -a "${GITHUB_ENV}"
       - name: Resolve tag SHA
         run: |
-          TAG_SHA="$(
-            gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${LATEST_TAG}" \
-              --jq '.object.sha'
-          )"
+          TAG_REF_ENDPOINT="repos/${GITHUB_REPOSITORY}/git/ref/tags/${LATEST_TAG}"
+          OBJECT_TYPE="$(gh api "${TAG_REF_ENDPOINT}" --jq '.object.type')"
+          TAG_SHA="$(gh api "${TAG_REF_ENDPOINT}" --jq '.object.sha')"
+          if [[ "${OBJECT_TYPE}" == "tag" ]]; then
+            TAG_SHA="$(gh api "repos/${GITHUB_REPOSITORY}/git/tags/${TAG_SHA}" --jq '.object.sha')"
+          fi
+          if [[ -z "${TAG_SHA:-}" || "${TAG_SHA}" == 'null' ]]; then
+            echo "Failed to resolve SHA for tag ${LATEST_TAG}" >&2
+            exit 1
+          fi
           echo "TAG_SHA=${TAG_SHA}" | tee -a "${GITHUB_ENV}"
       - name: Create or update the major version tag
         run: |
-          if ! gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${MAJOR_TAG}" \
-            --silent 2>/dev/null; then
-            gh api "repos/${GITHUB_REPOSITORY}/git/refs" \
-              --method POST --field ref="refs/tags/${MAJOR_TAG}" --field sha="${TAG_SHA}" --silent
-          else
+          if TAG_REF_RESPONSE="$(
+            gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${MAJOR_TAG}" \
+              --include 2>&1
+          )"; then
             gh api "repos/${GITHUB_REPOSITORY}/git/refs/tags/${MAJOR_TAG}" \
-              --method PATCH --field sha="${TAG_SHA}" --field force=true --silent
+              --method PATCH --field sha="${TAG_SHA}" --field force=true
+          elif grep -qE '^HTTP/[0-9.]+ 404' <<<"${TAG_REF_RESPONSE}"; then
+            gh api "repos/${GITHUB_REPOSITORY}/git/refs" \
+              --method POST --field ref="refs/tags/${MAJOR_TAG}" --field sha="${TAG_SHA}"
+          else
+            echo "${TAG_REF_RESPONSE}" >&2
+            exit 1
           fi
           echo "Tagged ${MAJOR_TAG} -> ${TAG_SHA}" >&2
       - name: Create or update the minor version tag
         if: inputs.minor-version-tag
         run: |
-          if ! gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${MINOR_TAG}" \
-            --silent 2>/dev/null; then
-            gh api "repos/${GITHUB_REPOSITORY}/git/refs" \
-              --method POST --field ref="refs/tags/${MINOR_TAG}" --field sha="${TAG_SHA}" --silent
-          else
+          if TAG_REF_RESPONSE="$(
+            gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${MINOR_TAG}" \
+              --include 2>&1
+          )"; then
             gh api "repos/${GITHUB_REPOSITORY}/git/refs/tags/${MINOR_TAG}" \
-              --method PATCH --field sha="${TAG_SHA}" --field force=true --silent
+              --method PATCH --field sha="${TAG_SHA}" --field force=true
+          elif grep -qE '^HTTP/[0-9.]+ 404' <<<"${TAG_REF_RESPONSE}"; then
+            gh api "repos/${GITHUB_REPOSITORY}/git/refs" \
+              --method POST --field ref="refs/tags/${MINOR_TAG}" --field sha="${TAG_SHA}"
+          else
+            echo "${TAG_REF_RESPONSE}" >&2
+            exit 1
           fi
           echo "Tagged ${MINOR_TAG} -> ${TAG_SHA}" >&2
