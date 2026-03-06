@@ -89,42 +89,38 @@ jobs:
             exit 1
           fi
           tee -a "${GITHUB_ENV}" <<< "TAG_SHA=${TAG_SHA}"
-      - name: Detect whether the major version tag exists
-        id: major_tag
+      - name: Sync the major version tag
         run: |
-          tee -a "${GITHUB_OUTPUT}" <<< "exists=$(
+          EXISTING_SHA="$(
             gh api "${REPO_API}/git/matching-refs/tags/${MAJOR_TAG}" \
-              --jq --arg ref "refs/tags/${MAJOR_TAG}" "map(select(.ref == \$ref)) | length > 0"
+              --jq ".[] | select(.ref == \"refs/tags/${MAJOR_TAG}\") | .object.sha"
           )"
-      - name: Create the major version tag
-        if: steps.major_tag.outputs.exists != 'true'
-        run: |
-          gh api "${REPO_API}/git/refs" \
-            --method POST --field ref="refs/tags/${MAJOR_TAG}" --field sha="${TAG_SHA}"
-          echo "Tagged ${MAJOR_TAG} -> ${TAG_SHA}" >&2
-      - name: Update the major version tag
-        if: steps.major_tag.outputs.exists == 'true'
-        run: |
-          gh api "${REPO_API}/git/refs/tags/${MAJOR_TAG}" \
-            --method PATCH --field sha="${TAG_SHA}" --field force=true
-          echo "Tagged ${MAJOR_TAG} -> ${TAG_SHA}" >&2
-      - name: Detect whether the minor version tag exists
+          if [[ -z "${EXISTING_SHA:-}" ]]; then
+            gh api "${REPO_API}/git/refs" \
+              --method POST --field ref="refs/tags/${MAJOR_TAG}" --field sha="${TAG_SHA}"
+            echo "Tagged ${MAJOR_TAG} -> ${TAG_SHA}" >&2
+          elif [[ "${EXISTING_SHA}" == "${TAG_SHA}" ]]; then
+            echo "${MAJOR_TAG} already points to ${TAG_SHA}" >&2
+          else
+            gh api "${REPO_API}/git/refs/tags/${MAJOR_TAG}" \
+              --method PATCH --field sha="${TAG_SHA}" --field force=true
+            echo "Tagged ${MAJOR_TAG} -> ${TAG_SHA}" >&2
+          fi
+      - name: Sync the minor version tag
         if: inputs.minor-version-tag
-        id: minor_tag
         run: |
-          tee -a "${GITHUB_OUTPUT}" <<< "exists=$(
+          EXISTING_SHA="$(
             gh api "${REPO_API}/git/matching-refs/tags/${MINOR_TAG}" \
-              --jq --arg ref "refs/tags/${MINOR_TAG}" "map(select(.ref == \$ref)) | length > 0"
+              --jq ".[] | select(.ref == \"refs/tags/${MINOR_TAG}\") | .object.sha"
           )"
-      - name: Create the minor version tag
-        if: inputs.minor-version-tag && steps.minor_tag.outputs.exists != 'true'
-        run: |
-          gh api "${REPO_API}/git/refs" \
-            --method POST --field ref="refs/tags/${MINOR_TAG}" --field sha="${TAG_SHA}"
-          echo "Tagged ${MINOR_TAG} -> ${TAG_SHA}" >&2
-      - name: Update the minor version tag
-        if: inputs.minor-version-tag && steps.minor_tag.outputs.exists == 'true'
-        run: |
-          gh api "${REPO_API}/git/refs/tags/${MINOR_TAG}" \
-            --method PATCH --field sha="${TAG_SHA}" --field force=true
-          echo "Tagged ${MINOR_TAG} -> ${TAG_SHA}" >&2
+          if [[ -z "${EXISTING_SHA:-}" ]]; then
+            gh api "${REPO_API}/git/refs" \
+              --method POST --field ref="refs/tags/${MINOR_TAG}" --field sha="${TAG_SHA}"
+            echo "Tagged ${MINOR_TAG} -> ${TAG_SHA}" >&2
+          elif [[ "${EXISTING_SHA}" == "${TAG_SHA}" ]]; then
+            echo "${MINOR_TAG} already points to ${TAG_SHA}" >&2
+          else
+            gh api "${REPO_API}/git/refs/tags/${MINOR_TAG}" \
+              --method PATCH --field sha="${TAG_SHA}" --field force=true
+            echo "Tagged ${MINOR_TAG} -> ${TAG_SHA}" >&2
+          fi
