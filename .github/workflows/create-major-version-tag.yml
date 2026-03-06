@@ -1,5 +1,5 @@
 ---
-name: Create a major version tag
+name: Create or update a major version tag
 on:
   workflow_call:
     inputs:
@@ -21,9 +21,10 @@ defaults:
     working-directory: .
 jobs:
   create-major-version-tag:
-    runs-on: ${{ inputs.runs-on }}
+    runs-on: ${{ inputs.runs-on || 'ubuntu-latest' }}
     env:
       GH_TOKEN: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
+      GITHUB_REPOSITORY: ${{ github.repository }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
@@ -34,19 +35,19 @@ jobs:
         id: semver
         run: |
           latest_tag="$(
-            gh release list --repo '${{ github.repository }}' --limit 100 \
-              | awk '$2 == "Latest" { print $1 }'
+            gh release list --repo "${GITHUB_REPOSITORY}" --json tagName,isLatest \
+              --jq '.[] | select(.isLatest) | .tagName'
           )"
           if [[ -z "${latest_tag}" ]]; then
             echo 'No latest release found' >&2
             exit 1
           fi
-          echo "tag=${latest_tag}" >> "${GITHUB_OUTPUT}"
-          major_tag="$(echo "${latest_tag}" | grep -oE '^v[0-9]+')"
-          if [[ -z "${major_tag}" ]]; then
-            echo "Invalid semantic version tag: ${latest_tag}" >&2
+          if [[ ! "${latest_tag}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+ ]]; then
+            echo "Not a semantic version tag: ${latest_tag}" >&2
             exit 2
           fi
+          echo "tag=${latest_tag}" >> "${GITHUB_OUTPUT}"
+          major_tag="$(echo "${latest_tag}" | grep -oE '^v[0-9]+')"
           echo "major-tag=${major_tag}" >> "${GITHUB_OUTPUT}"
           echo "Latest release tag: ${latest_tag}" >&2
           echo "Major version tag:  ${major_tag}" >&2
