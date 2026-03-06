@@ -43,16 +43,17 @@ jobs:
     runs-on: ${{ inputs.runs-on || 'ubuntu-slim' }}
     env:
       GH_TOKEN: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
-      GITHUB_REPOSITORY: ${{ github.repository }}
+      REPO_API: repos/${{ github.repository }}
     steps:
       - name: Fetch the latest release tag
+        env:
+          GITHUB_REPOSITORY: ${{ github.repository }}
         run: |
-          LATEST_TAG="$(
+          tee -a "${GITHUB_ENV}" <<< "LATEST_TAG=$(
             gh release list --repo "${GITHUB_REPOSITORY}" --json tagName,isLatest \
               --jq '.[] | select(.isLatest) | .tagName'
           )"
-          echo "LATEST_TAG=${LATEST_TAG}" | tee -a "${GITHUB_ENV}"
-      - name: Validate semantic version format
+      - name: Parse the major and minor version tags
         run: |
           if [[ -z "${LATEST_TAG:-}" ]]; then
             echo 'No latest release found' >&2
@@ -62,39 +63,68 @@ jobs:
             exit 1
           fi
           TAG_PREFIX="${BASH_REMATCH[1]}"
-          MAJOR_VERSION="${BASH_REMATCH[2]}"
-          MINOR_VERSION="${BASH_REMATCH[3]}"
-          MAJOR_TAG="${TAG_PREFIX}${MAJOR_VERSION}"
-          MINOR_TAG="${TAG_PREFIX}${MAJOR_VERSION}.${MINOR_VERSION}"
-          echo "MAJOR_TAG=${MAJOR_TAG}" | tee -a "${GITHUB_ENV}"
-          echo "MINOR_TAG=${MINOR_TAG}" | tee -a "${GITHUB_ENV}"
-      - name: Resolve tag SHA
+          {
+            echo "MAJOR_TAG=${TAG_PREFIX}${BASH_REMATCH[2]}"
+            echo "MINOR_TAG=${TAG_PREFIX}${BASH_REMATCH[2]}.${BASH_REMATCH[3]}"
+          } | tee -a "${GITHUB_ENV}"
+      - name: Fetch the tag object metadata
         run: |
-          TAG_SHA="$(
-            gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${LATEST_TAG}" \
-              --jq '.object.sha'
+          read -r TAG_OBJECT_TYPE TAG_OBJECT_SHA < <(
+            gh api "${REPO_API}/git/ref/tags/${LATEST_TAG}" \
+              --jq '[.object.type, .object.sha] | @tsv'
+          )
+          {
+            echo "TAG_OBJECT_TYPE=${TAG_OBJECT_TYPE}"
+            echo "TAG_OBJECT_SHA=${TAG_OBJECT_SHA}"
+          } | tee -a "${GITHUB_ENV}"
+      - name: Resolve the tag commit SHA
+        run: |
+          if [[ "${TAG_OBJECT_TYPE}" == "tag" ]]; then
+            TAG_SHA="$(gh api "${REPO_API}/git/tags/${TAG_OBJECT_SHA}" --jq '.object.sha')"
+          else
+            TAG_SHA="${TAG_OBJECT_SHA}"
+          fi
+          if [[ -z "${TAG_SHA:-}" || "${TAG_SHA}" == 'null' ]]; then
+            echo "Failed to resolve SHA for tag ${LATEST_TAG}" >&2
+            exit 1
+          fi
+          tee -a "${GITHUB_ENV}" <<< "TAG_SHA=${TAG_SHA}"
+      - name: Detect whether the major version tag exists
+        id: major_tag
+        run: |
+          tee -a "${GITHUB_OUTPUT}" <<< "exists=$(
+            gh api "${REPO_API}/git/matching-refs/tags/${MAJOR_TAG}" \
+              --jq --arg ref "refs/tags/${MAJOR_TAG}" "map(select(.ref == \$ref)) | length > 0"
           )"
-          echo "TAG_SHA=${TAG_SHA}" | tee -a "${GITHUB_ENV}"
-      - name: Create or update the major version tag
+      - name: Create the major version tag
+        if: steps.major_tag.outputs.exists != 'true'
         run: |
-          if ! gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${MAJOR_TAG}" \
-            --silent 2>/dev/null; then
-            gh api "repos/${GITHUB_REPOSITORY}/git/refs" \
-              --method POST --field ref="refs/tags/${MAJOR_TAG}" --field sha="${TAG_SHA}" --silent
-          else
-            gh api "repos/${GITHUB_REPOSITORY}/git/refs/tags/${MAJOR_TAG}" \
-              --method PATCH --field sha="${TAG_SHA}" --field force=true --silent
-          fi
+          gh api "${REPO_API}/git/refs" \
+            --method POST --field ref="refs/tags/${MAJOR_TAG}" --field sha="${TAG_SHA}"
           echo "Tagged ${MAJOR_TAG} -> ${TAG_SHA}" >&2
-      - name: Create or update the minor version tag
-        if: inputs.minor-version-tag
+      - name: Update the major version tag
+        if: steps.major_tag.outputs.exists == 'true'
         run: |
-          if ! gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${MINOR_TAG}" \
-            --silent 2>/dev/null; then
-            gh api "repos/${GITHUB_REPOSITORY}/git/refs" \
-              --method POST --field ref="refs/tags/${MINOR_TAG}" --field sha="${TAG_SHA}" --silent
-          else
-            gh api "repos/${GITHUB_REPOSITORY}/git/refs/tags/${MINOR_TAG}" \
-              --method PATCH --field sha="${TAG_SHA}" --field force=true --silent
-          fi
+          gh api "${REPO_API}/git/refs/tags/${MAJOR_TAG}" \
+            --method PATCH --field sha="${TAG_SHA}" --field force=true
+          echo "Tagged ${MAJOR_TAG} -> ${TAG_SHA}" >&2
+      - name: Detect whether the minor version tag exists
+        if: inputs.minor-version-tag
+        id: minor_tag
+        run: |
+          tee -a "${GITHUB_OUTPUT}" <<< "exists=$(
+            gh api "${REPO_API}/git/matching-refs/tags/${MINOR_TAG}" \
+              --jq --arg ref "refs/tags/${MINOR_TAG}" "map(select(.ref == \$ref)) | length > 0"
+          )"
+      - name: Create the minor version tag
+        if: inputs.minor-version-tag && steps.minor_tag.outputs.exists != 'true'
+        run: |
+          gh api "${REPO_API}/git/refs" \
+            --method POST --field ref="refs/tags/${MINOR_TAG}" --field sha="${TAG_SHA}"
+          echo "Tagged ${MINOR_TAG} -> ${TAG_SHA}" >&2
+      - name: Update the minor version tag
+        if: inputs.minor-version-tag && steps.minor_tag.outputs.exists == 'true'
+        run: |
+          gh api "${REPO_API}/git/refs/tags/${MINOR_TAG}" \
+            --method PATCH --field sha="${TAG_SHA}" --field force=true
           echo "Tagged ${MINOR_TAG} -> ${TAG_SHA}" >&2
