@@ -67,12 +67,15 @@ jobs:
           if [[ -z "${LATEST_TAG:-}" ]]; then
             echo 'No latest release found' >&2
             exit 1
-          elif [[ ! "${LATEST_TAG}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+          elif [[ ! "${LATEST_TAG}" =~ ^(v?)([0-9]+)\.([0-9]+)\.[0-9]+$ ]]; then
             echo "Not a semantic version tag: ${LATEST_TAG}" >&2
             exit 1
           fi
-          MAJOR_TAG="$(echo "${LATEST_TAG}" | grep -oE '^v[0-9]+')"
-          MINOR_TAG="$(echo "${LATEST_TAG}" | grep -oE '^v[0-9]+\.[0-9]+')"
+          TAG_PREFIX="${BASH_REMATCH[1]}"
+          MAJOR_VERSION="${BASH_REMATCH[2]}"
+          MINOR_VERSION="${BASH_REMATCH[3]}"
+          MAJOR_TAG="${TAG_PREFIX}${MAJOR_VERSION}"
+          MINOR_TAG="${TAG_PREFIX}${MAJOR_VERSION}.${MINOR_VERSION}"
           echo "MAJOR_TAG=${MAJOR_TAG}" | tee -a "${GITHUB_ENV}"
           echo "MINOR_TAG=${MINOR_TAG}" | tee -a "${GITHUB_ENV}"
       - name: Resolve tag SHA
