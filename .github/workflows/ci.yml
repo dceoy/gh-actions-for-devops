@@ -158,6 +158,16 @@ jobs:
       create-new-tag: false
     secrets:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  github-major-version-tag:
+    if: >
+      github.event_name == 'workflow_dispatch' && inputs.workflow == 'release'
+    needs:
+      - github-release
+    permissions:
+      contents: write
+    uses: ./.github/workflows/github-major-version-tag.yml
+    secrets:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   dependabot-auto-merge:
     if: >
       github.event_name == 'pull_request'

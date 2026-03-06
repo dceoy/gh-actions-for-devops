@@ -1,9 +1,9 @@
 ---
 name: Major version tag on GitHub
 on:
-  release:
-    types:
-      - released
+  # release:
+  #   types:
+  #     - released
   workflow_call:
     inputs:
       minor-version-tag:
