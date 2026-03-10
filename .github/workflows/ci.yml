@@ -109,7 +109,7 @@ jobs:
     with:
       language: >
         ["go"]
-  gemini-cli-review:
+  claude-code-review:
     if: >
       github.event_name == 'pull_request'
       && github.event.pull_request.draft == false
@@ -127,9 +127,10 @@ jobs:
       pull-requests: write
       issues: write
       id-token: write
-    uses: ./.github/workflows/gemini-cli-review.yml
+      actions: read
+    uses: ./.github/workflows/claude-code-review.yml
     secrets:
-      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   claude-code-bot:
     if: >
