@@ -19,7 +19,7 @@ on:
         description: OAuth token for Claude Code
       GH_TOKEN:
         required: false
-        description: GitHub token for accessing the repository
+        description: Optional GitHub token override; defaults to github.token
 #   pull_request:
 #     types:
 #       - opened
@@ -28,7 +28,6 @@ permissions:
   contents: read
   pull-requests: write
   issues: write
-  id-token: write
   actions: read
 jobs:
   claude-code-review:
@@ -64,5 +63,6 @@ jobs:
         uses: anthropics/claude-code-action@26ec041249acb0a944c0a47b6c0c13f05dbc5b44  # v1.0.70
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}  # zizmor: ignore[secrets-outside-env] caller-provided secret
+          github_token: ${{ secrets.GH_TOKEN || github.token }}  # zizmor: ignore[secrets-outside-env] caller-provided secret
           prompt: '/review-pr REPO: ${{ github.repository }} PR_NUMBER: ${{ github.event.pull_request.number }}'
           claude_args: ${{ inputs.claude-args }}
