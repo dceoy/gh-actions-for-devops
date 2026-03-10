@@ -41,7 +41,7 @@ jobs:
         with:
           fetch-depth: 1
           token: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}  # zizmor: ignore[secrets-outside-env] caller-provided secret
-          persist-credentials: true
+          persist-credentials: false
       - name: Deploy agents and commands from Claude Code Action
         run: |
           action_root="${GITHUB_WORKSPACE}/../../_actions/anthropics/claude-code-action"
