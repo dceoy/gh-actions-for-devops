@@ -104,8 +104,7 @@ jobs:
     runs-on: ${{ inputs.runs-on }}
     timeout-minutes: 10
     env:
-      GEMINI_REVIEW_TOML_URL: >-
-        https://raw.githubusercontent.com/google-github-actions/run-gemini-cli/main/.github/commands/gemini-review.toml
+      RUN_GEMINI_CLI_ACTION_REF: 9dbec29a20fab3f35017a40ad0eb798a257d4d51
     steps:
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
@@ -116,9 +115,10 @@ jobs:
       - name: Deploy gemini-review command if missing
         run: |
           if [[ ! -f .gemini/commands/gemini-review.toml ]]; then
+            action_dir="${GITHUB_WORKSPACE}/../_actions/google-github-actions/run-gemini-cli/${RUN_GEMINI_CLI_ACTION_REF}"
             mkdir -p .gemini/commands
-            curl -fsSL -o .gemini/commands/gemini-review.toml \
-              "${GEMINI_REVIEW_TOML_URL}"
+            cp "${action_dir}/.github/commands/gemini-review.toml" \
+              .gemini/commands/gemini-review.toml
           fi
       - name: Generate default settings
         id: default-settings
