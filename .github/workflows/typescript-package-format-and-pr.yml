@@ -196,8 +196,12 @@ jobs:
       - name: Lint the code using Oxlint
         if: inputs.use-oxlint && inputs.lint-before-pr
         working-directory: ${{ inputs.package-path }}
-        run: >
-          oxlint --fix .
+        run: |
+          if [[ -f tsconfig.json ]]; then
+            oxlint --fix --type-aware --tsconfig tsconfig.json .
+          else
+            oxlint --fix .
+          fi
       - name: Lint the code using ESLint
         if: inputs.use-eslint && inputs.lint-before-pr
         working-directory: ${{ inputs.package-path }}

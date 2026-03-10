@@ -46,8 +46,8 @@ on:
       use-react:
         required: false
         type: boolean
-        description: Include React-specific ESLint plugins
-        default: true
+        description: Include React-specific ESLint plugins when ESLint is enabled
+        default: false
       use-tsc:
         required: false
         type: boolean
@@ -169,8 +169,12 @@ jobs:
       - name: Run Oxlint
         if: inputs.use-oxlint
         working-directory: ${{ inputs.package-path }}
-        run: >
-          oxlint --type-aware .
+        run: |
+          if [[ -f tsconfig.json ]]; then
+            oxlint --type-aware --tsconfig tsconfig.json .
+          else
+            oxlint .
+          fi
       - name: Run ESLint
         if: inputs.use-eslint
         working-directory: ${{ inputs.package-path }}
