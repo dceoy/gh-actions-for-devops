@@ -13,20 +13,40 @@ on:
         type: string
         description: Node.js version to use
         default: latest
+      use-biome:
+        required: false
+        type: boolean
+        description: Use Biome to check formatting
+        default: true
+      biome-glob:
+        required: false
+        type: string
+        description: Glob pattern for Biome to check
+        default: '**/*.{js,jsx,ts,tsx,json,css,scss}'
+      use-oxlint:
+        required: false
+        type: boolean
+        description: Use Oxlint to lint code
+        default: true
       use-prettier:
         required: false
         type: boolean
-        description: Use Prettier to format code
-        default: true
+        description: Use Prettier to check formatting
+        default: false
       prettier-glob:
         required: false
         type: string
-        description: Glob pattern for Prettier to format
+        description: Glob pattern for Prettier to check
         default: '**/*.{js,jsx,ts,tsx,css,scss,html,md}'
+      use-eslint:
+        required: false
+        type: boolean
+        description: Use ESLint to lint code
+        default: false
       use-react:
         required: false
         type: boolean
-        description: Include React specific plugins and configurations
+        description: Include React-specific ESLint plugins
         default: true
       use-tsc:
         required: false
@@ -95,25 +115,23 @@ jobs:
               npm install -g pnpm
               pnpm install --frozen-lockfile
               pnpm add --save-dev \
-                eslint \
-                eslint-plugin-security \
                 typescript \
-                @typescript-eslint/eslint-plugin \
-                @typescript-eslint/parser \
-                ${{ inputs.use-react && 'eslint-plugin-react eslint-plugin-react-hooks' || '' }} \
-                ${{ inputs.use-prettier && 'eslint-config-prettier eslint-plugin-prettier' || '' }}
+                ${{ inputs.use-oxlint && 'oxlint' || '' }} \
+                ${{ inputs.use-biome && 'biome' || '' }} \
+                ${{ inputs.use-eslint && 'eslint eslint-plugin-security @typescript-eslint/eslint-plugin @typescript-eslint/parser' || '' }} \
+                ${{ inputs.use-react && inputs.use-eslint && 'eslint-plugin-react eslint-plugin-react-hooks' || '' }} \
+                ${{ inputs.use-prettier && 'prettier eslint-config-prettier eslint-plugin-prettier' || '' }}
               ;;
             yarn )
               npm install -g yarn
               yarn install --frozen-lockfile
               yarn add --dev \
-                eslint \
-                eslint-plugin-security \
                 typescript \
-                @typescript-eslint/eslint-plugin \
-                @typescript-eslint/parser \
-                ${{ inputs.use-react && 'eslint-plugin-react eslint-plugin-react-hooks' || '' }} \
-                ${{ inputs.use-prettier && 'eslint-config-prettier eslint-plugin-prettier' || '' }}
+                ${{ inputs.use-oxlint && 'oxlint' || '' }} \
+                ${{ inputs.use-biome && 'biome' || '' }} \
+                ${{ inputs.use-eslint && 'eslint eslint-plugin-security @typescript-eslint/eslint-plugin @typescript-eslint/parser' || '' }} \
+                ${{ inputs.use-react && inputs.use-eslint && 'eslint-plugin-react eslint-plugin-react-hooks' || '' }} \
+                ${{ inputs.use-prettier && 'prettier eslint-config-prettier eslint-plugin-prettier' || '' }}
               ;;
             * )
               if [[ -f package-lock.json ]]; then
@@ -124,13 +142,12 @@ jobs:
                 npm upgrade -g
               fi
               npm install --save-dev \
-                eslint \
-                eslint-plugin-security \
                 typescript \
-                @typescript-eslint/eslint-plugin \
-                @typescript-eslint/parser \
-                ${{ inputs.use-react && 'eslint-plugin-react eslint-plugin-react-hooks' || '' }} \
-                ${{ inputs.use-prettier && 'eslint-config-prettier eslint-plugin-prettier' || '' }}
+                ${{ inputs.use-oxlint && 'oxlint' || '' }} \
+                ${{ inputs.use-biome && 'biome' || '' }} \
+                ${{ inputs.use-eslint && 'eslint eslint-plugin-security @typescript-eslint/eslint-plugin @typescript-eslint/parser' || '' }} \
+                ${{ inputs.use-react && inputs.use-eslint && 'eslint-plugin-react eslint-plugin-react-hooks' || '' }} \
+                ${{ inputs.use-prettier && 'prettier eslint-config-prettier eslint-plugin-prettier' || '' }}
               ;;
           esac
           for p in $(tr ' ' '\n' <<< "${ADDITIONAL_NPM_PACKAGES}"); do
@@ -149,10 +166,23 @@ jobs:
             fi
           done
           echo "PATH=${PWD}/node_modules/.bin:${PATH}" >> "${GITHUB_ENV}"
+      - name: Run Oxlint
+        if: inputs.use-oxlint
+        working-directory: ${{ inputs.package-path }}
+        run: >
+          oxlint --type-aware .
       - name: Run ESLint
+        if: inputs.use-eslint
         working-directory: ${{ inputs.package-path }}
         run: >
           eslint --ext .js,.jsx,.ts,.tsx --no-error-on-unmatched-pattern .
+      - name: Check formatting with Biome
+        if: inputs.use-biome
+        working-directory: ${{ inputs.package-path }}
+        env:
+          BIOME_GLOB: ${{ inputs.biome-glob }}
+        run: >
+          biome check --files-ignore-unknown=true --error-on-warnings "${BIOME_GLOB}"
       - name: Check formatting with Prettier
         if: inputs.use-prettier
         working-directory: ${{ inputs.package-path }}

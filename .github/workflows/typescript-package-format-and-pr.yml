@@ -13,11 +13,26 @@ on:
         type: string
         description: Node.js version to use
         default: latest
+      use-biome:
+        required: false
+        type: boolean
+        description: Use Biome to format code
+        default: true
+      biome-glob:
+        required: false
+        type: string
+        description: Glob pattern for Biome to format
+        default: '**/*.{js,jsx,ts,tsx,json,css,scss}'
+      use-oxlint:
+        required: false
+        type: boolean
+        description: Use Oxlint to lint code
+        default: true
       use-prettier:
         required: false
         type: boolean
         description: Use Prettier to format code
-        default: true
+        default: false
       prettier-glob:
         required: false
         type: string
@@ -26,8 +41,8 @@ on:
       use-eslint:
         required: false
         type: boolean
-        description: Use ESLint to format code
-        default: true
+        description: Use ESLint to lint code
+        default: false
       lint-before-pr:
         required: false
         type: boolean
@@ -100,14 +115,20 @@ jobs:
               npm install -g pnpm
               pnpm install --frozen-lockfile
               pnpm add --save-dev \
-                ${{ inputs.use-eslint && 'eslint typescript @typescript-eslint/eslint-plugin @typescript-eslint/parser' || '' }} \
+                typescript \
+                ${{ inputs.use-oxlint && 'oxlint' || '' }} \
+                ${{ inputs.use-biome && 'biome' || '' }} \
+                ${{ inputs.use-eslint && 'eslint @typescript-eslint/eslint-plugin @typescript-eslint/parser' || '' }} \
                 ${{ inputs.use-prettier && 'prettier eslint-config-prettier' || '' }}
               ;;
             yarn )
               npm install -g yarn
               yarn install --frozen-lockfile
               yarn add --dev \
-                ${{ inputs.use-eslint && 'eslint typescript @typescript-eslint/eslint-plugin @typescript-eslint/parser' || '' }} \
+                typescript \
+                ${{ inputs.use-oxlint && 'oxlint' || '' }} \
+                ${{ inputs.use-biome && 'biome' || '' }} \
+                ${{ inputs.use-eslint && 'eslint @typescript-eslint/eslint-plugin @typescript-eslint/parser' || '' }} \
                 ${{ inputs.use-prettier && 'prettier eslint-config-prettier' || '' }}
               ;;
             * )
@@ -119,7 +140,10 @@ jobs:
                 npm upgrade -g
               fi
               npm install --save-dev \
-                ${{ inputs.use-eslint && 'eslint typescript @typescript-eslint/eslint-plugin @typescript-eslint/parser' || '' }} \
+                typescript \
+                ${{ inputs.use-oxlint && 'oxlint' || '' }} \
+                ${{ inputs.use-biome && 'biome' || '' }} \
+                ${{ inputs.use-eslint && 'eslint @typescript-eslint/eslint-plugin @typescript-eslint/parser' || '' }} \
                 ${{ inputs.use-prettier && 'prettier eslint-config-prettier' || '' }}
               ;;
           esac
@@ -155,6 +179,13 @@ jobs:
               fi
               ;;
           esac
+      - name: Format the code using Biome
+        if: inputs.use-biome
+        working-directory: ${{ inputs.package-path }}
+        env:
+          BIOME_GLOB: ${{ inputs.biome-glob }}
+        run: >
+          biome check --write --files-ignore-unknown=true "${BIOME_GLOB}"
       - name: Format the code using Prettier
         if: inputs.use-prettier
         working-directory: ${{ inputs.package-path }}
@@ -162,6 +193,11 @@ jobs:
           PRETTIER_GLOB: ${{ inputs.prettier-glob }}
         run: >
           prettier --write "${PRETTIER_GLOB}"
+      - name: Lint the code using Oxlint
+        if: inputs.use-oxlint && inputs.lint-before-pr
+        working-directory: ${{ inputs.package-path }}
+        run: >
+          oxlint --fix .
       - name: Lint the code using ESLint
         if: inputs.use-eslint && inputs.lint-before-pr
         working-directory: ${{ inputs.package-path }}
@@ -170,21 +206,32 @@ jobs:
       - name: Create output parameters
         id: parameters
         env:
+          USE_BIOME: ${{ inputs.use-biome }}
+          USE_OXLINT: ${{ inputs.use-oxlint }}
           USE_PRETTIER: ${{ inputs.use-prettier }}
           USE_ESLINT: ${{ inputs.use-eslint }}
           PR_BASE: ${{ github.head_ref || github.ref_name }}
         run: |
-          if ${USE_PRETTIER} && ${USE_ESLINT}; then
-            formatters='prettier and eslint'
-          elif ${USE_PRETTIER}; then
-            formatters='prettier'
-          elif ${USE_ESLINT}; then
-            formatters='eslint'
+          formatters=()
+          if ${USE_BIOME}; then
+            formatters+=('biome')
+          fi
+          if ${USE_OXLINT}; then
+            formatters+=('oxlint')
+          fi
+          if ${USE_PRETTIER}; then
+            formatters+=('prettier')
+          fi
+          if ${USE_ESLINT}; then
+            formatters+=('eslint')
+          fi
+          if [[ "${#formatters[@]}" -gt 0 ]]; then
+            formatter_text="$(IFS=', '; echo "${formatters[*]}")"
           else
-            formatters='TypeScript formatters'
+            formatter_text='TypeScript formatters'
           fi
           {
-            echo "commit_message=Reformat TypeScript code using ${formatters} and fix security vulnerabilities"
+            echo "commit_message=Reformat TypeScript code using ${formatter_text} and fix security vulnerabilities"
             echo "pr_base=${PR_BASE}"
             echo "pr_branch=automatedpr/${PR_BASE}"
           } >> "${GITHUB_OUTPUT}"
