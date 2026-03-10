@@ -50,15 +50,29 @@ if [[ "${N_TYPESCRIPT_FILES}" -gt 0 ]] || [[ "${N_JAVASCRIPT_FILES}" -gt 0 ]]; t
     NODE_MODULES_BIN="${PACKAGE_DIRECTORY}/node_modules/.bin"
     TSCONFIG_JSON_FILE="${PACKAGE_DIRECTORY}/tsconfig.json"
     PATH="${NODE_MODULES_BIN}:${PATH}"
-    prettier --write "${PACKAGE_DIRECTORY}/**/*.{js,jsx,ts,tsx,json,css,scss}"
-    eslint --fix --ext .js,.jsx,.ts,.tsx --no-error-on-unmatched-pattern "${PACKAGE_DIRECTORY}"
   else
     PACKAGE_DIRECTORY='.'
-    prettier --write '**/*.{js,jsx,ts,tsx,json,css,scss}'
-    eslint --fix --ext .js,.jsx,.ts,.tsx --no-error-on-unmatched-pattern .
+    TSCONFIG_JSON_FILE=''
   fi
+
+  if command -v biome >/dev/null 2>&1; then
+    biome check --write "${PACKAGE_DIRECTORY}"
+  fi
+  if command -v prettier >/dev/null 2>&1; then
+    prettier --write "${PACKAGE_DIRECTORY}/**/*.{js,jsx,ts,tsx,json,css,scss}"
+  fi
+  if command -v oxlint >/dev/null 2>&1; then
+    if [[ -f "${TSCONFIG_JSON_FILE}" ]]; then
+      oxlint --fix --type-aware --tsconfig "${TSCONFIG_JSON_FILE}" "${PACKAGE_DIRECTORY}"
+    else
+      oxlint --fix "${PACKAGE_DIRECTORY}"
+    fi
+  fi
+  if command -v eslint >/dev/null 2>&1; then
+    eslint --fix --ext .js,.jsx,.ts,.tsx --no-error-on-unmatched-pattern "${PACKAGE_DIRECTORY}"
+  fi
+
   if [[ "${N_TYPESCRIPT_FILES}" -gt 0 ]]; then
-    TSCONFIG_JSON_FILE="${PACKAGE_DIRECTORY}/tsconfig.json"
     if [[ -f "${TSCONFIG_JSON_FILE}" ]]; then
       tsc --noEmit --project "${TSCONFIG_JSON_FILE}"
     else
