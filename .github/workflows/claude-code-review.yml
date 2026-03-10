@@ -37,8 +37,6 @@ jobs:
       id-token: write
       actions: read
     runs-on: ${{ inputs.runs-on }}
-    env:
-      CLAUDE_CODE_ACTION_REF: 1fc90f3ed982521116d8ff6d85b948c9b12cae3e
     steps:
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
@@ -48,10 +46,10 @@ jobs:
           persist-credentials: false
       - name: Deploy agents and commands from Claude Code Action
         run: |
-          action_dir="${GITHUB_WORKSPACE}/../_actions/anthropics/claude-code-action/${CLAUDE_CODE_ACTION_REF}"
+          action_dir="$(echo "${GITHUB_WORKSPACE}"/../_actions/anthropics/claude-code-action/*/)"
           [[ -d .claude ]] || mkdir -p .claude
-          rsync -av "${action_dir}/.claude/agents/" .claude/agents/
-          rsync -av "${action_dir}/.claude/commands/" .claude/commands/
+          rsync -av "${action_dir}.claude/agents/" .claude/agents/
+          rsync -av "${action_dir}.claude/commands/" .claude/commands/
           [[ -f .claude/commands/review-pr.md ]] || exit 1
       - name: Run PR review with Claude Code
         uses: anthropics/claude-code-action@1fc90f3ed982521116d8ff6d85b948c9b12cae3e  # v1.0.69
