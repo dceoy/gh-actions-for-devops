@@ -82,8 +82,8 @@ jobs:
     steps:
       - name: Validate the Slack channel ID and API token
         env:
-          SLACK_CHANNEL_ID: ${{ secrets.SLACK_CHANNEL_ID }}
-          SLACK_API_TOKEN: ${{ secrets.SLACK_API_TOKEN }}
+          SLACK_CHANNEL_ID: ${{ secrets.SLACK_CHANNEL_ID }}  # zizmor: ignore[secrets-outside-env] caller-provided secret
+          SLACK_API_TOKEN: ${{ secrets.SLACK_API_TOKEN }}  # zizmor: ignore[secrets-outside-env] caller-provided secret
         run: |
           if [[ -z "${SLACK_CHANNEL_ID}" ]]; then
             echo "Error: SLACK_CHANNEL_ID is not set." >&2
@@ -103,7 +103,7 @@ jobs:
         with:
           prompt: ${{ inputs.gemini-cli-prompt }}
           settings: ${{ inputs.gemini-cli-settings }}
-          gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
+          gemini_api_key: ${{ secrets.GEMINI_API_KEY }}  # zizmor: ignore[secrets-outside-env] caller-provided secret
           gemini_cli_version: ${{ env.GEMINI_CLI_VERSION }}
       - name: Validate Gemini CLI run outcome
         if: >
@@ -117,7 +117,7 @@ jobs:
           RUN_GEMINI_CLI_OUTPUTS_SUMMARY: ${{ steps.gemini-cli-run.outputs.summary }}
           RUN_GEMINI_CLI_OUTPUTS_ERROR: ${{ steps.gemini-cli-run.outputs.error }}
           SLACK_MESSAGE_TEXT_FILE_PATH: ${{ inputs.slack-message-text-file-path }}
-          SLACK_CHANNEL_ID: ${{ secrets.SLACK_CHANNEL_ID }}
+          SLACK_CHANNEL_ID: ${{ secrets.SLACK_CHANNEL_ID }}  # zizmor: ignore[secrets-outside-env] caller-provided secret
         run: |
           {
             if [[ -n "${SLACK_MESSAGE_TEXT_FILE_PATH}" ]]; then
@@ -143,5 +143,5 @@ jobs:
         uses: slackapi/slack-github-action@91efab103c0de0a537f72a35f6b8cda0ee76bf0a  # v2.1.1
         with:
           method: chat.postMessage
-          token: ${{ secrets.SLACK_API_TOKEN }}
+          token: ${{ secrets.SLACK_API_TOKEN }}  # zizmor: ignore[secrets-outside-env] caller-provided secret
           payload: ${{ steps.create-slack-payload.outputs.slack_payload_json }}

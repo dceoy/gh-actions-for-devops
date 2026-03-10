@@ -152,5 +152,5 @@ jobs:
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@4f9cc6602d3f66b9c108549d475ec49e8ef4d45e  # v4.0.0
         with:
-          github_token: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
+          github_token: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}  # zizmor: ignore[secrets-outside-env] caller-provided secret
           publish_dir: ${{ env.MKDOCS_SITE_DIR }}

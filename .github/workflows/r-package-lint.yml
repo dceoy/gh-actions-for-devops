@@ -38,7 +38,7 @@ jobs:
   lint:
     runs-on: ${{ inputs.runs-on }}
     env:
-      GITHUB_PAT: ${{ secrets.PAT }}
+      GITHUB_PAT: ${{ secrets.PAT }}  # zizmor: ignore[secrets-outside-env] caller-provided secret
       R_LIBS_USER: ${{ inputs.r-libs-user }}
       LINTR_ERROR_ON_LINT: true
     steps:

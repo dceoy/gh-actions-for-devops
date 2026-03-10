@@ -125,7 +125,7 @@ jobs:
         uses: slackapi/slack-github-action@91efab103c0de0a537f72a35f6b8cda0ee76bf0a  # v2.1.1
         with:
           method: chat.postMessage
-          token: ${{ secrets.SLACK_API_TOKEN }}
+          token: ${{ secrets.SLACK_API_TOKEN }}  # zizmor: ignore[secrets-outside-env] caller-provided secret
           payload: |
             channel: ${{ inputs.slack-channel-id }}
             attachments:  # https://api.slack.com/reference/messaging/attachments

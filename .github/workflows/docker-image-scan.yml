@@ -102,7 +102,7 @@ jobs:
         with:
           registry: ${{ inputs.registry }}
           username: ${{ inputs.registry-user }}
-          password: ${{ secrets.DOCKER_TOKEN }}
+          password: ${{ secrets.DOCKER_TOKEN }}  # zizmor: ignore[secrets-outside-env] caller-provided secret
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@e368e328979b113139d6f9068e03accaed98a518  # 0.34.1
         with:
@@ -116,7 +116,7 @@ jobs:
           timeout: ${{ inputs.trivy-timeout }}
           format: github
           output: dependency-results.${{ strategy.job-index }}.sbom.json
-          github-pat: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
+          github-pat: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}  # zizmor: ignore[secrets-outside-env] caller-provided secret
         env:
           TRIVY_CHECKS_REPOSITORY: public.ecr.aws/aquasecurity/trivy-checks
           TRIVY_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-db

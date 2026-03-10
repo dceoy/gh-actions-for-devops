@@ -178,7 +178,7 @@ jobs:
           persona: ${{ inputs.zizmor-persona }}
           min-severity: ${{ inputs.zizmor-min-severity }}
           min-confidence: ${{ inputs.zizmor-min-confidence }}
-          token: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}  # zizmor: ignore[secrets-outside-env] caller-provided secret
           advanced-security: ${{ inputs.zizmor-advanced-security }}
           annotations: ${{ ! inputs.zizmor-advanced-security }}
           config: ${{ inputs.zizmor-config }}
@@ -195,7 +195,7 @@ jobs:
           output_format: ${{ inputs.checkov-output-format }}
           output_file_path: ${{ inputs.checkov-output-file-path }}
           soft_fail: ${{ inputs.checkov-soft-fail }}
-          api-key: ${{ secrets.BC_API_KEY }}
+          api-key: ${{ secrets.BC_API_KEY }}  # zizmor: ignore[secrets-outside-env] caller-provided secret
   yaml-lint:
     if: inputs.use-yamllint
     uses: ./.github/workflows/yaml-lint.yml

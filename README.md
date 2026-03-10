@@ -105,6 +105,9 @@ The workflows are organized by category for easier navigation. Each workflow is 
 - [gcloud-infra-manager-deployments.yml](.github/workflows/gcloud-infra-manager-deployments.yml)
   - Deployment of Google Cloud resources using Infrastructure Manager
 
+- [gemini-cli-review.yml](.github/workflows/gemini-cli-review.yml)
+  - Pull request review using Gemini CLI
+
 - [gemini-cli-to-slack.yml](.github/workflows/gemini-cli-to-slack.yml)
   - Gemini CLI with Slack notification
 

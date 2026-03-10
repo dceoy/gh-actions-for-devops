@@ -41,7 +41,7 @@ jobs:
     env:
       BRANCH_PREFIX: ${{ inputs.branch-prefix }}
       HEAD_REF: ${{ github.head_ref }}
-      GH_TOKEN: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
+      GH_TOKEN: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}  # zizmor: ignore[secrets-outside-env] caller-provided secret
     outputs:
       pr_branches_json: ${{ steps.list-open-prs.outputs.pr_branches_json }}
     steps:
@@ -67,7 +67,7 @@ jobs:
     env:
       BRANCHES_JSON: ${{ needs.branch-list.outputs.pr_branches_json }}
       HEAD_REF: ${{ github.head_ref }}
-      GH_TOKEN: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
+      GH_TOKEN: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}  # zizmor: ignore[secrets-outside-env] caller-provided secret
     steps:
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2

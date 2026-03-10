@@ -37,44 +37,29 @@ jobs:
       id-token: write
       actions: read
     runs-on: ${{ inputs.runs-on }}
-    env:
-      CLAUDE_CODE_ACTION: anthropics/claude-code-action@1fc90f3ed982521116d8ff6d85b948c9b12cae3e  # v1.0.69
     steps:
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
         with:
           fetch-depth: 1
-          token: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}  # zizmor: ignore[secrets-outside-env] caller-provided secret
           persist-credentials: false
-      - name: Set environment variables
-        run: >
-          {
-            echo "CLAUDE_CODE_ACTION_SHA=${CLAUDE_CODE_ACTION##*@}";
-            echo "CLAUDE_CODE_ACTION_CACHE_DIR=${RUNNER_TEMP}/claude-code-action-cache";
-          } >> "${GITHUB_ENV}"
-      - name: Cache Claude Code Action assets
-        id: claude-code-action-cache
-        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306  # v5.0.3
-        with:
-          path: ${{ env.RUNNER_TEMP }}/claude-code-action-cache
-          key: claude-code-action-${{ env.CLAUDE_CODE_ACTION_SHA }}
-      - name: Download Claude Code Action (if not cached)
-        if: (! steps.claude-code-action-cache.outputs.cache-hit)
+      - name: Deploy agents and commands from Claude Code Action
         run: |
-          mkdir -p "${CLAUDE_CODE_ACTION_CACHE_DIR}"
-          curl -fsSL \
-            -o "${CLAUDE_CODE_ACTION_CACHE_DIR}/${CLAUDE_CODE_ACTION_SHA}.tar.gz" \
-            "https://github.com/anthropics/claude-code-action/archive/${CLAUDE_CODE_ACTION_SHA}.tar.gz"
-      - name: Extract and install agents and commands from Claude Code Action
-        run: |
+          action_ref="$(grep -m1 -oP 'anthropics/claude-code-action@\K[0-9a-f]+' \
+            "${GITHUB_WORKSPACE}/.github/workflows/claude-code-review.yml")"
+          action_dir="${GITHUB_WORKSPACE}/../../_actions/anthropics/claude-code-action/${action_ref}/"
+          if [[ ! -d "${action_dir}" ]]; then
+            echo "::error::Could not find claude-code-action at ref ${action_ref}"
+            exit 1
+          fi
           [[ -d .claude ]] || mkdir -p .claude
-          tar -xzf "${CLAUDE_CODE_ACTION_CACHE_DIR}/${CLAUDE_CODE_ACTION_SHA}.tar.gz" -C "${RUNNER_TEMP}/"
-          rsync -av "${RUNNER_TEMP}/claude-code-action-${CLAUDE_CODE_ACTION_SHA}/.claude/agents/" .claude/agents/
-          rsync -av "${RUNNER_TEMP}/claude-code-action-${CLAUDE_CODE_ACTION_SHA}/.claude/commands/" .claude/commands/
+          rsync -av "${action_dir}.claude/agents/" .claude/agents/
+          rsync -av "${action_dir}.claude/commands/" .claude/commands/
           [[ -f .claude/commands/review-pr.md ]] || exit 1
       - name: Run PR review with Claude Code
         uses: anthropics/claude-code-action@1fc90f3ed982521116d8ff6d85b948c9b12cae3e  # v1.0.69
         with:
-          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}  # zizmor: ignore[secrets-outside-env] caller-provided secret
           prompt: '/review-pr REPO: ${{ github.repository }} PR_NUMBER: ${{ github.event.pull_request.number }}'
           claude_args: ${{ inputs.claude-args }}
