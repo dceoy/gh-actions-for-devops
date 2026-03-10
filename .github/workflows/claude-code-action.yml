@@ -186,7 +186,6 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
         with:
           fetch-depth: 1
-          token: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}  # zizmor: ignore[secrets-outside-env] caller-provided secret
           persist-credentials: false
       - name: Configure AWS credentials
         if: inputs.aws-iam-role-to-assume != null
@@ -207,7 +206,7 @@ jobs:
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}  # zizmor: ignore[secrets-outside-env] caller-provided secret
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}  # zizmor: ignore[secrets-outside-env] caller-provided secret
-          github_token: ${{ secrets.GH_TOKEN || github.token }}  # zizmor: ignore[secrets-outside-env] caller-provided secret
+          github_token: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}  # zizmor: ignore[secrets-outside-env] caller-provided secret
           prompt: ${{ inputs.prompt }}
           claude_args: ${{ inputs.claude-args }}
           track_progress: ${{ inputs.track-progress }}

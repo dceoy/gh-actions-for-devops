@@ -39,13 +39,12 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
         with:
           fetch-depth: 1
-          token: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}  # zizmor: ignore[secrets-outside-env] caller-provided secret
-          persist-credentials: true
+          persist-credentials: false
       - name: Run Claude Code
         uses: anthropics/claude-code-action@26ec041249acb0a944c0a47b6c0c13f05dbc5b44  # v1.0.70
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}  # zizmor: ignore[secrets-outside-env] caller-provided secret
-          github_token: ${{ secrets.GH_TOKEN || github.token }}  # zizmor: ignore[secrets-outside-env] caller-provided secret
+          github_token: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}  # zizmor: ignore[secrets-outside-env] caller-provided secret
           additional_permissions: |
             actions: read   # This is an optional setting that allows Claude to read CI results on PRs
 
