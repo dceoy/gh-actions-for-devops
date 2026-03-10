@@ -52,13 +52,13 @@ if [[ "${N_TYPESCRIPT_FILES}" -gt 0 ]] || [[ "${N_JAVASCRIPT_FILES}" -gt 0 ]]; t
     PATH="${NODE_MODULES_BIN}:${PATH}"
   else
     PACKAGE_DIRECTORY='.'
-    TSCONFIG_JSON_FILE=''
+    TSCONFIG_JSON_FILE='./tsconfig.json'
   fi
 
   if command -v biome >/dev/null 2>&1; then
     biome check --write "${PACKAGE_DIRECTORY}"
   fi
-  if command -v prettier >/dev/null 2>&1; then
+  if command -v prettier >/dev/null 2>&1 && ! command -v biome >/dev/null 2>&1; then
     prettier --write "${PACKAGE_DIRECTORY}/**/*.{js,jsx,ts,tsx,json,css,scss}"
   fi
   if command -v oxlint >/dev/null 2>&1; then

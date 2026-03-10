@@ -16,7 +16,7 @@ on:
       use-biome:
         required: false
         type: boolean
-        description: Use Biome to check formatting
+        description: Use Biome to check formatting and linting
         default: true
       biome-glob:
         required: false
@@ -46,7 +46,7 @@ on:
       use-react:
         required: false
         type: boolean
-        description: Include React-specific ESLint plugins when ESLint is enabled
+        description: "Include React-specific ESLint plugins when ESLint is enabled (`use-eslint: true` required)"
         default: false
       use-tsc:
         required: false
@@ -180,7 +180,7 @@ jobs:
         working-directory: ${{ inputs.package-path }}
         run: >
           eslint --ext .js,.jsx,.ts,.tsx --no-error-on-unmatched-pattern .
-      - name: Check formatting with Biome
+      - name: Check formatting and linting with Biome
         if: inputs.use-biome
         working-directory: ${{ inputs.package-path }}
         env:

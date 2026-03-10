@@ -16,12 +16,12 @@ on:
       use-biome:
         required: false
         type: boolean
-        description: Use Biome to format code
+        description: Use Biome to format and lint code
         default: true
       biome-glob:
         required: false
         type: string
-        description: Glob pattern for Biome to format
+        description: Glob pattern for Biome to check and write
         default: '**/*.{js,jsx,ts,tsx,json,css,scss}'
       use-oxlint:
         required: false
@@ -179,7 +179,7 @@ jobs:
               fi
               ;;
           esac
-      - name: Format the code using Biome
+      - name: Format and lint the code using Biome
         if: inputs.use-biome
         working-directory: ${{ inputs.package-path }}
         env:
