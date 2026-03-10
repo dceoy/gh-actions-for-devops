@@ -187,7 +187,7 @@ jobs:
         with:
           fetch-depth: 1
           token: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}  # zizmor: ignore[secrets-outside-env] caller-provided secret
-          persist-credentials: false
+          persist-credentials: true
       - name: Configure AWS credentials
         if: inputs.aws-iam-role-to-assume != null
         uses: aws-actions/configure-aws-credentials@8df5847569e6427dd6c4fb1cf565c83acfa8afa7  # v6.0.0
