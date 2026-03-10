@@ -113,7 +113,13 @@ jobs:
       - name: Deploy gemini-review command if missing
         run: |
           if [[ ! -f .gemini/commands/gemini-review.toml ]]; then
-            action_dir="$(echo "${GITHUB_WORKSPACE}"/../_actions/google-github-actions/run-gemini-cli/*/)"
+            action_base="${GITHUB_WORKSPACE}/../_actions/google-github-actions/run-gemini-cli"
+            for d in "${action_base}"/*/; do action_dir="${d}"; break; done
+            if [[ -z "${action_dir:-}" || ! -d "${action_dir}" ]]; then
+              echo "::error::Could not find run-gemini-cli action directory under ${action_base}/"
+              ls -la "${action_base}/" 2>&1 || true
+              exit 1
+            fi
             mkdir -p .gemini/commands
             cp "${action_dir}.github/commands/gemini-review.toml" \
               .gemini/commands/gemini-review.toml
