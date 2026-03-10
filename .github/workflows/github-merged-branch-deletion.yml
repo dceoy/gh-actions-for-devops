@@ -35,7 +35,7 @@ jobs:
       inputs.pull-request-number != null || github.event.pull_request.merged
     runs-on: ${{ inputs.runs-on }}
     env:
-      GH_TOKEN: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
+      GH_TOKEN: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}  # zizmor: ignore[secrets-outside-env] caller-provided secret
       PR_NUMBER: ${{ inputs.pull-request-number || github.event.pull_request.number }}
     steps:
       - name: Checkout repository

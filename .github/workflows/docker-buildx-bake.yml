@@ -225,7 +225,7 @@ jobs:
         with:
           registry: ${{ inputs.registry }}
           username: ${{ inputs.registry-user }}
-          password: ${{ secrets.DOCKER_TOKEN }}
+          password: ${{ secrets.DOCKER_TOKEN }}  # zizmor: ignore[secrets-outside-env] caller-provided secret
       - name: Pull images if exist
         if: inputs.pull-images-if-exist
         id: docker-pull-before-build
@@ -259,7 +259,7 @@ jobs:
           push: ${{ inputs.push }}
           load: ${{ ! inputs.push }}
           provenance: ${{ inputs.provenance }}
-          github-token: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
+          github-token: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}  # zizmor: ignore[secrets-outside-env] caller-provided secret
       - name: Extract image refs
         id: extract-image-refs
         env:

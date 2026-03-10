@@ -108,7 +108,7 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
         with:
           fetch-depth: 1
-          token: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}  # zizmor: ignore[secrets-outside-env] caller-provided secret
           persist-credentials: false
       - name: Deploy gemini-review command if missing
         run: |
@@ -137,7 +137,7 @@ jobs:
       - name: Run Gemini CLI pull request review
         uses: google-github-actions/run-gemini-cli@9dbec29a20fab3f35017a40ad0eb798a257d4d51  # v0.1.21
         env:
-          GITHUB_TOKEN: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}  # zizmor: ignore[secrets-outside-env] caller-provided secret
           ISSUE_TITLE: >-
             ${{ github.event.pull_request.title
             || github.event.issue.title }}
@@ -149,8 +149,8 @@ jobs:
             || github.event.issue.number }}
           REPOSITORY: ${{ github.repository }}
         with:
-          gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
-          google_api_key: ${{ secrets.GOOGLE_API_KEY }}
+          gemini_api_key: ${{ secrets.GEMINI_API_KEY }}  # zizmor: ignore[secrets-outside-env] caller-provided secret
+          google_api_key: ${{ secrets.GOOGLE_API_KEY }}  # zizmor: ignore[secrets-outside-env] caller-provided secret
           gemini_cli_version: ${{ inputs.gemini-cli-version }}
           gemini_model: ${{ inputs.gemini-model }}
           use_vertex_ai: ${{ inputs.use-vertex-ai }}

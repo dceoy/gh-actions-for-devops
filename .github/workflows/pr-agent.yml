@@ -172,7 +172,7 @@ jobs:
       - name: Run PR-agent
         uses: qodo-ai/pr-agent@1b0609a013f53694c36d457149bde70abf50c048  # v0.32
         env:
-          GITHUB_TOKEN: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}  # zizmor: ignore[secrets-outside-env] caller-provided secret
           CONFIG.AUTO_DESCRIBE: ${{ inputs.auto-describe || 'true' }}
           CONFIG.AUTO_REVIEW: ${{ inputs.auto-review || 'true' }}
           CONFIG.AUTO_IMPROVE: ${{ inputs.auto-improve || 'true' }}
@@ -187,10 +187,10 @@ jobs:
           PR_REVIEWER.EXTRA_INSTRUCTIONS: ${{ inputs.pr-reviewer-extra-instructions }}
           PR_CODE_SUGGESTIONS.EXTRA_INSTRUCTIONS: ${{ inputs.pr-code-suggestions-extra-instructions }}
           PR_UPDATE_CHANGELOG.EXTRA_INSTRUCTIONS: ${{ inputs.pr-update-changelog-extra-instructions }}
-          GROQ.KEY: ${{ secrets.GROQ_API_KEY }}
+          GROQ.KEY: ${{ secrets.GROQ_API_KEY }}  # zizmor: ignore[secrets-outside-env] caller-provided secret
           OPENAI.API_TYPE: ${{ inputs.openai-api-type }}
           OPENAI.API_BASE: ${{ inputs.openai-api-base }}
           OPENAI.API_VERSION: ${{ inputs.openai-api-version }}
           OPENAI.DEPLOYMENT_ID: ${{ inputs.openai-deployment-id }}
-          OPENAI.ORG: ${{ secrets.OPENAI_ORGANIZATION }}
-          OPENAI.KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI.ORG: ${{ secrets.OPENAI_ORGANIZATION }}  # zizmor: ignore[secrets-outside-env] caller-provided secret
+          OPENAI.KEY: ${{ secrets.OPENAI_API_KEY }}  # zizmor: ignore[secrets-outside-env] caller-provided secret

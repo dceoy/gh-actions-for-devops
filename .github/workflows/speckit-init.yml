@@ -103,4 +103,4 @@ jobs:
           add: ${{ inputs.git-add-args }}
           message: Update Spec Kit output files
           push: true
-          github_token: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
+          github_token: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}  # zizmor: ignore[secrets-outside-env] caller-provided secret
