@@ -113,16 +113,16 @@ jobs:
       - name: Deploy gemini-review command if missing
         run: |
           if [[ ! -f .gemini/commands/gemini-review.toml ]]; then
-            action_ref="$(grep -m1 -oP 'google-github-actions/run-gemini-cli@\K[0-9a-f]+' \
-              "${GITHUB_WORKSPACE}/.github/workflows/gemini-cli-review.yml")"
-            action_dir="${GITHUB_WORKSPACE}/../../_actions/google-github-actions/run-gemini-cli/${action_ref}/"
-            if [[ ! -d "${action_dir}" ]]; then
-              echo "::error::Could not find run-gemini-cli at ref ${action_ref}"
+            action_root="${GITHUB_WORKSPACE}/../../_actions/google-github-actions/run-gemini-cli"
+            action_dir="$(find "${action_root}" -mindepth 1 -maxdepth 1 -type d | head -n 1)"
+            command_path="${action_dir}/.github/commands/gemini-review.toml"
+            if [[ -z "${action_dir}" || ! -f "${command_path}" ]]; then
+              echo "::error::Could not find gemini-review command under ${action_root}"
               exit 1
+            else
+              [[ -d .gemini/commands ]] || mkdir -p .gemini/commands
+              cp "${command_path}" .gemini/commands/gemini-review.toml
             fi
-            mkdir -p .gemini/commands
-            cp "${action_dir}.github/commands/gemini-review.toml" \
-              .gemini/commands/gemini-review.toml
           fi
       - name: Generate default settings
         id: default-settings

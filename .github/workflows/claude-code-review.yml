@@ -46,17 +46,18 @@ jobs:
           persist-credentials: false
       - name: Deploy agents and commands from Claude Code Action
         run: |
-          action_ref="$(grep -m1 -oP 'anthropics/claude-code-action@\K[0-9a-f]+' \
-            "${GITHUB_WORKSPACE}/.github/workflows/claude-code-review.yml")"
-          action_dir="${GITHUB_WORKSPACE}/../../_actions/anthropics/claude-code-action/${action_ref}/"
-          if [[ ! -d "${action_dir}" ]]; then
-            echo "::error::Could not find claude-code-action at ref ${action_ref}"
+          action_root="${GITHUB_WORKSPACE}/../../_actions/anthropics/claude-code-action"
+          action_dir="$(find "${action_root}" -mindepth 1 -maxdepth 1 -type d | head -n 1)"
+          if [[ -z "${action_dir}" || ! -d "${action_dir}/.claude" ]]; then
+            echo "::error::Could not find claude-code-action under ${action_root}"
             exit 1
+          else
+            [[ -d .claude/agents ]] || mkdir -p .claude/agents
+            [[ -d .claude/commands ]] || mkdir -p .claude/commands
+            rsync -av "${action_dir}/.claude/agents/" .claude/agents/
+            rsync -av "${action_dir}/.claude/commands/" .claude/commands/
+            [[ -f .claude/commands/review-pr.md ]] || exit 1
           fi
-          [[ -d .claude ]] || mkdir -p .claude
-          rsync -av "${action_dir}.claude/agents/" .claude/agents/
-          rsync -av "${action_dir}.claude/commands/" .claude/commands/
-          [[ -f .claude/commands/review-pr.md ]] || exit 1
       - name: Run PR review with Claude Code
         uses: anthropics/claude-code-action@1fc90f3ed982521116d8ff6d85b948c9b12cae3e  # v1.0.69
         with:
