@@ -12,7 +12,7 @@ on:
         required: false
         type: string
         description: Model to use with Gemini
-        default: gemini-3-pro-preview
+        default: gemini-3.1-pro-preview
       prompt:
         required: false
         type: string
