@@ -113,17 +113,15 @@ jobs:
       - name: Deploy gemini-review command if missing
         run: |
           if [[ ! -f .gemini/commands/gemini-review.toml ]]; then
-            action_ref="$(sed -n 's#.*google-github-actions/run-gemini-cli@\([^[:space:]]*\).*#\1#p' \
-              "${GITHUB_WORKSPACE}/.github/workflows/gemini-cli-review.yml" | head -n 1)"
             action_root="${GITHUB_WORKSPACE}/../../_actions/google-github-actions/run-gemini-cli"
             if [[ ! -d "${action_root}" ]]; then
               echo "::error::Could not find run-gemini-cli under ${action_root}"
               exit 1
             fi
-            action_dir="$(find "${action_root}" -mindepth 1 -maxdepth 1 -type d -name "${action_ref}" | head -n 1)"
+            action_dir="$(find "${action_root}" -mindepth 1 -maxdepth 1 -type d | head -n 1)"
             command_path="${action_dir}/.github/commands/gemini-review.toml"
-            if [[ -z "${action_ref}" || -z "${action_dir}" || ! -f "${command_path}" ]]; then
-              echo "::error::Could not find gemini-review command at pinned ref ${action_ref:-<unknown>}"
+            if [[ ! -f "${command_path}" ]]; then
+              echo "::error::Could not find gemini-review.toml command file at ${command_path:-<unknown>}"
               exit 1
             else
               [[ -d .gemini/commands ]] || mkdir -p .gemini/commands
