@@ -46,7 +46,7 @@ jobs:
           persist-credentials: false
       - name: Deploy agents and commands from Claude Code Action
         run: |
-          action_base="${GITHUB_WORKSPACE}/../_actions/anthropics/claude-code-action"
+          action_base="${GITHUB_WORKSPACE}/../../_actions/anthropics/claude-code-action"
           for d in "${action_base}"/*/; do action_dir="${d}"; break; done
           if [[ -z "${action_dir:-}" || ! -d "${action_dir}" ]]; then
             echo "::error::Could not find claude-code-action directory under ${action_base}/"
