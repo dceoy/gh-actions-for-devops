@@ -46,10 +46,16 @@ jobs:
           persist-credentials: false
       - name: Deploy agents and commands from Claude Code Action
         run: |
+          action_ref="$(sed -n 's#.*anthropics/claude-code-action@\([^[:space:]]*\).*#\1#p' \
+            "${GITHUB_WORKSPACE}/.github/workflows/claude-code-review.yml" | head -n 1)"
           action_root="${GITHUB_WORKSPACE}/../../_actions/anthropics/claude-code-action"
-          action_dir="$(find "${action_root}" -mindepth 1 -maxdepth 1 -type d | head -n 1)"
-          if [[ -z "${action_dir}" || ! -d "${action_dir}/.claude" ]]; then
+          if [[ ! -d "${action_root}" ]]; then
             echo "::error::Could not find claude-code-action under ${action_root}"
+            exit 1
+          fi
+          action_dir="$(find "${action_root}" -mindepth 1 -maxdepth 1 -type d -name "${action_ref}" | head -n 1)"
+          if [[ -z "${action_ref}" || -z "${action_dir}" || ! -d "${action_dir}/.claude" ]]; then
+            echo "::error::Could not find claude-code-action at pinned ref ${action_ref:-<unknown>}"
             exit 1
           else
             [[ -d .claude/agents ]] || mkdir -p .claude/agents
