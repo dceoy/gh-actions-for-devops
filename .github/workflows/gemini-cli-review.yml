@@ -60,11 +60,11 @@ on:
         type: string
         description: Google Cloud Workload Identity Provider
         default: null
-      github-app-id:
+      github-mcp-server-version:
         required: false
         type: string
-        description: GitHub App ID for minting a token (optional)
-        default: null
+        description: Version tag of ghcr.io/github/github-mcp-server
+        default: latest
       runs-on:
         required: false
         type: string
@@ -77,9 +77,6 @@ on:
       GOOGLE_API_KEY:
         required: false
         description: Vertex AI API key
-      GITHUB_APP_PRIVATE_KEY:
-        required: false
-        description: GitHub App private key for minting a token
       GH_TOKEN:
         required: false
         description: GitHub token for accessing the repository
@@ -106,30 +103,36 @@ jobs:
       pull-requests: write
     runs-on: ${{ inputs.runs-on }}
     timeout-minutes: 10
+    env:
+      GEMINI_REVIEW_TOML_URL: >-
+        https://raw.githubusercontent.com/google-github-actions/run-gemini-cli/main/.github/commands/gemini-review.toml
     steps:
-      - name: Mint GitHub App token
-        id: mint-github-app-token
-        if: inputs.github-app-id != null
-        uses: actions/create-github-app-token@29824e69f54612133e76f7eaac726eef6c875baf  # v2.2.1
-        with:
-          app-id: ${{ inputs.github-app-id }}
-          private-key: ${{ secrets.GITHUB_APP_PRIVATE_KEY }}
-          permissions: >-
-            {"contents": "read", "issues": "write", "pull_requests": "write"}
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
         with:
           fetch-depth: 1
-          token: >-
-            ${{ steps.mint-github-app-token.outputs.token
-            || secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
           persist-credentials: false
+      - name: Deploy gemini-review command if missing
+        run: |
+          if [[ ! -f .gemini/commands/gemini-review.toml ]]; then
+            mkdir -p .gemini/commands
+            curl -fsSL -o .gemini/commands/gemini-review.toml \
+              "${GEMINI_REVIEW_TOML_URL}"
+          fi
+      - name: Generate default settings
+        id: default-settings
+        if: inputs.settings == null
+        env:
+          GITHUB_MCP_SERVER_VERSION: ${{ inputs.github-mcp-server-version }}
+        run: |
+          cat << JEOF >> "${GITHUB_OUTPUT}"
+          json={"model":{"maxSessionTurns":25},"mcpServers":{"github":{"command":"docker","args":["run","-i","--rm","-e","GITHUB_PERSONAL_ACCESS_TOKEN","ghcr.io/github/github-mcp-server:${GITHUB_MCP_SERVER_VERSION}"],"includeTools":["add_comment_to_pending_review","pull_request_read","pull_request_review_write"],"env":{"GITHUB_PERSONAL_ACCESS_TOKEN":"\${GITHUB_TOKEN}"}}},"tools":{"core":["run_shell_command(cat)","run_shell_command(echo)","run_shell_command(grep)","run_shell_command(head)","run_shell_command(tail)"]}}
+          JEOF
       - name: Run Gemini CLI pull request review
         uses: google-github-actions/run-gemini-cli@9dbec29a20fab3f35017a40ad0eb798a257d4d51  # v0.1.21
         env:
-          GITHUB_TOKEN: >-
-            ${{ steps.mint-github-app-token.outputs.token
-            || secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
           ISSUE_TITLE: >-
             ${{ github.event.pull_request.title
             || github.event.issue.title }}
@@ -154,36 +157,6 @@ jobs:
           gcp_workload_identity_provider: ${{ inputs.gcp-workload-identity-provider }}
           workflow_name: gemini-cli-review
           settings: >-
-            ${{ inputs.settings || '{
-              "model": {
-                "maxSessionTurns": 25
-              },
-              "mcpServers": {
-                "github": {
-                  "command": "docker",
-                  "args": [
-                    "run", "-i", "--rm",
-                    "-e", "GITHUB_PERSONAL_ACCESS_TOKEN",
-                    "ghcr.io/github/github-mcp-server:v0.27.0"
-                  ],
-                  "includeTools": [
-                    "add_comment_to_pending_review",
-                    "pull_request_read",
-                    "pull_request_review_write"
-                  ],
-                  "env": {
-                    "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN}"
-                  }
-                }
-              },
-              "tools": {
-                "core": [
-                  "run_shell_command(cat)",
-                  "run_shell_command(echo)",
-                  "run_shell_command(grep)",
-                  "run_shell_command(head)",
-                  "run_shell_command(tail)"
-                ]
-              }
-            }' }}
+            ${{ inputs.settings
+            || steps.default-settings.outputs.json }}
           prompt: ${{ inputs.prompt }}
