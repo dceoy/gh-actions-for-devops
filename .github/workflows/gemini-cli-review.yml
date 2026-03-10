@@ -128,10 +128,11 @@ jobs:
         id: default-settings
         if: inputs.settings == null
         env:
+          GEMINI_MODEL: ${{ inputs.gemini-model }}
           GITHUB_MCP_SERVER_VERSION: ${{ inputs.github-mcp-server-version }}
         run: |
           cat << JEOF >> "${GITHUB_OUTPUT}"
-          json={"model":{"maxSessionTurns":25},"mcpServers":{"github":{"command":"docker","args":["run","-i","--rm","-e","GITHUB_PERSONAL_ACCESS_TOKEN","ghcr.io/github/github-mcp-server:${GITHUB_MCP_SERVER_VERSION}"],"includeTools":["add_comment_to_pending_review","pull_request_read","pull_request_review_write"],"env":{"GITHUB_PERSONAL_ACCESS_TOKEN":"\${GITHUB_TOKEN}"}}},"tools":{"core":["run_shell_command(cat)","run_shell_command(echo)","run_shell_command(grep)","run_shell_command(head)","run_shell_command(tail)"]}}
+          json={"model":{"name":"${GEMINI_MODEL}","maxSessionTurns":25},"mcpServers":{"github":{"command":"docker","args":["run","-i","--rm","-e","GITHUB_PERSONAL_ACCESS_TOKEN","ghcr.io/github/github-mcp-server:${GITHUB_MCP_SERVER_VERSION}"],"includeTools":["add_comment_to_pending_review","pull_request_read","pull_request_review_write"],"env":{"GITHUB_PERSONAL_ACCESS_TOKEN":"\${GITHUB_TOKEN}"}}},"tools":{"core":["run_shell_command(cat)","run_shell_command(echo)","run_shell_command(grep)","run_shell_command(head)","run_shell_command(tail)"]}}
           JEOF
       - name: Run Gemini CLI pull request review
         uses: google-github-actions/run-gemini-cli@9dbec29a20fab3f35017a40ad0eb798a257d4d51  # v0.1.21
