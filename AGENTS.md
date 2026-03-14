@@ -32,7 +32,7 @@
 - Run QA checks using `local-qa` skill before committing or creating a PR.
 - Execute relevant tests for modified code before committing (if applicable).
 - Keep PRs focused and include: concise summary, affected workflow paths, linked issue/context, and regenerated `README.md` when workflow inventory changes.
-- Branch names use appropriate prefixes on creation (e.g., `feature/short-description`, `bugfix/short-description`).
+- Branch names use appropriate prefixes on creation (e.g., `feature/...`, `bugfix/...`, `refactor/...`, `docs/...`, `chore/...`).
 - When instructed to create a PR, create it as a draft with appropriate labels by default.
 
 ## Code Design Principles
