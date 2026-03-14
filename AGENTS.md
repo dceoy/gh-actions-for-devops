@@ -13,7 +13,6 @@
 - `go run ./src/build_readme_md.go`: regenerate `README.md` from workflow metadata.
 - `go build -o src/build_readme_md ./src/build_readme_md.go`: build the local generator binary.
 - `docker compose run --rm gh-actions-for-devops-readme`: run the generator in Docker.
-- `./scripts/qa.sh`: run repository QA (formatting, linting, and security checks for detected file types).
 - `go test ./...`: run Go tests (add tests when introducing new Go logic).
 
 ## Coding Style & Naming Conventions
@@ -26,12 +25,11 @@
 ## Testing Guidelines
 
 - Place Go tests next to source files using `*_test.go` naming.
-- For workflow changes, run `local-qa`; it validates workflows with tools like `actionlint`, `yamllint`, `zizmor`, and `checkov` when available.
 - Ensure `go mod tidy` does not leave diffs in `go.mod` or `go.sum`.
 
 ## Commit & Pull Request Guidelines
 
-- Run `local-qa` before committing to ensure formatting, linting, and security checks pass.
+- Run QA checks using `local-qa` skill before committing or creating a PR.
 - Execute relevant tests for modified code before committing (if applicable).
 - Keep PRs focused and include: concise summary, affected workflow paths, linked issue/context, and regenerated `README.md` when workflow inventory changes.
 - Branch names use appropriate prefixes on creation (e.g., `feature/short-description`, `bugfix/short-description`).
