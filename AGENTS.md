@@ -26,30 +26,16 @@
 ## Testing Guidelines
 
 - Place Go tests next to source files using `*_test.go` naming.
-- For workflow changes, run `./scripts/qa.sh`; it validates workflows with tools like `actionlint`, `yamllint`, `zizmor`, and `checkov` when available.
+- For workflow changes, run `local-qa`; it validates workflows with tools like `actionlint`, `yamllint`, `zizmor`, and `checkov` when available.
 - Ensure `go mod tidy` does not leave diffs in `go.mod` or `go.sum`.
 
 ## Commit & Pull Request Guidelines
 
-- Match repository history: short, imperative, sentence-case subjects (for example, `Fix ...`, `Add ...`, `Remove ...`).
-- Dependency updates should follow the existing `Bump <dep> from <old> to <new>` pattern.
+- Run `local-qa` before committing to ensure formatting, linting, and security checks pass.
+- Execute relevant tests for modified code before committing (if applicable).
 - Keep PRs focused and include: concise summary, affected workflow paths, linked issue/context, and regenerated `README.md` when workflow inventory changes.
 - Branch names use appropriate prefixes on creation (e.g., `feature/short-description`, `bugfix/short-description`).
 - When instructed to create a PR, create it as a draft with appropriate labels by default.
-
-## Git Workflow
-
-### Pre-Commit Checklist
-
-**IMPORTANT**: Run the following on each change before committing:
-
-1. **format and lint**: Use the `local-qa` skill.
-2. **test**: Execute relevant test suites for modified code (if applicable).
-3. **security scan** (periodically): `trivy filesystem --scanners vuln,secret,misconfig .`
-
-### Workflow Organization
-
-- Workflows stored at `.github/workflows/` with symlink at `workflows/`
 
 ## Code Design Principles
 
