@@ -1,6 +1,10 @@
 ---
 name: Pull request review using Claude Code
 on:
+  # pull_request:
+  #   types:
+  #     - opened
+  #     - ready_for_review
   workflow_call:
     inputs:
       claude-args:
@@ -12,7 +16,7 @@ on:
         required: false
         type: string
         description: Runner to use
-        default: ubuntu-slim
+        default: ubuntu-latest
     secrets:
       CLAUDE_CODE_OAUTH_TOKEN:
         required: false
@@ -20,10 +24,6 @@ on:
       GH_TOKEN:
         required: false
         description: GitHub token for accessing the repository
-#   pull_request:
-#     types:
-#       - opened
-#       - synchronize
 permissions:
   contents: read
   pull-requests: write
