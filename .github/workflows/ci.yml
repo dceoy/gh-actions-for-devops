@@ -33,7 +33,6 @@ on:
         options:
           - lint
           - analyze
-          - build
           - release
           - update
         description: Choose the workflow to run
@@ -55,7 +54,7 @@ jobs:
       security-events: write
     uses: ./.github/workflows/go-package-lint-and-scan.yml
     with:
-      package-path: .
+      package-path: ./src
       go-version: stable
   github-actions-lint-and-scan:
     if: >
@@ -71,32 +70,6 @@ jobs:
       search-path: .github/workflows
       go-version: stable
       python-version: 3.x
-  docker-lint-and-scan:
-    if: >
-      github.event_name == 'push'
-      || (github.event_name == 'pull_request' && github.event.action != 'ready_for_review')
-      || (github.event_name == 'workflow_dispatch' && inputs.workflow == 'lint')
-    permissions:
-      contents: write
-    uses: ./.github/workflows/docker-lint-and-scan.yml
-  docker-build-and-push:
-    if: >
-      github.event_name == 'workflow_dispatch' && inputs.workflow == 'build'
-    permissions:
-      contents: write
-      packages: write
-    uses: ./.github/workflows/docker-build-and-push.yml
-    with:
-      registry: ghcr.io
-      registry-user: ${{ github.repository_owner }}
-      image-name: ${{ github.repository }}
-      platforms: linux/amd64,linux/arm64
-      context: ./src
-      file: ./src/Dockerfile
-      push: true
-    secrets:
-      DOCKER_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      GH_TOKEN: ${{ secrets.GHCR_TOKEN }}
   github-codeql-analysis:
     if: >
       github.event_name == 'push'
@@ -120,7 +93,6 @@ jobs:
     needs:
       - go-lint-and-scan
       - github-actions-lint-and-scan
-      - docker-lint-and-scan
       - update-readme-md
     permissions:
       contents: read
@@ -175,7 +147,6 @@ jobs:
     needs:
       - go-lint-and-scan
       - github-actions-lint-and-scan
-      - docker-lint-and-scan
     permissions:
       contents: write
       pull-requests: write
@@ -210,16 +181,19 @@ jobs:
         with:
           node-version: latest
       - name: Install dependencies
+        working-directory: ./src
         run: |
           go mod download
       - name: Build the Go program
+        working-directory: ./src
         env:
           VERSION: ${{ github.ref_name || github.head_ref || 'unknown' }}
         run: |
-          go build -ldflags "-X main.version=${VERSION}" -o src/build_readme_md src/build_readme_md.go
+          go build -ldflags "-X main.version=${VERSION}" -o build_readme_md .
       - name: Update README.md
+        working-directory: ./src
         run: |
-          ./src/build_readme_md
+          ./build_readme_md
       - name: Prettify README.md
         run: |
           npx prettier --write ./README.md

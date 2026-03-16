@@ -2,7 +2,8 @@
 
 set -euox pipefail
 
-cd "$(git rev-parse --show-toplevel)"
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+cd "${REPO_ROOT}"
 
 PYTHON_LINE_LENGTH=88
 RUFF_LINT_EXTEND_SELECT='F,E,W,C90,I,N,D,UP,S,B,A,COM,C4,PT,Q,SIM,ARG,ERA,PD,PLC,PLE,PLW,TRY,FLY,NPY,PERF,FURB,RUF'
@@ -92,11 +93,35 @@ if [[ "${N_MARKDOWN_FILES}" -gt 0 ]]; then
   # markdownlint-cli2 './**/*.md'
 fi
 
-N_GO_FILES=$(git ls-files -- '*.go' | wc -l)
-if [[ "${N_GO_FILES}" -gt 0 ]]; then
-  golangci-lint fmt --enable=gofumpt --enable=goimports
-  golangci-lint run --fix
-fi
+while IFS= read -r GO_MOD_FILE; do
+  GO_DIRECTORY="$(dirname "${GO_MOD_FILE}")"
+  GOLANGCI_CONFIG_PATHS=()
+  SEARCH_DIRECTORY="${GO_DIRECTORY}"
+  while true; do
+    if [[ "${SEARCH_DIRECTORY}" != '.' ]]; then
+      GOLANGCI_CONFIG_PATHS+=("${SEARCH_DIRECTORY}/.golangci.yml")
+    else
+      GOLANGCI_CONFIG_PATHS+=('.golangci.yml')
+    fi
+    if [[ "${SEARCH_DIRECTORY}" == '.' ]]; then
+      break
+    fi
+    SEARCH_DIRECTORY="$(dirname "${SEARCH_DIRECTORY}")"
+  done
+  GOLANGCI_CONFIG_FILE="$(git ls-files -- "${GOLANGCI_CONFIG_PATHS[@]}" | head -n 1)"
+  if [[ -n "${GOLANGCI_CONFIG_FILE}" ]]; then
+    GOLANGCI_LINT_CONFIG_ARGS=(-c "${REPO_ROOT}/${GOLANGCI_CONFIG_FILE}")
+  else
+    GOLANGCI_LINT_CONFIG_ARGS=()
+  fi
+  (
+    cd "${GO_DIRECTORY}"
+    golangci-lint "${GOLANGCI_LINT_CONFIG_ARGS[@]}" fmt --enable=gofumpt --enable=goimports
+    golangci-lint "${GOLANGCI_LINT_CONFIG_ARGS[@]}" run --fix
+    govulncheck ./...
+    gosec ./...
+  )
+done < <(git ls-files -- 'go.mod' '*/go.mod')
 
 if [[ -d '.github/workflows' ]]; then
   zizmor --fix=safe .github/workflows

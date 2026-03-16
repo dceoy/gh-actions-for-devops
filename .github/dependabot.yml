@@ -13,12 +13,12 @@ updates:
       default-days: 7
     open-pull-requests-limit: 10
   - package-ecosystem: docker
-    directory: /
+    directory: /src
     schedule:
       interval: daily
     open-pull-requests-limit: 10
   - package-ecosystem: gomod
-    directory: /
+    directory: /src
     schedule:
       interval: daily
     cooldown:
