@@ -13,7 +13,7 @@
 
 **Important**: Run these before committing or creating a PR.
 
-1. **format and lint**: Use the `local-qa` skill.
+1. **format and lint**: Use `local-qa` skill.
 2. **Documentation build** (if any workflow inventory changes): `go -C src run .` to regenerate `README.md`.
 
 ## Coding Style & Naming Conventions
