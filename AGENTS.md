@@ -8,12 +8,12 @@
 - `README.md.j2` is the template; `README.md` is generated output.
 - `Dockerfile` and `compose.yml` provide a containerized way to run the README generator.
 
-## Build, Test, and Development Commands
+### Code Quality and Documentation
 
-- `go run ./src/build_readme_md.go`: regenerate `README.md` from workflow metadata.
-- `go build -o src/build_readme_md ./src/build_readme_md.go`: build the local generator binary.
-- `docker compose run --rm gh-actions-for-devops-readme`: run the generator in Docker.
-- `go test ./...`: run Go tests (add tests when introducing new Go logic).
+**Important**: Run these before committing or creating a PR.
+
+1. **format and lint**: Use the `local-qa` skill.
+2. **Documentation build** (if any workflow inventory changes): `go run ./src/build_readme_md.go` to regenerate `README.md`.
 
 ## Coding Style & Naming Conventions
 
