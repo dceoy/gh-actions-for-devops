@@ -3,7 +3,6 @@ package main
 
 import (
 	"bytes"
-	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -24,6 +23,10 @@ type Workflow struct {
 	File string
 }
 
+type projectPaths struct {
+	rootDir string
+}
+
 func main() {
 	var debug, info, version bool
 	flag.BoolVar(&debug, "debug", false, "log with DEBUG level")
@@ -38,33 +41,51 @@ func main() {
 
 	setLogLevel(debug, info)
 
-	// Get current working directory (where the script is being run from)
-	scriptDir, _ := os.Getwd()
+	paths := resolveProjectPaths()
+	readmeMD := filepath.Join(paths.rootDir, "README.md")
+	readmeMDJ2 := filepath.Join(paths.rootDir, "README.md.j2")
+	workflowDir := filepath.Join(paths.rootDir, ".github", "workflows")
 
-	// Determine root directory based on current location
-	var rootDir string
-	if filepath.Base(scriptDir) == "src" {
-		// We're in the src directory, parent is root
-		rootDir = filepath.Dir(scriptDir)
-	} else {
-		// We might be running from root already
-		rootDir = scriptDir
-	}
-
-	readmeMD := filepath.Join(rootDir, "README.md")
-	readmeMDJ2 := filepath.Join(rootDir, "README.md.j2")
-	workflowDir := filepath.Join(rootDir, ".github", "workflows")
-
-	if _, err := os.Stat(readmeMDJ2); errors.Is(err, os.ErrNotExist) {
-		log.Fatalf("Error: Template file %s does not exist", readmeMDJ2)
-	} else if _, err := os.Stat(workflowDir); errors.Is(err, os.ErrNotExist) {
-		log.Fatalf("Error: Workflow directory %s does not exist", workflowDir)
-	}
 	workflows := detectReusableWorkflows(workflowDir)
 	if len(workflows) == 0 {
 		log.Fatal("Error: No reusable workflows found")
 	}
 	renderMD(workflows, readmeMDJ2, readmeMD)
+}
+
+func resolveProjectPaths() projectPaths {
+	cwd, err := os.Getwd()
+	if err != nil {
+		log.Fatalf("Failed to determine current working directory: %v", err)
+	}
+
+	candidates := []projectPaths{
+		{
+			rootDir: cwd,
+		},
+		{
+			rootDir: filepath.Dir(cwd),
+		},
+	}
+
+	for _, paths := range candidates {
+		if isProjectPathCandidate(paths) {
+			return paths
+		}
+	}
+
+	log.Fatalf("Failed to resolve repository paths from working directory: %s", cwd)
+	return projectPaths{}
+}
+
+func isProjectPathCandidate(paths projectPaths) bool {
+	return pathExists(filepath.Join(paths.rootDir, "README.md.j2")) &&
+		pathExists(filepath.Join(paths.rootDir, ".github", "workflows"))
+}
+
+func pathExists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
 }
 
 func setLogLevel(debug, info bool) {

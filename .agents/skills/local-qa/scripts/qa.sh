@@ -94,8 +94,11 @@ fi
 
 N_GO_FILES=$(git ls-files -- '*.go' | wc -l)
 if [[ "${N_GO_FILES}" -gt 0 ]]; then
-  golangci-lint fmt --enable=gofumpt --enable=goimports
-  golangci-lint run --fix
+  (
+    cd src
+    golangci-lint -c ../.golangci.yml fmt --enable=gofumpt --enable=goimports
+    golangci-lint -c ../.golangci.yml run --fix
+  )
 fi
 
 if [[ -d '.github/workflows' ]]; then

@@ -8,8 +8,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 RUN \
       --mount=type=bind,source=.,target=/mnt/host \
-      cp -a /mnt/host /opt/build_readme_md \
-      && cp -a /mnt/host/{go.mod,go.sum} /opt/build_readme_md/
+      cp -a /mnt/host /opt/build_readme_md
 
 WORKDIR /opt/build_readme_md
 
@@ -17,7 +16,7 @@ RUN \
       --mount=type=cache,target=/go/pkg/mod \
       --mount=type=cache,target=/root/.cache/go-build \
       go mod download \
-      && go build -o build_readme_md build_readme_md.go
+      && go build -o /usr/local/bin/build_readme_md .
 
 FROM public.ecr.aws/docker/library/golang:${GO_VERSION} AS base
 
@@ -29,7 +28,7 @@ RUN \
       groupadd --system app \
       && useradd --system --gid app --home-dir /app --shell /usr/sbin/nologin app
 
-COPY --from=builder --chown=app:app /opt/build_readme_md /app
+COPY --from=builder --chown=app:app /usr/local/bin/build_readme_md /app/build_readme_md
 
 HEALTHCHECK NONE
 

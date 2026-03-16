@@ -210,16 +210,19 @@ jobs:
         with:
           node-version: latest
       - name: Install dependencies
+        working-directory: ./src
         run: |
           go mod download
       - name: Build the Go program
+        working-directory: ./src
         env:
           VERSION: ${{ github.ref_name || github.head_ref || 'unknown' }}
         run: |
-          go build -ldflags "-X main.version=${VERSION}" -o src/build_readme_md src/build_readme_md.go
+          go build -ldflags "-X main.version=${VERSION}" -o build_readme_md .
       - name: Update README.md
+        working-directory: ./src
         run: |
-          ./src/build_readme_md
+          ./build_readme_md
       - name: Prettify README.md
         run: |
           npx prettier --write ./README.md

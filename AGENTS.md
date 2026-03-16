@@ -5,15 +5,16 @@
 - `.github/workflows/` contains reusable GitHub Actions workflows; each file is a `workflow_call` unit intended to be consumed from other repositories.
 - `workflows/` is a symlink to `.github/workflows/` for compatibility.
 - `src/build_readme_md.go` is the Go utility that discovers reusable workflows and regenerates documentation.
+- `src/go.mod` and `src/go.sum` define the Go module for the README generator.
 - `README.md.j2` is the template; `README.md` is generated output.
-- `Dockerfile` and `compose.yml` provide a containerized way to run the README generator.
+- `src/Dockerfile` and `compose.yml` provide a containerized way to run the README generator.
 
 ### Code Quality and Documentation
 
 **Important**: Run these before committing or creating a PR.
 
 1. **format and lint**: Use the `local-qa` skill.
-2. **Documentation build** (if any workflow inventory changes): `go run ./src/build_readme_md.go` to regenerate `README.md`.
+2. **Documentation build** (if any workflow inventory changes): `go -C src run .` to regenerate `README.md`.
 
 ## Coding Style & Naming Conventions
 
@@ -25,7 +26,7 @@
 ## Testing Guidelines
 
 - Place Go tests next to source files using `*_test.go` naming.
-- Ensure `go mod tidy` does not leave diffs in `go.mod` or `go.sum`.
+- Ensure `go -C src mod tidy` does not leave diffs in `src/go.mod` or `src/go.sum`.
 
 ## Commit & Pull Request Guidelines
 
