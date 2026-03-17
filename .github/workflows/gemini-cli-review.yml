@@ -110,22 +110,21 @@ jobs:
           fetch-depth: 1
           token: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}  # zizmor: ignore[secrets-outside-env] caller-provided secret
           persist-credentials: false
-      - name: Deploy gemini-review command if missing
+      - name: Deploy Gemini commands from run-gemini-cli
+        env:
+          RUN_GEMINI_CLI_ACTION_ROOT: ${{ github.workspace }}/../../_actions/google-github-actions/run-gemini-cli
         run: |
-          if [[ ! -f .gemini/commands/gemini-review.toml ]]; then
-            action_root="${GITHUB_WORKSPACE}/../../_actions/google-github-actions/run-gemini-cli"
-            if [[ ! -d "${action_root}" ]]; then
-              echo "::error::Could not find run-gemini-cli under ${action_root}"
-              exit 1
-            fi
-            action_dir="$(find "${action_root}" -mindepth 1 -maxdepth 1 -type d | head -n 1)"
-            command_path="${action_dir}/.github/commands/gemini-review.toml"
-            if [[ ! -f "${command_path}" ]]; then
-              echo "::error::Could not find gemini-review.toml command file at ${command_path:-<unknown>}"
+          if [[ ! -d "${RUN_GEMINI_CLI_ACTION_ROOT}" ]]; then
+            echo "::error::run-gemini-cli not found at expected location: ${RUN_GEMINI_CLI_ACTION_ROOT}"
+            exit 1
+          else
+            github_commands_dir="$(find "${RUN_GEMINI_CLI_ACTION_ROOT}" -mindepth 3 -maxdepth 3 -type d -path '*/.github/commands' -print -quit)"
+            if [[ -z "${github_commands_dir}" ]]; then
+              echo "::error::Could not find .github/commands under ${RUN_GEMINI_CLI_ACTION_ROOT}"
               exit 1
             else
-              [[ -d .gemini/commands ]] || mkdir -p .gemini/commands
-              cp "${command_path}" .gemini/commands/gemini-review.toml
+              install -d "${HOME}/.gemini/commands"
+              rsync -av "${github_commands_dir}/" "${HOME}/.gemini/commands/"
             fi
           fi
       - name: Generate default settings
