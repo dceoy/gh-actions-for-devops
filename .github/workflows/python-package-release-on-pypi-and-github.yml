@@ -8,11 +8,6 @@ on:
         type: string
         description: Path to a Python package or project
         default: .
-      distribution-name:
-        required: false
-        type: string
-        description: Distribution name (overrides the name in pyproject.toml if set)
-        default: ''
       create-releases:
         required: false
         type: boolean
@@ -38,6 +33,11 @@ on:
         type: string
         description: Path to the requirements.txt file (not applicable if uv.lock is present)
         default: null
+      artifact-name:
+        required: false
+        type: string
+        description: Name of the artifact for the distribution packages
+        default: python-package-distributions
       artifact-retention-days:
         required: false
         type: string
@@ -60,11 +60,6 @@ on:
         type: string
         description: Path to a Python package or project
         default: .
-      distribution-name:
-        required: false
-        type: string
-        description: Distribution name (overrides the name in pyproject.toml if set)
-        default: ''
       create-releases:
         required: false
         type: boolean
@@ -90,6 +85,11 @@ on:
         type: string
         description: Path to the requirements.txt file (not applicable if uv.lock is present)
         default: null
+      artifact-name:
+        required: false
+        type: string
+        description: Name of the artifact for the distribution packages
+        default: python-package-distributions
       artifact-retention-days:
         required: false
         type: number
@@ -111,7 +111,7 @@ on:
         value: ${{ jobs.build.outputs.project-name }}
       artifact-name:
         description: Name of the uploaded artifact
-        value: ${{ jobs.build.outputs.artifact-name }}
+        value: ${{ inputs.artifact-name }}
     secrets:
       PYPI_API_TOKEN:
         required: false
@@ -130,8 +130,7 @@ jobs:
     name: Build the Python 🐍 distribution 📦
     runs-on: ${{ inputs.runs-on }}
     outputs:
-      project-name: ${{ steps.set-project-name.outputs.project_name }}
-      artifact-name: python-package-distributions
+      project-name: ${{ steps.read-project-name.outputs.project_name }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
@@ -176,22 +175,10 @@ jobs:
           print(f"project_name={name}")
           with open(os.environ["GITHUB_OUTPUT"], "a") as f:
               print(f"project_name={name}", file=f)
-      - name: Set the project name
-        id: set-project-name
-        env:
-          DISTRIBUTION_NAME: ${{ inputs.distribution-name }}
-          READ_PROJECT_NAME: ${{ steps.read-project-name.outputs.project_name }}
-        run: |
-          if [[ -n "${DISTRIBUTION_NAME}" ]]; then
-            project_name="${DISTRIBUTION_NAME}"
-          else
-            project_name="${READ_PROJECT_NAME}"
-          fi
-          echo "project_name=${project_name}" | tee -a "${GITHUB_OUTPUT}"
       - name: Build a binary wheel and a source tarball
         env:
           REQUIREMENTS_TXT_PATH: ${{ inputs.requirements-txt }}
-          STEPS_READ_PROJECT_NAME_OUTPUTS_PROJECT_NAME: ${{ steps.set-project-name.outputs.project_name }}
+          STEPS_READ_PROJECT_NAME_OUTPUTS_PROJECT_NAME: ${{ steps.read-project-name.outputs.project_name }}
         working-directory: ${{ inputs.package-path }}
         run: |
           if [[ "${LOCK_FILE}" == "uv.lock" ]]; then
@@ -213,8 +200,8 @@ jobs:
       - name: Store the distribution packages
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f  # v7.0.0
         with:
-          name: python-package-distributions
-          path: /tmp/${{ steps.set-project-name.outputs.project_name }}_dist/
+          name: ${{ inputs.artifact-name }}
+          path: /tmp/${{ steps.read-project-name.outputs.project_name }}_dist/
           retention-days: ${{ inputs.artifact-retention-days }}
           overwrite: ${{ inputs.artifact-overwrite }}
   publish-to-testpypi:
@@ -235,7 +222,7 @@ jobs:
       - name: Download all the dists
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
         with:
-          name: python-package-distributions
+          name: ${{ inputs.artifact-name }}
           path: dist/
       - name: Publish distribution 📦 to TestPyPI
         uses: pypa/gh-action-pypi-publish@ed0c53931b1dc9bd32cbe73a98c7f6766f8a527e  # v1.13.0
@@ -258,7 +245,7 @@ jobs:
       - name: Download all the dists
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
         with:
-          name: python-package-distributions
+          name: ${{ inputs.artifact-name }}
           path: dist/
       - name: Validate the version-tag consistency
         env:
@@ -312,7 +299,7 @@ jobs:
       - name: Download all the dists
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
         with:
-          name: python-package-distributions
+          name: ${{ inputs.artifact-name }}
           path: dist/
       - name: Publish distribution 📦 to PyPI
         uses: pypa/gh-action-pypi-publish@ed0c53931b1dc9bd32cbe73a98c7f6766f8a527e  # v1.13.0
