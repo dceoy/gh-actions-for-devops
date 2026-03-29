@@ -1,58 +1,6 @@
 ---
 name: Python package release on PyPI and GitHub
 on:
-  workflow_dispatch:
-    inputs:
-      package-path:
-        required: false
-        type: string
-        description: Path to a Python package or project
-        default: .
-      create-releases:
-        required: false
-        type: boolean
-        description: Create GitHub and PyPI releases
-        default: true
-      publish-to-testpypi-before-pypi:
-        required: false
-        type: boolean
-        description: Publish to TestPyPI before PyPI
-        default: false
-      python-version:
-        required: false
-        type: string
-        description: Python version to use (not applicable if uv.lock is present)
-        default: 3.x
-      uv-version:
-        required: false
-        type: string
-        description: Version of uv to use (applicable only if uv.lock is present)
-        default: latest
-      requirements-txt:
-        required: false
-        type: string
-        description: Path to the requirements.txt file (not applicable if uv.lock is present)
-        default: null
-      distribution-artifact-name:
-        required: false
-        type: string
-        description: Name of the artifact for the distribution packages
-        default: python-package-distributions
-      artifact-retention-days:
-        required: false
-        type: string
-        description: Number of days to retain artifacts
-        default: '1'
-      artifact-overwrite:
-        required: false
-        type: boolean
-        description: Overwrite existing artifacts
-        default: true
-      runs-on:
-        required: false
-        type: string
-        description: GitHub Actions runner to use
-        default: ubuntu-latest
   workflow_call:
     inputs:
       package-path:
