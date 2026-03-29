@@ -239,13 +239,7 @@ jobs:
         with:
           name: python-package-distributions
           path: dist/
-      - name: Publish distribution 📦 to PyPI (OIDC trusted publishing)
-        if: ${{ ! secrets.PYPI_API_TOKEN }}
-        uses: pypa/gh-action-pypi-publish@ed0c53931b1dc9bd32cbe73a98c7f6766f8a527e  # v1.13.0
-        with:
-          verbose: true
-      - name: Publish distribution 📦 to PyPI (API token)
-        if: ${{ secrets.PYPI_API_TOKEN }}
+      - name: Publish distribution 📦 to PyPI
         uses: pypa/gh-action-pypi-publish@ed0c53931b1dc9bd32cbe73a98c7f6766f8a527e  # v1.13.0
         with:
           password: ${{ secrets.PYPI_API_TOKEN }}
