@@ -138,6 +138,9 @@ The workflows are organized by category for easier navigation. Each workflow is 
 - [json-schema-validation.yml](.github/workflows/json-schema-validation.yml)
   - Schema validation for JSON
 
+- [markdown-format-and-pr.yml](.github/workflows/markdown-format-and-pr.yml)
+  - Formatting for Markdown
+
 - [microsoft-defender-for-devops.yml](.github/workflows/microsoft-defender-for-devops.yml)
   - Microsoft Defender for Devops
 
