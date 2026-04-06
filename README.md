@@ -60,158 +60,59 @@ The workflows are organized by category for easier navigation. Each workflow is 
 
 ### All Reusable Workflows
 
-- [aws-cloudformation-lint.yml](.github/workflows/aws-cloudformation-lint.yml)
-  - Lint for AWS CloudFormation
-
-- [aws-codebuild-run.yml](.github/workflows/aws-codebuild-run.yml)
-  - Build using an AWS CodeBuild project
-
-- [aws-parameter-store-update.yml](.github/workflows/aws-parameter-store-update.yml)
-  - Update AWS Parameter Store values
-
-- [claude-code-bot.yml](.github/workflows/claude-code-bot.yml)
-  - Mention bot using Claude Code
-
-- [claude-code-review.yml](.github/workflows/claude-code-review.yml)
-  - Pull request review using Claude Code
-
-- [dependabot-auto-merge.yml](.github/workflows/dependabot-auto-merge.yml)
-  - Dependabot auto-merge
-
-- [docker-build-and-push.yml](.github/workflows/docker-build-and-push.yml)
-  - Docker image build and push
-
-- [docker-build-with-multi-targets.yml](.github/workflows/docker-build-with-multi-targets.yml)
-  - Docker image build and save for multiple build targets
-
-- [docker-buildx-bake.yml](.github/workflows/docker-buildx-bake.yml)
-  - Docker image build from a bake definition file
-
-- [docker-image-scan.yml](.github/workflows/docker-image-scan.yml)
-  - Security scan for Docker images
-
-- [docker-lint-and-scan.yml](.github/workflows/docker-lint-and-scan.yml)
-  - Lint and security scan for Dockerfile
-
-- [docker-pull-from-aws.yml](.github/workflows/docker-pull-from-aws.yml)
-  - Docker image pull from AWS
-
-- [docker-save-and-terraform-deploy-to-aws.yml](.github/workflows/docker-save-and-terraform-deploy-to-aws.yml)
-  - Docker image save and resource deployment to AWS using Terraform
-
-- [gcloud-infra-manager-deployments.yml](.github/workflows/gcloud-infra-manager-deployments.yml)
-  - Deployment of Google Cloud resources using Infrastructure Manager
-
-- [gemini-cli-review.yml](.github/workflows/gemini-cli-review.yml)
-  - Pull request review using Gemini CLI
-
-- [gemini-cli-to-slack.yml](.github/workflows/gemini-cli-to-slack.yml)
-  - Gemini CLI with Slack notification
-
-- [github-actions-lint-and-scan.yml](.github/workflows/github-actions-lint-and-scan.yml)
-  - Lint and security scan for GitHub Actions workflows
-
-- [github-codeql-analysis.yml](.github/workflows/github-codeql-analysis.yml)
-  - GitHub CodeQL Analysis
-
-- [github-major-version-tag.yml](.github/workflows/github-major-version-tag.yml)
-  - Major version tag on GitHub
-
-- [github-merged-branch-deletion.yml](.github/workflows/github-merged-branch-deletion.yml)
-  - Deletion of merged branches on GitHub
-
-- [github-pr-branch-aggregation.yml](.github/workflows/github-pr-branch-aggregation.yml)
-  - Aggregation of open pull request branches
-
-- [github-release.yml](.github/workflows/github-release.yml)
-  - Release on GitHub
-
-- [go-package-lint-and-scan.yml](.github/workflows/go-package-lint-and-scan.yml)
-  - Lint and security scan for Go
-
-- [html-lint-and-scan.yml](.github/workflows/html-lint-and-scan.yml)
-  - Lint and scan for HTML/CSS
-
-- [json-lint.yml](.github/workflows/json-lint.yml)
-  - Lint for JSON
-
-- [json-schema-validation.yml](.github/workflows/json-schema-validation.yml)
-  - Schema validation for JSON
-
-- [markdown-format-and-pr.yml](.github/workflows/markdown-format-and-pr.yml)
-  - Formatting for Markdown
-
-- [microsoft-defender-for-devops.yml](.github/workflows/microsoft-defender-for-devops.yml)
-  - Microsoft Defender for Devops
-
-- [pr-agent.yml](.github/workflows/pr-agent.yml)
-  - PR-agent
-
-- [python-package-format-and-pr.yml](.github/workflows/python-package-format-and-pr.yml)
-  - Formatting for Python
-
-- [python-package-lint-and-scan.yml](.github/workflows/python-package-lint-and-scan.yml)
-  - Lint and security scan for Python
-
-- [python-package-mkdocs-gh-deploy.yml](.github/workflows/python-package-mkdocs-gh-deploy.yml)
-  - Build and deployment of MkDocs documentation
-
-- [python-package-release-on-pypi-and-github.yml](.github/workflows/python-package-release-on-pypi-and-github.yml)
-  - Python package release on PyPI and GitHub
-
-- [python-package-test.yml](.github/workflows/python-package-test.yml)
-  - Test for Python Package
-
-- [python-pyinstaller.yml](.github/workflows/python-pyinstaller.yml)
-  - Build using PyInstaller
-
-- [r-package-format-and-pr.yml](.github/workflows/r-package-format-and-pr.yml)
-  - Formatting for R
-
-- [r-package-lint.yml](.github/workflows/r-package-lint.yml)
-  - Lint for R
-
-- [shell-lint.yml](.github/workflows/shell-lint.yml)
-  - Lint for Shell
-
-- [speckit-init.yml](.github/workflows/speckit-init.yml)
-  - Spec Kit initialization
-
-- [terraform-deploy-to-aws.yml](.github/workflows/terraform-deploy-to-aws.yml)
-  - Deployment of AWS resources using Terraform
-
-- [terraform-format-and-pr.yml](.github/workflows/terraform-format-and-pr.yml)
-  - Formatting for Terraform
-
-- [terraform-lint-and-scan.yml](.github/workflows/terraform-lint-and-scan.yml)
-  - Lint and security scan for Terraform
-
-- [terraform-lock-files-upgrade-and-pr-merge.yml](.github/workflows/terraform-lock-files-upgrade-and-pr-merge.yml)
-  - Upgrade of Terraform lock files and pull request merge
-
-- [terraform-lock-files-upgrade.yml](.github/workflows/terraform-lock-files-upgrade.yml)
-  - Upgrade of Terraform lock files
-
-- [terragrunt-aws-switch-resources.yml](.github/workflows/terragrunt-aws-switch-resources.yml)
-  - Switcher to apply or destroy AWS resources using Terragrunt
-
-- [toml-lint.yml](.github/workflows/toml-lint.yml)
-  - Lint for TOML
-
-- [typescript-package-format-and-pr.yml](.github/workflows/typescript-package-format-and-pr.yml)
-  - Formatting for TypeScript
-
-- [typescript-package-lint-and-scan.yml](.github/workflows/typescript-package-lint-and-scan.yml)
-  - Lint and security scan for TypeScript
-
-- [typescript-package-script.yml](.github/workflows/typescript-package-script.yml)
-  - Package script run for a TypeScript project
-
-- [web-api-monitoring-with-slack.yml](.github/workflows/web-api-monitoring-with-slack.yml)
-  - Synthetic web API monitoring with Slack notification
-
-- [yaml-lint.yml](.github/workflows/yaml-lint.yml)
-  - Lint for YAML
+| Workflow File                                                                                                    | Description                                                       |
+| ---------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| [aws-cloudformation-lint.yml](.github/workflows/aws-cloudformation-lint.yml)                                     | Lint for AWS CloudFormation                                       |
+| [aws-codebuild-run.yml](.github/workflows/aws-codebuild-run.yml)                                                 | Build using an AWS CodeBuild project                              |
+| [aws-parameter-store-update.yml](.github/workflows/aws-parameter-store-update.yml)                               | Update AWS Parameter Store values                                 |
+| [claude-code-bot.yml](.github/workflows/claude-code-bot.yml)                                                     | Mention bot using Claude Code                                     |
+| [claude-code-review.yml](.github/workflows/claude-code-review.yml)                                               | Pull request review using Claude Code                             |
+| [dependabot-auto-merge.yml](.github/workflows/dependabot-auto-merge.yml)                                         | Dependabot auto-merge                                             |
+| [docker-build-and-push.yml](.github/workflows/docker-build-and-push.yml)                                         | Docker image build and push                                       |
+| [docker-build-with-multi-targets.yml](.github/workflows/docker-build-with-multi-targets.yml)                     | Docker image build and save for multiple build targets            |
+| [docker-buildx-bake.yml](.github/workflows/docker-buildx-bake.yml)                                               | Docker image build from a bake definition file                    |
+| [docker-image-scan.yml](.github/workflows/docker-image-scan.yml)                                                 | Security scan for Docker images                                   |
+| [docker-lint-and-scan.yml](.github/workflows/docker-lint-and-scan.yml)                                           | Lint and security scan for Dockerfile                             |
+| [docker-pull-from-aws.yml](.github/workflows/docker-pull-from-aws.yml)                                           | Docker image pull from AWS                                        |
+| [docker-save-and-terraform-deploy-to-aws.yml](.github/workflows/docker-save-and-terraform-deploy-to-aws.yml)     | Docker image save and resource deployment to AWS using Terraform  |
+| [gcloud-infra-manager-deployments.yml](.github/workflows/gcloud-infra-manager-deployments.yml)                   | Deployment of Google Cloud resources using Infrastructure Manager |
+| [gemini-cli-review.yml](.github/workflows/gemini-cli-review.yml)                                                 | Pull request review using Gemini CLI                              |
+| [gemini-cli-to-slack.yml](.github/workflows/gemini-cli-to-slack.yml)                                             | Gemini CLI with Slack notification                                |
+| [github-actions-lint-and-scan.yml](.github/workflows/github-actions-lint-and-scan.yml)                           | Lint and security scan for GitHub Actions workflows               |
+| [github-codeql-analysis.yml](.github/workflows/github-codeql-analysis.yml)                                       | GitHub CodeQL Analysis                                            |
+| [github-major-version-tag.yml](.github/workflows/github-major-version-tag.yml)                                   | Major version tag on GitHub                                       |
+| [github-merged-branch-deletion.yml](.github/workflows/github-merged-branch-deletion.yml)                         | Deletion of merged branches on GitHub                             |
+| [github-pr-branch-aggregation.yml](.github/workflows/github-pr-branch-aggregation.yml)                           | Aggregation of open pull request branches                         |
+| [github-release.yml](.github/workflows/github-release.yml)                                                       | Release on GitHub                                                 |
+| [go-package-lint-and-scan.yml](.github/workflows/go-package-lint-and-scan.yml)                                   | Lint and security scan for Go                                     |
+| [html-lint-and-scan.yml](.github/workflows/html-lint-and-scan.yml)                                               | Lint and scan for HTML/CSS                                        |
+| [json-lint.yml](.github/workflows/json-lint.yml)                                                                 | Lint for JSON                                                     |
+| [json-schema-validation.yml](.github/workflows/json-schema-validation.yml)                                       | Schema validation for JSON                                        |
+| [markdown-format-and-pr.yml](.github/workflows/markdown-format-and-pr.yml)                                       | Formatting for Markdown                                           |
+| [microsoft-defender-for-devops.yml](.github/workflows/microsoft-defender-for-devops.yml)                         | Microsoft Defender for Devops                                     |
+| [pr-agent.yml](.github/workflows/pr-agent.yml)                                                                   | PR-agent                                                          |
+| [python-package-format-and-pr.yml](.github/workflows/python-package-format-and-pr.yml)                           | Formatting for Python                                             |
+| [python-package-lint-and-scan.yml](.github/workflows/python-package-lint-and-scan.yml)                           | Lint and security scan for Python                                 |
+| [python-package-mkdocs-gh-deploy.yml](.github/workflows/python-package-mkdocs-gh-deploy.yml)                     | Build and deployment of MkDocs documentation                      |
+| [python-package-release-on-pypi-and-github.yml](.github/workflows/python-package-release-on-pypi-and-github.yml) | Python package release on PyPI and GitHub                         |
+| [python-package-test.yml](.github/workflows/python-package-test.yml)                                             | Test for Python Package                                           |
+| [python-pyinstaller.yml](.github/workflows/python-pyinstaller.yml)                                               | Build using PyInstaller                                           |
+| [r-package-format-and-pr.yml](.github/workflows/r-package-format-and-pr.yml)                                     | Formatting for R                                                  |
+| [r-package-lint.yml](.github/workflows/r-package-lint.yml)                                                       | Lint for R                                                        |
+| [shell-lint.yml](.github/workflows/shell-lint.yml)                                                               | Lint for Shell                                                    |
+| [speckit-init.yml](.github/workflows/speckit-init.yml)                                                           | Spec Kit initialization                                           |
+| [terraform-deploy-to-aws.yml](.github/workflows/terraform-deploy-to-aws.yml)                                     | Deployment of AWS resources using Terraform                       |
+| [terraform-format-and-pr.yml](.github/workflows/terraform-format-and-pr.yml)                                     | Formatting for Terraform                                          |
+| [terraform-lint-and-scan.yml](.github/workflows/terraform-lint-and-scan.yml)                                     | Lint and security scan for Terraform                              |
+| [terraform-lock-files-upgrade-and-pr-merge.yml](.github/workflows/terraform-lock-files-upgrade-and-pr-merge.yml) | Upgrade of Terraform lock files and pull request merge            |
+| [terraform-lock-files-upgrade.yml](.github/workflows/terraform-lock-files-upgrade.yml)                           | Upgrade of Terraform lock files                                   |
+| [terragrunt-aws-switch-resources.yml](.github/workflows/terragrunt-aws-switch-resources.yml)                     | Switcher to apply or destroy AWS resources using Terragrunt       |
+| [toml-lint.yml](.github/workflows/toml-lint.yml)                                                                 | Lint for TOML                                                     |
+| [typescript-package-format-and-pr.yml](.github/workflows/typescript-package-format-and-pr.yml)                   | Formatting for TypeScript                                         |
+| [typescript-package-lint-and-scan.yml](.github/workflows/typescript-package-lint-and-scan.yml)                   | Lint and security scan for TypeScript                             |
+| [typescript-package-script.yml](.github/workflows/typescript-package-script.yml)                                 | Package script run for a TypeScript project                       |
+| [web-api-monitoring-with-slack.yml](.github/workflows/web-api-monitoring-with-slack.yml)                         | Synthetic web API monitoring with Slack notification              |
+| [yaml-lint.yml](.github/workflows/yaml-lint.yml)                                                                 | Lint for YAML                                                     |
 
 ## License
 

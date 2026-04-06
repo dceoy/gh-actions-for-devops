@@ -3,11 +3,13 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
 	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -16,7 +18,11 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-var version = "dev"
+var (
+	version      = "dev"
+	execCommand  = exec.Command
+	execLookPath = exec.LookPath
+)
 
 type Workflow struct {
 	Name string `yaml:"name"`
@@ -204,10 +210,44 @@ func renderMD(workflows []Workflow, templatePath, outputPath string) {
 	}
 
 	content := buf.Bytes()
+	content, err = formatMarkdownWithPrettier(outputPath, content)
+	if err != nil {
+		log.Fatalf("Failed to format output file: %v", err)
+	}
 
 	if err := os.WriteFile(outputPath, content, 0o600); err != nil {
 		log.Fatalf("Failed to write output file: %v", err)
 	}
+}
+
+func formatMarkdownWithPrettier(outputPath string, content []byte) ([]byte, error) {
+	printLog(fmt.Sprintf("Format a Markdown file with prettier: %s", outputPath))
+
+	if _, err := execLookPath("npx"); err != nil {
+		if errors.Is(err, exec.ErrNotFound) {
+			log.Printf("npx is not installed; skip formatting: %s", outputPath)
+			return content, nil
+		}
+		return nil, fmt.Errorf("failed to locate npx: %w", err)
+	}
+
+	// Let prettier infer the markdown parser from the target path while formatting in memory.
+	cmd := execCommand("npx", "-y", "prettier", "--stdin-filepath", outputPath)
+	cmd.Stdin = bytes.NewReader(content)
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	if err := cmd.Run(); err != nil {
+		if stderr.Len() > 0 {
+			return nil, fmt.Errorf("prettier failed: %w: %s", err, strings.TrimSpace(stderr.String()))
+		}
+		return nil, fmt.Errorf("prettier failed: %w", err)
+	}
+
+	return stdout.Bytes(), nil
 }
 
 func printLog(message string) {
