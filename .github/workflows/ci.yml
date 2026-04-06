@@ -156,6 +156,17 @@ jobs:
       unconditional: true
     secrets:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  markdown-format-and-pr:
+    if: >
+      github.event_name == 'push'
+      || (github.event_name == 'pull_request' && github.event.action != 'ready_for_review')
+      || (github.event_name == 'workflow_dispatch' && inputs.workflow == 'update')
+    permissions:
+      contents: write
+      pull-requests: write
+    uses: ./.github/workflows/markdown-format-and-pr.yml
+    secrets:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   update-readme-md:
     if: >
       github.event_name == 'push'
