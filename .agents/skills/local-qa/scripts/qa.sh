@@ -44,6 +44,8 @@ fi
 
 N_TYPESCRIPT_FILES=$(git ls-files -- '*.ts' '*.tsx' | wc -l)
 N_JAVASCRIPT_FILES=$(git ls-files -- '*.js' '*.jsx' | wc -l)
+N_HTML_FILES=$(git ls-files -- '*.html' '*.htm' | wc -l)
+N_MARKDOWN_FILES=$(git ls-files -- '*.md' | wc -l)
 if [[ "${N_TYPESCRIPT_FILES}" -gt 0 ]] || [[ "${N_JAVASCRIPT_FILES}" -gt 0 ]]; then
   PACKAGE_JSON_FILE=$(git ls-files -- 'package.json' '*/package.json' | head -n 1)
   if [[ -n "${PACKAGE_JSON_FILE}" ]]; then
@@ -60,7 +62,7 @@ if [[ "${N_TYPESCRIPT_FILES}" -gt 0 ]] || [[ "${N_JAVASCRIPT_FILES}" -gt 0 ]]; t
     biome check --write "${PACKAGE_DIRECTORY}"
   fi
   if command -v prettier >/dev/null 2>&1 && ! command -v biome >/dev/null 2>&1; then
-    prettier --write "${PACKAGE_DIRECTORY}/**/*.{js,jsx,ts,tsx,json,css,scss}"
+    prettier --write "${PACKAGE_DIRECTORY}/**/*.{js,jsx,ts,tsx,json,css,scss,md,mdx,html,htm}"
   fi
   if command -v oxlint >/dev/null 2>&1; then
     if [[ -f "${TSCONFIG_JSON_FILE}" ]]; then
@@ -80,17 +82,14 @@ if [[ "${N_TYPESCRIPT_FILES}" -gt 0 ]] || [[ "${N_JAVASCRIPT_FILES}" -gt 0 ]]; t
       tsc --noEmit
     fi
   fi
-fi
-
-N_HTML_FILES=$(git ls-files -- '*.html' '*.htm' | wc -l)
-if [[ "${N_HTML_FILES}" -gt 0 ]]; then
-  prettier --write './**/*.{html,htm}'
-fi
-
-N_MARKDOWN_FILES=$(git ls-files -- '*.md' | wc -l)
-if [[ "${N_MARKDOWN_FILES}" -gt 0 ]]; then
-  prettier --write './**/*.md'
-  # markdownlint-cli2 './**/*.md'
+elif [[ "${N_JAVASCRIPT_FILES}" -gt 0 ]]; then
+  if [[ "${N_HTML_FILES}" -gt 0 ]]; then
+    npx -y prettier --write './**/*.{html,htm}'
+  fi
+  if [[ "${N_MARKDOWN_FILES}" -gt 0 ]]; then
+    npx -y prettier --write './**/*.md'
+    # markdownlint-cli2 './**/*.md'
+  fi
 fi
 
 while IFS= read -r GO_MOD_FILE; do
