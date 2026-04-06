@@ -33,10 +33,7 @@ jobs:
   go-lint-and-scan:
     if: >
       github.event_name == 'push'
-      || (
-        github.event_name == 'pull_request'
-        && (startsWith(github.head_ref, 'dependabot/') || startsWith(github.head_ref, 'renovate/'))
-      )
+      || github.event_name == 'pull_request'
       || (github.event_name == 'workflow_dispatch' && inputs.workflow == 'lint')
     permissions:
       contents: read
@@ -48,10 +45,7 @@ jobs:
   github-actions-lint-and-scan:
     if: >
       github.event_name == 'push'
-      || (
-        github.event_name == 'pull_request'
-        && (startsWith(github.head_ref, 'dependabot/') || startsWith(github.head_ref, 'renovate/'))
-      )
+      || github.event_name == 'pull_request'
       || (github.event_name == 'workflow_dispatch' && inputs.workflow == 'lint')
     permissions:
       contents: read
