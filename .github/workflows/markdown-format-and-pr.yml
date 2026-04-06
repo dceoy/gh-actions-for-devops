@@ -53,18 +53,25 @@ jobs:
   format-and-pr:
     runs-on: ${{ inputs.runs-on }}
     steps:
+      - name: Validate formatter inputs
+        env:
+          USE_PRETTIER: ${{ inputs.use-prettier }}
+          USE_BIOME: ${{ inputs.use-biome }}
+        run: |
+          if ! ${USE_PRETTIER} && ! ${USE_BIOME}; then
+            echo '::error::At least one of use-prettier or use-biome must be true'
+            exit 1
+          fi
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
         with:
           fetch-depth: 1
           persist-credentials: false
       - name: Setup Node.js
-        if: inputs.use-prettier || inputs.use-biome
         uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f  # v6.3.0
         with:
           node-version: ${{ inputs.node-version }}
       - name: Install formatters
-        if: inputs.use-prettier || inputs.use-biome
         run: >
           npm install -g
           ${{ inputs.use-prettier && 'prettier' || '' }}
