@@ -54,7 +54,7 @@ jobs:
     runs-on: ${{ inputs.runs-on }}
     steps:
       - name: Validate formatter inputs
-        if: !inputs.use-prettier && !inputs.use-biome
+        if: (! inputs.use-prettier) && (! inputs.use-biome)
         run: |
           echo '::error::At least one of use-prettier or use-biome must be true'
           exit 1
