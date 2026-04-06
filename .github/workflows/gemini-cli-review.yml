@@ -82,6 +82,9 @@ on:
         description: GitHub token for accessing the repository
 permissions:
   contents: read
+  id-token: write
+  issues: write
+  pull-requests: write
 concurrency:
   group: >-
     ${{ github.workflow }}-review-${{ github.event_name }}-${{
@@ -96,11 +99,6 @@ jobs:
     if: >
       github.event_name == 'pull_request'
       || (github.event_name == 'issue_comment' && github.event.issue.pull_request)
-    permissions:
-      contents: read
-      id-token: write
-      issues: write
-      pull-requests: write
     runs-on: ${{ inputs.runs-on }}
     timeout-minutes: 10
     steps:

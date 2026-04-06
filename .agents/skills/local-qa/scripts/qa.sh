@@ -45,7 +45,7 @@ fi
 N_TYPESCRIPT_FILES=$(git ls-files -- '*.ts' '*.tsx' | wc -l)
 N_JAVASCRIPT_FILES=$(git ls-files -- '*.js' '*.jsx' | wc -l)
 N_HTML_FILES=$(git ls-files -- '*.html' '*.htm' | wc -l)
-N_MARKDOWN_FILES=$(git ls-files -- '*.md' | wc -l)
+N_MARKDOWN_FILES=$(git ls-files -- '*.md' '*.mdx' | wc -l)
 if [[ "${N_TYPESCRIPT_FILES}" -gt 0 ]] || [[ "${N_JAVASCRIPT_FILES}" -gt 0 ]]; then
   PACKAGE_JSON_FILE=$(git ls-files -- 'package.json' '*/package.json' | head -n 1)
   if [[ -n "${PACKAGE_JSON_FILE}" ]]; then
@@ -87,7 +87,7 @@ else
     npx -y prettier --write './**/*.{html,htm}'
   fi
   if [[ "${N_MARKDOWN_FILES}" -gt 0 ]]; then
-    npx -y prettier --write './**/*.md'
+    npx -y prettier --write './**/*.{md,mdx}'
     # markdownlint-cli2 './**/*.md'
   fi
 fi
