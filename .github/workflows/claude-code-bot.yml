@@ -54,6 +54,24 @@ jobs:
           fetch-depth: 1
           token: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}  # zizmor: ignore[secrets-outside-env] caller-provided secret
           persist-credentials: true
+      - name: Deploy agents and commands from claude-code-action
+        env:
+          CLAUDE_CODE_ACTION_ROOT: ${{ github.workspace }}/../../_actions/anthropics/claude-code-action
+        run: |
+          if [[ ! -d "${CLAUDE_CODE_ACTION_ROOT}" ]]; then
+            echo "::error::claude-code-action not found at expected location: ${CLAUDE_CODE_ACTION_ROOT}"
+            exit 1
+          else
+            claude_dir="$(find "${CLAUDE_CODE_ACTION_ROOT}" -mindepth 2 -maxdepth 2 -type d -name .claude -print -quit)"
+            if [[ -z "${claude_dir}" ]]; then
+              echo "::error::Could not find .claude under ${CLAUDE_CODE_ACTION_ROOT}"
+              exit 1
+            else
+              install -d "${HOME}/.claude/agents" "${HOME}/.claude/commands"
+              rsync -av "${claude_dir}/agents/" "${HOME}/.claude/agents/"
+              rsync -av "${claude_dir}/commands/" "${HOME}/.claude/commands/"
+            fi
+          fi
       - name: Run Claude Code
         uses: anthropics/claude-code-action@26ec041249acb0a944c0a47b6c0c13f05dbc5b44  # v1.0.70
         with:
