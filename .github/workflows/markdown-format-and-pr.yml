@@ -54,7 +54,7 @@ jobs:
     runs-on: ${{ inputs.runs-on }}
     steps:
       - name: Validate formatter inputs
-        if: ${{ !inputs.use-prettier && !inputs.use-biome }}
+        if: !inputs.use-prettier && !inputs.use-biome
         run: |
           echo '::error::At least one of use-prettier or use-biome must be true'
           exit 1
@@ -73,14 +73,14 @@ jobs:
           ${{ inputs.use-prettier && 'prettier' || '' }}
           ${{ inputs.use-biome && '@biomejs/biome' || '' }}
       - name: Format Markdown files using Prettier
-        if: ${{ inputs.use-prettier }}
+        if: inputs.use-prettier
         working-directory: ${{ inputs.search-path }}
         env:
           PRETTIER_GLOB: ${{ inputs.prettier-glob }}
         run: >
           prettier --write "${PRETTIER_GLOB}"
       - name: Format Markdown files using Biome
-        if: ${{ inputs.use-biome }}
+        if: inputs.use-biome
         working-directory: ${{ inputs.search-path }}
         env:
           BIOME_GLOB: ${{ inputs.biome-glob }}
