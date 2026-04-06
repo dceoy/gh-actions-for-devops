@@ -3,11 +3,21 @@ name: Pull request review using Gemini CLI
 on:
   workflow_call:
     inputs:
+      additional-context:
+        required: false
+        type: string
+        description: Additional context passed to the Gemini review prompt
+        default: null
       gemini-cli-version:
         required: false
         type: string
         description: Gemini CLI version (latest, preview, nightly, version number, or git ref)
         default: latest
+      gemini-debug:
+        required: false
+        type: boolean
+        description: Whether to enable Gemini CLI debug logging
+        default: false
       gemini-model:
         required: false
         type: string
@@ -17,7 +27,7 @@ on:
         required: false
         type: string
         description: Prompt to pass to Gemini CLI
-        default: /gemini-review
+        default: /pr-code-review
       settings:
         required: false
         type: string
@@ -25,6 +35,11 @@ on:
           JSON string for .gemini/settings.json configuration.
           If not provided, a default configuration for PR review is used.
         default: null
+      extensions:
+        required: false
+        type: string
+        description: JSON array of Gemini CLI extensions to install
+        default: '["https://github.com/gemini-cli-extensions/code-review"]'
       use-vertex-ai:
         required: false
         type: boolean
@@ -64,7 +79,7 @@ on:
         required: false
         type: string
         description: Version tag of ghcr.io/github/github-mcp-server
-        default: latest
+        default: v0.27.0
       runs-on:
         required: false
         type: string
@@ -106,25 +121,8 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
         with:
           fetch-depth: 1
-          token: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}  # zizmor: ignore[secrets-outside-env] caller-provided secret
+          token: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN || github.token }}  # zizmor: ignore[secrets-outside-env] caller-provided secret
           persist-credentials: false
-      - name: Deploy Gemini commands from run-gemini-cli
-        env:
-          RUN_GEMINI_CLI_ACTION_ROOT: ${{ github.workspace }}/../../_actions/google-github-actions/run-gemini-cli
-        run: |
-          if [[ ! -d "${RUN_GEMINI_CLI_ACTION_ROOT}" ]]; then
-            echo "::error::run-gemini-cli not found at expected location: ${RUN_GEMINI_CLI_ACTION_ROOT}"
-            exit 1
-          else
-            github_commands_dir="$(find "${RUN_GEMINI_CLI_ACTION_ROOT}" -mindepth 3 -maxdepth 3 -type d -path '*/.github/commands' -print -quit)"
-            if [[ -z "${github_commands_dir}" ]]; then
-              echo "::error::Could not find .github/commands under ${RUN_GEMINI_CLI_ACTION_ROOT}"
-              exit 1
-            else
-              install -d "${HOME}/.gemini/commands"
-              rsync -av "${github_commands_dir}/" "${HOME}/.gemini/commands/"
-            fi
-          fi
       - name: Generate default settings
         id: default-settings
         if: inputs.settings == null
@@ -132,13 +130,59 @@ jobs:
           GEMINI_MODEL: ${{ inputs.gemini-model }}
           GITHUB_MCP_SERVER_VERSION: ${{ inputs.github-mcp-server-version }}
         run: |
-          cat << JEOF >> "${GITHUB_OUTPUT}"
-          json={"model":{"name":"${GEMINI_MODEL}","maxSessionTurns":25},"mcpServers":{"github":{"command":"docker","args":["run","-i","--rm","-e","GITHUB_PERSONAL_ACCESS_TOKEN","ghcr.io/github/github-mcp-server:${GITHUB_MCP_SERVER_VERSION}"],"includeTools":["add_comment_to_pending_review","pull_request_read","pull_request_review_write"],"env":{"GITHUB_PERSONAL_ACCESS_TOKEN":"\${GITHUB_TOKEN}"}}},"tools":{"core":["run_shell_command(cat)","run_shell_command(echo)","run_shell_command(grep)","run_shell_command(head)","run_shell_command(tail)"]}}
-          JEOF
+          jq -cn \
+            --arg gemini_model "${GEMINI_MODEL}" \
+            --arg github_mcp_server_version "${GITHUB_MCP_SERVER_VERSION}" \
+            '{
+              model: {
+                name: $gemini_model,
+                maxSessionTurns: 25
+              },
+              telemetry: {
+                enabled: true,
+                target: "local",
+                outfile: ".gemini/telemetry.log"
+              },
+              mcpServers: {
+                github: {
+                  command: "docker",
+                  args: [
+                    "run",
+                    "-i",
+                    "--rm",
+                    "-e",
+                    "GITHUB_PERSONAL_ACCESS_TOKEN",
+                    "ghcr.io/github/github-mcp-server:\($github_mcp_server_version)"
+                  ],
+                  includeTools: [
+                    "add_comment_to_pending_review",
+                    "pull_request_read",
+                    "pull_request_review_write"
+                  ],
+                  env: {
+                    GITHUB_PERSONAL_ACCESS_TOKEN: "${GITHUB_TOKEN}"
+                  }
+                }
+              },
+              tools: {
+                core: [
+                  "run_shell_command(cat)",
+                  "run_shell_command(echo)",
+                  "run_shell_command(grep)",
+                  "run_shell_command(head)",
+                  "run_shell_command(tail)"
+                ]
+              }
+            }' \
+            | {
+              echo 'json<<EOF'
+              cat
+              echo 'EOF'
+            } >> "${GITHUB_OUTPUT}"
       - name: Run Gemini CLI pull request review
         uses: google-github-actions/run-gemini-cli@9dbec29a20fab3f35017a40ad0eb798a257d4d51  # v0.1.21
         env:
-          GITHUB_TOKEN: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}  # zizmor: ignore[secrets-outside-env] caller-provided secret
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN || github.token }}  # zizmor: ignore[secrets-outside-env] caller-provided secret
           ISSUE_TITLE: >-
             ${{ github.event.pull_request.title
             || github.event.issue.title }}
@@ -149,10 +193,13 @@ jobs:
             ${{ github.event.pull_request.number
             || github.event.issue.number }}
           REPOSITORY: ${{ github.repository }}
+          ADDITIONAL_CONTEXT: ${{ inputs.additional-context }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}  # zizmor: ignore[secrets-outside-env] caller-provided secret
         with:
           gemini_api_key: ${{ secrets.GEMINI_API_KEY }}  # zizmor: ignore[secrets-outside-env] caller-provided secret
           google_api_key: ${{ secrets.GOOGLE_API_KEY }}  # zizmor: ignore[secrets-outside-env] caller-provided secret
           gemini_cli_version: ${{ inputs.gemini-cli-version }}
+          gemini_debug: ${{ inputs.gemini-debug }}
           gemini_model: ${{ inputs.gemini-model }}
           use_vertex_ai: ${{ inputs.use-vertex-ai }}
           use_gemini_code_assist: ${{ inputs.use-gemini-code-assist }}
@@ -165,4 +212,5 @@ jobs:
           settings: >-
             ${{ inputs.settings
             || steps.default-settings.outputs.json }}
+          extensions: ${{ inputs.extensions }}
           prompt: ${{ inputs.prompt }}

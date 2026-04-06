@@ -93,7 +93,6 @@ jobs:
     needs:
       - go-lint-and-scan
       - github-actions-lint-and-scan
-      - update-readme-md
     permissions:
       contents: read
       pull-requests: write
@@ -131,7 +130,6 @@ jobs:
     needs:
       - go-lint-and-scan
       - github-actions-lint-and-scan
-      - update-readme-md
     permissions:
       contents: read
       pull-requests: write
