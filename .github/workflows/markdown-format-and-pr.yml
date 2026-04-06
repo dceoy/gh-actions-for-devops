@@ -73,14 +73,14 @@ jobs:
           ${{ inputs.use-prettier && 'prettier' || '' }}
           ${{ inputs.use-biome && '@biomejs/biome' || '' }}
       - name: Format Markdown files using Prettier
-        if: inputs.use-prettier
+        if: ${{ inputs.use-prettier }}
         working-directory: ${{ inputs.search-path }}
         env:
           PRETTIER_GLOB: ${{ inputs.prettier-glob }}
         run: >
           prettier --write "${PRETTIER_GLOB}"
       - name: Format Markdown files using Biome
-        if: inputs.use-biome
+        if: ${{ inputs.use-biome }}
         working-directory: ${{ inputs.search-path }}
         env:
           BIOME_GLOB: ${{ inputs.biome-glob }}
