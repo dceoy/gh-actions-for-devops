@@ -205,9 +205,6 @@ jobs:
         working-directory: ./src
         run: |
           ./build_readme_md
-      - name: Prettify README.md
-        run: |
-          npx prettier --write ./README.md
       - name: Commit and push the changes
         uses: EndBug/add-and-commit@290ea2c423ad77ca9c62ae0f5b224379612c0321  # v10.0.0
         with:
