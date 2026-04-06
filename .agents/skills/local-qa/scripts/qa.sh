@@ -82,7 +82,7 @@ if [[ "${N_TYPESCRIPT_FILES}" -gt 0 ]] || [[ "${N_JAVASCRIPT_FILES}" -gt 0 ]]; t
       tsc --noEmit
     fi
   fi
-elif [[ "${N_JAVASCRIPT_FILES}" -gt 0 ]]; then
+else
   if [[ "${N_HTML_FILES}" -gt 0 ]]; then
     npx -y prettier --write './**/*.{html,htm}'
   fi
