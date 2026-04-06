@@ -43,8 +43,6 @@ defaults:
 jobs:
   github-release:
     runs-on: ${{ inputs.runs-on }}
-    env:
-      GH_TOKEN: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}  # zizmor: ignore[secrets-outside-env] caller-provided secret
     steps:
       - name: Validate the tag consistency
         if: >
@@ -68,12 +66,17 @@ jobs:
         if: >
           startsWith(github.ref, 'refs/tags/')
           || ((! startsWith(github.ref, 'refs/tags/')) && ! inputs.create-new-tag)
+        env:
+          REPOSITORY: ${{ github.repository }}
+          GH_TOKEN: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}  # zizmor: ignore[secrets-outside-env] caller-provided secret
         run: >
-          gh release create "${GITHUB_REF_NAME}" --repo '${{ github.repository }}' --generate-notes --verify-tag
+          gh release create "${GITHUB_REF_NAME}" --repo "${REPOSITORY}" --generate-notes --verify-tag
       - name: Create the GitHub release with the new tag
         if: >
           (! startsWith(github.ref, 'refs/tags/')) && inputs.create-new-tag
         env:
           TAG_NAME: ${{ inputs.tag-name }}
+          REPOSITORY: ${{ github.repository }}
+          GH_TOKEN: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}  # zizmor: ignore[secrets-outside-env] caller-provided secret
         run: >
-          gh release create "${TAG_NAME}" --repo '${{ github.repository }}' --generate-notes
+          gh release create "${TAG_NAME}" --repo "${REPOSITORY}" --generate-notes
