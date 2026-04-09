@@ -1,0 +1,131 @@
+---
+name: Build slides using Marp
+on:
+  workflow_call:
+    inputs:
+      input-path:
+        required: true
+        type: string
+        description: Path to a Marp Markdown file or directory containing Markdown files
+      output-path:
+        required: false
+        type: string
+        description: Output file path (for a single input file) or directory (for a directory input)
+        default: slides
+      output-format:
+        required: false
+        type: string
+        description: Output format (html, pdf, pptx, png, or jpeg)
+        default: html
+      theme:
+        required: false
+        type: string
+        description: Path to a theme CSS file
+        default: null
+      marp-config:
+        required: false
+        type: string
+        description: Path to a Marp configuration file
+        default: null
+      allow-local-files:
+        required: false
+        type: boolean
+        description: Allow Marp to access local files (required for local images)
+        default: false
+      marp-cli-version:
+        required: false
+        type: string
+        description: Version of @marp-team/marp-cli to install
+        default: latest
+      node-version:
+        required: false
+        type: string
+        description: Node.js version to use
+        default: latest
+      artifact-name:
+        required: false
+        type: string
+        description: Name of the artifact to upload
+        default: marp-slides
+      artifact-retention-days:
+        required: false
+        type: number
+        description: Number of days to retain the artifact
+        default: 1
+      artifact-overwrite:
+        required: false
+        type: boolean
+        description: Overwrite the existing artifact
+        default: true
+      runs-on:
+        required: false
+        type: string
+        description: GitHub Actions runner to use
+        default: ubuntu-latest
+permissions:
+  contents: read
+defaults:
+  run:
+    shell: bash -euo pipefail {0}
+    working-directory: .
+jobs:
+  build:
+    runs-on: ${{ inputs.runs-on }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Setup Node.js
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f  # v6.3.0
+        with:
+          node-version: ${{ inputs.node-version }}
+      - name: Install Marp CLI
+        env:
+          MARP_CLI_VERSION: ${{ inputs.marp-cli-version }}
+        run: |
+          npm install -g "@marp-team/marp-cli@${MARP_CLI_VERSION}"
+      - name: Build slides with Marp
+        env:
+          INPUT_PATH: ${{ inputs.input-path }}
+          OUTPUT_PATH: ${{ inputs.output-path }}
+          OUTPUT_FORMAT: ${{ inputs.output-format }}
+          THEME: ${{ inputs.theme }}
+          MARP_CONFIG: ${{ inputs.marp-config }}
+          ALLOW_LOCAL_FILES: ${{ inputs.allow-local-files && 'true' || '' }}
+        run: |
+          args=(
+            ${MARP_CONFIG:+--config-file="${MARP_CONFIG}"}
+            ${THEME:+--theme="${THEME}"}
+            ${ALLOW_LOCAL_FILES:+--allow-local-files}
+          )
+          case "${OUTPUT_FORMAT}" in
+            html)
+              ;;
+            pdf)
+              args+=(--pdf)
+              ;;
+            pptx)
+              args+=(--pptx)
+              ;;
+            png | jpeg)
+              args+=(--images "${OUTPUT_FORMAT}")
+              ;;
+            *)
+              echo "::error::Unsupported output format: ${OUTPUT_FORMAT}"
+              exit 1
+              ;;
+          esac
+          if [[ -d "${INPUT_PATH}" ]]; then
+            marp --input-dir "${INPUT_PATH}" -o "${OUTPUT_PATH}" "${args[@]:-}"
+          else
+            marp -o "${OUTPUT_PATH}" "${args[@]:-}" "${INPUT_PATH}"
+          fi
+      - name: Upload the artifact
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f  # v7.0.0
+        with:
+          name: ${{ inputs.artifact-name }}
+          path: ${{ inputs.output-path }}
+          retention-days: ${{ inputs.artifact-retention-days }}
+          overwrite: ${{ inputs.artifact-overwrite }}

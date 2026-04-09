@@ -89,6 +89,7 @@ The workflows are organized by category for easier navigation. Each workflow is 
 | [json-lint.yml](.github/workflows/json-lint.yml)                                                                 | Lint for JSON                                                     |
 | [json-schema-validation.yml](.github/workflows/json-schema-validation.yml)                                       | Schema validation for JSON                                        |
 | [markdown-format-and-pr.yml](.github/workflows/markdown-format-and-pr.yml)                                       | Formatting for Markdown                                           |
+| [marp-slides-build.yml](.github/workflows/marp-slides-build.yml)                                                 | Build slides using Marp                                           |
 | [microsoft-defender-for-devops.yml](.github/workflows/microsoft-defender-for-devops.yml)                         | Microsoft Defender for Devops                                     |
 | [pr-agent.yml](.github/workflows/pr-agent.yml)                                                                   | PR-agent                                                          |
 | [python-package-format-and-pr.yml](.github/workflows/python-package-format-and-pr.yml)                           | Formatting for Python                                             |
