@@ -189,7 +189,6 @@ jobs:
       && (! (failure() || cancelled()))
     needs:
       - build
-      - publish-to-testpypi
     runs-on: ${{ inputs.runs-on }}
     permissions:
       contents: write  # IMPORTANT: mandatory for making GitHub Releases
