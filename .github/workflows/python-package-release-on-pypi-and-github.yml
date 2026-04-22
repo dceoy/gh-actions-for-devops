@@ -8,15 +8,20 @@ on:
         type: string
         description: Path to a Python package or project
         default: .
-      create-releases:
+      create-github-release:
         required: false
         type: boolean
-        description: Create GitHub and PyPI releases
+        description: Create a GitHub release
+        default: true
+      publish-to-pypi:
+        required: false
+        type: boolean
+        description: Publish the distribution to PyPI
         default: true
       publish-to-testpypi-before-pypi:
         required: false
         type: boolean
-        description: Publish to TestPyPI before PyPI
+        description: Publish to TestPyPI before PyPI when PyPI publishing is enabled
         default: false
       python-version:
         required: false
@@ -156,7 +161,7 @@ jobs:
     name: Publish the Python 🐍 distribution 📦 to TestPyPI
     if: >
       startsWith(github.ref, 'refs/tags/')
-      && inputs.create-releases
+      && inputs.publish-to-pypi
       && inputs.publish-to-testpypi-before-pypi
     needs:
       - build
@@ -180,11 +185,10 @@ jobs:
     name: Sign the Python 🐍 distribution 📦 with Sigstore and upload them to GitHub Release
     if: >
       startsWith(github.ref, 'refs/tags/')
-      && inputs.create-releases
+      && inputs.create-github-release
       && (! (failure() || cancelled()))
     needs:
       - build
-      - publish-to-testpypi
     runs-on: ${{ inputs.runs-on }}
     permissions:
       contents: write  # IMPORTANT: mandatory for making GitHub Releases
@@ -233,7 +237,7 @@ jobs:
     name: Publish the Python 🐍 distribution 📦 to PyPI
     if: >
       startsWith(github.ref, 'refs/tags/')
-      && inputs.create-releases
+      && inputs.publish-to-pypi
       && (! (failure() || cancelled()))
     needs:
       - build
