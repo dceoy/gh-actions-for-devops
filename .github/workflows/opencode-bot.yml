@@ -1,0 +1,103 @@
+---
+name: Mention bot using opencode
+on:
+  # issue_comment:
+  #   types:
+  #     - created
+  # pull_request_review_comment:
+  #   types:
+  #     - created
+  workflow_call:
+    inputs:
+      model:
+        required: false
+        type: string
+        description: Model to use with opencode
+        default: opencode/claude-sonnet-4-5
+      agent:
+        required: false
+        type: string
+        description: Primary agent to use (falls back to default_agent or 'build')
+        default: null
+      share:
+        required: false
+        type: string
+        description: Share the opencode session (defaults to true for public repos)
+        default: null
+      prompt:
+        required: false
+        type: string
+        description: Custom prompt to override the default prompt
+        default: null
+      use-github-token:
+        required: false
+        type: boolean
+        description: Use GITHUB_TOKEN directly instead of OpenCode App token exchange
+        default: false
+      mentions:
+        required: false
+        type: string
+        description: Comma-separated list of trigger phrases (case-insensitive)
+        default: /opencode,/oc
+      variant:
+        required: false
+        type: string
+        description: Model variant for provider-specific reasoning effort (e.g., high, max, minimal)
+        default: null
+      oidc-base-url:
+        required: false
+        type: string
+        description: Base URL for OIDC token exchange API
+        default: null
+      opencode-permission:
+        required: false
+        type: string
+        description: JSON string passed via OPENCODE_PERMISSION to restrict opencode capabilities
+        default: '{"bash": "deny"}'
+      runs-on:
+        required: false
+        type: string
+        description: Runner to use
+        default: ubuntu-latest
+    secrets:
+      OPENCODE_API_KEY:
+        required: false
+        description: API key for opencode
+      GH_TOKEN:
+        required: false
+        description: GitHub token for accessing the repository
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+  id-token: write
+jobs:
+  opencode-bot:
+    if: >
+      (github.event_name == 'issue_comment'
+        && (contains(github.event.comment.body, '/oc') || contains(github.event.comment.body, '/opencode')))
+      || (github.event_name == 'pull_request_review_comment'
+        && (contains(github.event.comment.body, '/oc') || contains(github.event.comment.body, '/opencode')))
+    runs-on: ${{ inputs.runs-on }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          fetch-depth: 1
+          token: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}  # zizmor: ignore[secrets-outside-env] caller-provided secret
+          persist-credentials: false
+      - name: Run opencode
+        uses: sst/opencode/github@a9b62d67df08e6b984c51ead12339c845db49e93  # v1.14.28
+        env:
+          OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}  # zizmor: ignore[secrets-outside-env] caller-provided secret
+          OPENCODE_PERMISSION: ${{ inputs.opencode-permission }}
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}  # zizmor: ignore[secrets-outside-env] caller-provided secret
+        with:
+          model: ${{ inputs.model }}
+          agent: ${{ inputs.agent }}
+          share: ${{ inputs.share }}
+          prompt: ${{ inputs.prompt }}
+          use_github_token: ${{ inputs.use-github-token }}
+          mentions: ${{ inputs.mentions }}
+          variant: ${{ inputs.variant }}
+          oidc_base_url: ${{ inputs.oidc-base-url }}
