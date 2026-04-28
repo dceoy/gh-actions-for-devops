@@ -73,11 +73,6 @@ permissions:
   id-token: write
 jobs:
   opencode-bot:
-    if: >
-      (github.event_name == 'issue_comment'
-        && (contains(github.event.comment.body, '/oc') || contains(github.event.comment.body, '/opencode')))
-      || (github.event_name == 'pull_request_review_comment'
-        && (contains(github.event.comment.body, '/oc') || contains(github.event.comment.body, '/opencode')))
     runs-on: ${{ inputs.runs-on }}
     steps:
       - name: Checkout repository
