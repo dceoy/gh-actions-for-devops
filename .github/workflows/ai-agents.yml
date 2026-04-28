@@ -78,20 +78,23 @@ jobs:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   opencode-bot:
     if: >
-      (github.event_name == 'issue_comment'
-        && (startsWith(github.event.comment.body, '/opencode')
+      (
+        github.event_name == 'issue_comment'
+        && (
+          startsWith(github.event.comment.body, '/opencode ')
           || startsWith(github.event.comment.body, '/oc ')
           || github.event.comment.body == '/oc'
-          || contains(github.event.comment.body, ' /opencode')
-          || contains(github.event.comment.body, ' /oc ')
-          || endsWith(github.event.comment.body, ' /oc')))
-      || (github.event_name == 'pull_request_review_comment'
-        && (startsWith(github.event.comment.body, '/opencode')
+          || github.event.comment.body == '/opencode'
+        )
+      ) || (
+        github.event_name == 'pull_request_review_comment'
+        && (
+          startsWith(github.event.comment.body, '/opencode ')
           || startsWith(github.event.comment.body, '/oc ')
           || github.event.comment.body == '/oc'
-          || contains(github.event.comment.body, ' /opencode')
-          || contains(github.event.comment.body, ' /oc ')
-          || endsWith(github.event.comment.body, ' /oc')))
+          || github.event.comment.body == '/opencode'
+        )
+      )
     permissions:
       contents: read
       pull-requests: write
