@@ -180,7 +180,7 @@ jobs:
               echo 'EOF'
             } >> "${GITHUB_OUTPUT}"
       - name: Run Gemini CLI pull request review
-        uses: google-github-actions/run-gemini-cli@9dbec29a20fab3f35017a40ad0eb798a257d4d51  # v0.1.21
+        uses: google-github-actions/run-gemini-cli@f77273f4c914e4bf38440cf36a0369cb64a37489  # v0.1.22
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN || github.token }}  # zizmor: ignore[secrets-outside-env] caller-provided secret
           ISSUE_TITLE: >-
