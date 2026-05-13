@@ -82,7 +82,7 @@ jobs:
           token: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}  # zizmor: ignore[secrets-outside-env] caller-provided secret
           persist-credentials: false
       - name: Run opencode
-        uses: anomalyco/opencode/github@f7dbb4dac464aaf0c47dc222e314f68777ebdf06   # v1.14.28
+        uses: anomalyco/opencode/github@bebe5442a5c2395f2eafe9d7dca463e453532e52   # v1.14.28
         env:
           OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}  # zizmor: ignore[secrets-outside-env] caller-provided secret
           OPENCODE_PERMISSION: ${{ inputs.opencode-permission }}
