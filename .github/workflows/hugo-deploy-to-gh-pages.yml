@@ -1,0 +1,157 @@
+---
+name: Build and deployment of Hugo site to GitHub Pages
+on:
+  workflow_call:
+    inputs:
+      site-path:
+        required: false
+        type: string
+        description: Path to the Hugo site
+        default: .
+      hugo-version:
+        required: false
+        type: string
+        description: Hugo version to use
+        default: latest
+      hugo-extended:
+        required: false
+        type: boolean
+        description: Install Hugo extended edition
+        default: true
+      base-url:
+        required: false
+        type: string
+        description: Base URL for the deployed Hugo site
+        default: null
+      destination-dir:
+        required: false
+        type: string
+        description: Relative directory where Hugo writes the built site
+        default: public
+      build-drafts:
+        required: false
+        type: boolean
+        description: Include draft content in the Hugo build
+        default: false
+      build-future:
+        required: false
+        type: boolean
+        description: Include content with future publish dates in the Hugo build
+        default: false
+      build-expired:
+        required: false
+        type: boolean
+        description: Include expired content in the Hugo build
+        default: false
+      clean-destination-dir:
+        required: false
+        type: boolean
+        description: Remove files from the destination directory before building
+        default: true
+      gc:
+        required: false
+        type: boolean
+        description: Run Hugo garbage collection after the build
+        default: true
+      minify:
+        required: false
+        type: boolean
+        description: Minify the generated Hugo site
+        default: true
+      environment:
+        required: false
+        type: string
+        description: GitHub Pages deployment environment
+        default: github-pages
+      runs-on:
+        required: false
+        type: string
+        description: GitHub Actions runner to use
+        default: ubuntu-latest
+    outputs:
+      page-url:
+        description: URL of the deployed GitHub Pages site
+        value: ${{ jobs.build-and-deploy.outputs.page-url }}
+permissions:
+  contents: read
+  id-token: write
+  pages: write
+concurrency:
+  group: pages
+  cancel-in-progress: false
+defaults:
+  run:
+    shell: bash -euo pipefail {0}
+    working-directory: .
+jobs:
+  build-and-deploy:
+    runs-on: ${{ inputs.runs-on }}
+    environment:
+      name: ${{ inputs.environment }}
+      url: ${{ steps.deployment.outputs.page_url }}
+    outputs:
+      page-url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Set up Hugo
+        uses: peaceiris/actions-hugo@2752ce1d29631191ea3f27c23495fa06139a5b78  # v3.2.1
+        with:
+          hugo-version: ${{ inputs.hugo-version }}
+          extended: ${{ inputs.hugo-extended }}
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d  # v6.0.0
+      - name: Build Hugo site
+        env:
+          BASE_URL: ${{ inputs.base-url }}
+          BUILD_DRAFTS: ${{ inputs.build-drafts && 'true' || '' }}
+          BUILD_EXPIRED: ${{ inputs.build-expired && 'true' || '' }}
+          BUILD_FUTURE: ${{ inputs.build-future && 'true' || '' }}
+          CLEAN_DESTINATION_DIR: ${{ inputs.clean-destination-dir && 'true' || '' }}
+          DESTINATION_DIR: ${{ inputs.destination-dir }}
+          HUGO_GC: ${{ inputs.gc && 'true' || '' }}
+          HUGO_MINIFY: ${{ inputs.minify && 'true' || '' }}
+        working-directory: ${{ inputs.site-path }}
+        run: |
+          if [[ "${DESTINATION_DIR}" = /* ]]; then
+            echo "::error::destination-dir must be a relative path"
+            exit 1
+          fi
+
+          args=(
+            --destination="${DESTINATION_DIR}"
+          )
+
+          if [[ -n "${BASE_URL}" ]]; then
+            args+=(--baseURL="${BASE_URL}")
+          fi
+          if [[ "${BUILD_DRAFTS}" == "true" ]]; then
+            args+=(--buildDrafts)
+          fi
+          if [[ "${BUILD_EXPIRED}" == "true" ]]; then
+            args+=(--buildExpired)
+          fi
+          if [[ "${BUILD_FUTURE}" == "true" ]]; then
+            args+=(--buildFuture)
+          fi
+          if [[ "${CLEAN_DESTINATION_DIR}" == "true" ]]; then
+            args+=(--cleanDestinationDir)
+          fi
+          if [[ "${HUGO_GC}" == "true" ]]; then
+            args+=(--gc)
+          fi
+          if [[ "${HUGO_MINIFY}" == "true" ]]; then
+            args+=(--minify)
+          fi
+
+          hugo "${args[@]}"
+      - name: Upload GitHub Pages artifact
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9  # v5.0.0
+        with:
+          path: ${{ inputs.site-path }}/${{ inputs.destination-dir }}
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@cd2ce8fcbc39b97be8ca5fce6e763baed58fa128  # v5.0.0
