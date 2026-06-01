@@ -22,7 +22,7 @@ on:
         required: false
         type: string
         description: Base URL for the deployed Hugo site
-        default: null
+        default: ''
       destination-dir:
         required: false
         type: string
@@ -107,13 +107,13 @@ jobs:
       - name: Build Hugo site
         env:
           HUGO_DESTINATION_DIR: ${{ inputs.destination-dir }}
-          HUGO_BASE_URL: ${{ inputs.base-url && format('--baseURL={0}', inputs.base-url) || null }}
-          HUGO_BUILD_DRAFTS: ${{ inputs.build-drafts && '--buildDrafts' || null }}
-          HUGO_BUILD_EXPIRED: ${{ inputs.build-expired && '--buildExpired' || null }}
-          HUGO_BUILD_FUTURE: ${{ inputs.build-future && '--buildFuture' || null }}
-          HUGO_CLEAN_DESTINATION_DIR: ${{ inputs.clean-destination-dir && '--cleanDestinationDir' || null }}
-          HUGO_GC: ${{ inputs.gc && '--gc' || null }}
-          HUGO_MINIFY: ${{ inputs.minify && '--minify' || null }}
+          HUGO_BASE_URL: ${{ inputs.base-url }}
+          HUGO_BUILD_DRAFTS: ${{ inputs.build-drafts && 'true' || null }}
+          HUGO_BUILD_EXPIRED: ${{ inputs.build-expired && 'true' || null }}
+          HUGO_BUILD_FUTURE: ${{ inputs.build-future && 'true' || null }}
+          HUGO_CLEAN_DESTINATION_DIR: ${{ inputs.clean-destination-dir && 'true' || null }}
+          HUGO_GC: ${{ inputs.gc && 'true' || null }}
+          HUGO_MINIFY: ${{ inputs.minify && 'true' || null }}
         working-directory: ${{ inputs.site-path }}
         run: >
           hugo
