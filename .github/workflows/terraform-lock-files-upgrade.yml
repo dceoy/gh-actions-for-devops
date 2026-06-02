@@ -54,6 +54,7 @@ jobs:
     runs-on: ${{ inputs.runs-on }}
     env:
       COMMIT_MESSAGE: Upgrade Terraform lock files
+      TF_IN_AUTOMATION: "1"
       TERRAFORM_LOCK_FILE: .terraform.lock.hcl
     steps:
       - name: Checkout repository

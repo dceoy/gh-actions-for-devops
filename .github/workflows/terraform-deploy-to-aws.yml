@@ -114,6 +114,8 @@ jobs:
   deploy:
     runs-on: ${{ inputs.runs-on }}
     timeout-minutes: ${{ inputs.timeout-minutes }}
+    env:
+      TF_IN_AUTOMATION: "1"
     steps:
       - name: Download the image tarball artifact
         if: inputs.apply && (! inputs.destroy) && inputs.use-docker && inputs.docker-image-artifact-name != null
