@@ -43,6 +43,11 @@ on:
         type: boolean
         description: Use bandit to find security issues
         default: false
+      audit:
+        required: false
+        type: boolean
+        description: Run security audit on locked dependencies (applicable only if uv.lock is present)
+        default: true
       additional-python-packages:
         required: false
         type: string
@@ -93,8 +98,12 @@ jobs:
         working-directory: ${{ inputs.package-path }}
         env:
           INPUTS_ADDITIONAL_PYTHON_PACKAGES: ${{ inputs.additional-python-packages }}
+          INPUTS_AUDIT: ${{ inputs.audit }}
         run: |
           uv sync --all-groups
+          if [[ "${INPUTS_AUDIT}" == "true" ]]; then
+            uv audit --locked
+          fi
           uv add --dev \
             ${{ inputs.use-flake8 && 'flake8' || '' }} \
             ${{ inputs.use-bandit && 'bandit' || '' }} \
