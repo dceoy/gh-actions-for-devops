@@ -43,6 +43,11 @@ on:
         type: boolean
         description: Use bandit to find security issues
         default: false
+      audit:
+        required: false
+        type: boolean
+        description: Run security audit on locked dependencies (applicable only if uv.lock is present)
+        default: true
       additional-python-packages:
         required: false
         type: string
@@ -182,3 +187,7 @@ jobs:
         working-directory: ${{ inputs.package-path }}
         run: >  # zizmor: ignore[template-injection]
           ${{ env.EXECUTOR }} pyright --threads=0 .
+      - name: Run security audit
+        if: inputs.audit && env.LOCK_FILE == 'uv.lock'
+        working-directory: ${{ inputs.package-path }}
+        run: uv audit
