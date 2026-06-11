@@ -1,0 +1,157 @@
+---
+name: GitHub Joern Analysis
+on:
+  workflow_call:
+    inputs:
+      scan-path:
+        required: false
+        type: string
+        description: File or directory path to analyze with Joern
+        default: .
+      joern-version:
+        required: false
+        type: string
+        description: Joern release tag to install (empty installs the latest release)
+        default: ""
+      java-version:
+        required: false
+        type: string
+        description: Java version to use for Joern
+        default: "19"
+      scan-tags:
+        required: false
+        type: string
+        description: Comma-separated Joern query tags to run
+        default: ""
+      scan-names:
+        required: false
+        type: string
+        description: Comma-separated Joern query names to run
+        default: ""
+      update-querydb:
+        required: false
+        type: boolean
+        description: Fetch the latest Joern Query Database before scanning
+        default: true
+      overwrite:
+        required: false
+        type: boolean
+        description: Regenerate the Code Property Graph before scanning
+        default: true
+      sarif-output:
+        required: false
+        type: string
+        description: Path to write Joern SARIF output
+        default: joern-results.sarif
+      upload-sarif:
+        required: false
+        type: boolean
+        description: Upload Joern SARIF results to GitHub code scanning
+        default: true
+      runs-on:
+        required: false
+        type: string
+        description: Runner to use
+        default: ubuntu-latest
+permissions:
+  security-events: write
+  actions: read
+  contents: read
+defaults:
+  run:
+    shell: bash -euo pipefail {0}
+    working-directory: .
+jobs:
+  joern-analysis:
+    runs-on: ${{ inputs.runs-on }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Set up Java
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654  # v5.2.0
+        with:
+          distribution: temurin
+          java-version: ${{ inputs.java-version }}
+      - name: Install Joern
+        env:
+          JOERN_VERSION: ${{ inputs.joern-version }}
+        run: |
+          install_dir="${RUNNER_TOOL_CACHE}/joern"
+          mkdir -p "${install_dir}"
+          curl -fsSL \
+            -o "${RUNNER_TEMP}/joern-install.sh" \
+            "https://github.com/joernio/joern/releases/latest/download/joern-install.sh"
+          chmod u+x "${RUNNER_TEMP}/joern-install.sh"
+
+          install_args=(
+            "--install-dir=${install_dir}"
+            "--reinstall"
+            "--without-plugins"
+          )
+          if [[ -n "${JOERN_VERSION}" ]]; then
+            install_args+=("--version=${JOERN_VERSION}")
+          fi
+
+          "${RUNNER_TEMP}/joern-install.sh" "${install_args[@]}"
+          echo "${install_dir}/joern-cli" >> "${GITHUB_PATH}"
+      - name: Update Joern Query Database
+        if: inputs.update-querydb
+        env:
+          JOERN_VERSION: ${{ inputs.joern-version }}
+        run: |
+          if [[ -n "${JOERN_VERSION}" ]]; then
+            joern-scan --updatedb --dbversion "${JOERN_VERSION}"
+          else
+            joern-scan --updatedb
+          fi
+      - name: Run Joern scan
+        env:
+          JOERN_SCAN_NAMES: ${{ inputs.scan-names }}
+          JOERN_SCAN_PATH: ${{ inputs.scan-path }}
+          JOERN_SCAN_TAGS: ${{ inputs.scan-tags }}
+          JOERN_OVERWRITE: ${{ inputs.overwrite }}
+        run: |
+          scan_args=(--store)
+          if [[ "${JOERN_OVERWRITE}" == "true" ]]; then
+            scan_args+=(--overwrite)
+          fi
+          if [[ -n "${JOERN_SCAN_TAGS}" ]]; then
+            scan_args+=(--tags "${JOERN_SCAN_TAGS}")
+          fi
+          if [[ -n "${JOERN_SCAN_NAMES}" ]]; then
+            scan_args+=(--names "${JOERN_SCAN_NAMES}")
+          fi
+
+          joern-scan "${JOERN_SCAN_PATH}" "${scan_args[@]}"
+      - name: Export Joern SARIF
+        env:
+          JOERN_SARIF_OUTPUT: ${{ inputs.sarif-output }}
+        run: |
+          shopt -s globstar nullglob
+          cpg_files=(workspace/**/cpg.bin workspace/**/cpg.bin.zip)
+          if [[ ${#cpg_files[@]} -ne 1 ]]; then
+            printf 'Expected one Joern CPG file, found %s:\n' "${#cpg_files[@]}" >&2
+            printf '  %s\n' "${cpg_files[@]}" >&2
+            exit 1
+          fi
+
+          mkdir -p "$(dirname "${JOERN_SARIF_OUTPUT}")"
+          tee "${RUNNER_TEMP}/export-joern-sarif.sc" > /dev/null <<'EOF'
+          @main def exec(cpgFile: String, outFile: String) = {
+            importCpg(cpgFile)
+            cpg.finding.toSarifJson() |> outFile
+          }
+          EOF
+
+          joern \
+            --script "${RUNNER_TEMP}/export-joern-sarif.sc" \
+            --param "cpgFile=${cpg_files[0]}" \
+            --param "outFile=${JOERN_SARIF_OUTPUT}"
+      - name: Upload Joern SARIF results
+        if: inputs.upload-sarif
+        uses: github/codeql-action/upload-sarif@87557b9c84dde89fdd9b10e88954ac2f4248e463  # v4.36.1
+        with:
+          sarif_file: ${{ inputs.sarif-output }}
