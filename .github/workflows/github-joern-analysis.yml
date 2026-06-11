@@ -8,16 +8,11 @@ on:
         type: string
         description: File or directory path to analyze with Joern
         default: .
-      joern-version:
+      joern-image:
         required: false
         type: string
-        description: Joern release tag to install (empty installs the latest release)
-        default: ""
-      java-version:
-        required: false
-        type: string
-        description: Java version to use for Joern
-        default: "19"
+        description: Joern container image to use
+        default: ghcr.io/joernio/joern
       scan-tags:
         required: false
         type: string
@@ -70,64 +65,56 @@ jobs:
         with:
           fetch-depth: 1
           persist-credentials: false
-      - name: Set up Java
-        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654  # v5.2.0
-        with:
-          distribution: temurin
-          java-version: ${{ inputs.java-version }}
-      - name: Install Joern
+      - name: Pull Joern container image
         env:
-          JOERN_VERSION: ${{ inputs.joern-version }}
+          JOERN_IMAGE: ${{ inputs.joern-image }}
         run: |
-          install_dir="${RUNNER_TOOL_CACHE}/joern"
-          mkdir -p "${install_dir}"
-          curl -fsSL \
-            -o "${RUNNER_TEMP}/joern-install.sh" \
-            "https://github.com/joernio/joern/releases/latest/download/joern-install.sh"
-          chmod u+x "${RUNNER_TEMP}/joern-install.sh"
-
-          install_args=(
-            "--install-dir=${install_dir}"
-            "--reinstall"
-            "--without-plugins"
-          )
-          if [[ -n "${JOERN_VERSION}" ]]; then
-            install_args+=("--version=${JOERN_VERSION}")
-          fi
-
-          "${RUNNER_TEMP}/joern-install.sh" "${install_args[@]}"
-          echo "${install_dir}/joern-cli" >> "${GITHUB_PATH}"
-      - name: Update Joern Query Database
-        if: inputs.update-querydb
-        env:
-          JOERN_VERSION: ${{ inputs.joern-version }}
-        run: |
-          if [[ -n "${JOERN_VERSION}" ]]; then
-            joern-scan --updatedb --dbversion "${JOERN_VERSION}"
-          else
-            joern-scan --updatedb
-          fi
+          docker pull "${JOERN_IMAGE}"
+          mkdir -p "${RUNNER_TEMP}/joern-home"
       - name: Run Joern scan
         env:
+          JOERN_IMAGE: ${{ inputs.joern-image }}
           JOERN_SCAN_NAMES: ${{ inputs.scan-names }}
           JOERN_SCAN_PATH: ${{ inputs.scan-path }}
           JOERN_SCAN_TAGS: ${{ inputs.scan-tags }}
           JOERN_OVERWRITE: ${{ inputs.overwrite }}
+          JOERN_UPDATE_QUERYDB: ${{ inputs.update-querydb }}
         run: |
-          scan_args=(--store)
-          if [[ "${JOERN_OVERWRITE}" == "true" ]]; then
-            scan_args+=(--overwrite)
-          fi
-          if [[ -n "${JOERN_SCAN_TAGS}" ]]; then
-            scan_args+=(--tags "${JOERN_SCAN_TAGS}")
-          fi
-          if [[ -n "${JOERN_SCAN_NAMES}" ]]; then
-            scan_args+=(--names "${JOERN_SCAN_NAMES}")
-          fi
+          docker run --rm \
+            --entrypoint /bin/bash \
+            --user "$(id -u):$(id -g)" \
+            -e HOME="${RUNNER_TEMP}/joern-home" \
+            -e JOERN_OVERWRITE \
+            -e JOERN_SCAN_NAMES \
+            -e JOERN_SCAN_PATH \
+            -e JOERN_SCAN_TAGS \
+            -e JOERN_UPDATE_QUERYDB \
+            -v "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}" \
+            -v "${RUNNER_TEMP}:${RUNNER_TEMP}" \
+            -w "${GITHUB_WORKSPACE}" \
+            "${JOERN_IMAGE}" \
+            -euo pipefail \
+            -c '
+              if [[ "${JOERN_UPDATE_QUERYDB}" == "true" ]]; then
+                joern-scan --updatedb
+              fi
 
-          joern-scan "${JOERN_SCAN_PATH}" "${scan_args[@]}"
+              scan_args=(--store)
+              if [[ "${JOERN_OVERWRITE}" == "true" ]]; then
+                scan_args+=(--overwrite)
+              fi
+              if [[ -n "${JOERN_SCAN_TAGS}" ]]; then
+                scan_args+=(--tags "${JOERN_SCAN_TAGS}")
+              fi
+              if [[ -n "${JOERN_SCAN_NAMES}" ]]; then
+                scan_args+=(--names "${JOERN_SCAN_NAMES}")
+              fi
+
+              joern-scan "${JOERN_SCAN_PATH}" "${scan_args[@]}"
+            '
       - name: Export Joern SARIF
         env:
+          JOERN_IMAGE: ${{ inputs.joern-image }}
           JOERN_SARIF_OUTPUT: ${{ inputs.sarif-output }}
         run: |
           shopt -s globstar nullglob
@@ -146,10 +133,23 @@ jobs:
           }
           EOF
 
-          joern \
-            --script "${RUNNER_TEMP}/export-joern-sarif.sc" \
-            --param "cpgFile=${cpg_files[0]}" \
-            --param "outFile=${JOERN_SARIF_OUTPUT}"
+          docker run --rm \
+            --entrypoint /bin/bash \
+            --user "$(id -u):$(id -g)" \
+            -e HOME="${RUNNER_TEMP}/joern-home" \
+            -e JOERN_CPG_FILE="${cpg_files[0]}" \
+            -e JOERN_SARIF_OUTPUT \
+            -v "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}" \
+            -v "${RUNNER_TEMP}:${RUNNER_TEMP}" \
+            -w "${GITHUB_WORKSPACE}" \
+            "${JOERN_IMAGE}" \
+            -euo pipefail \
+            -c '
+              joern \
+                --script "${RUNNER_TEMP}/export-joern-sarif.sc" \
+                --param "cpgFile=${JOERN_CPG_FILE}" \
+                --param "outFile=${JOERN_SARIF_OUTPUT}"
+            '
       - name: Upload Joern SARIF results
         if: inputs.upload-sarif
         uses: github/codeql-action/upload-sarif@87557b9c84dde89fdd9b10e88954ac2f4248e463  # v4.36.1
