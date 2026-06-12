@@ -68,6 +68,10 @@ jobs:
       - name: Approve the pull request
         if: >
           steps.safe-update.outputs.safe == 'true'
+          && (
+            inputs.unconditional
+            || steps.metadata.outputs.update-type == 'version-update:semver-patch'
+          )
         id: approve-pr
         run: >
           gh pr review --approve "${PR_URL}"
