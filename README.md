@@ -80,6 +80,7 @@ The workflows are organized by category for easier navigation. Each workflow is 
 | [gemini-cli-to-slack.yml](.github/workflows/gemini-cli-to-slack.yml)                                             | Gemini CLI with Slack notification                                |
 | [github-actions-lint-and-scan.yml](.github/workflows/github-actions-lint-and-scan.yml)                           | Lint and security scan for GitHub Actions workflows               |
 | [github-codeql-analysis.yml](.github/workflows/github-codeql-analysis.yml)                                       | GitHub CodeQL Analysis                                            |
+| [github-joern-analysis.yml](.github/workflows/github-joern-analysis.yml)                                         | GitHub Joern Analysis                                             |
 | [github-major-version-tag.yml](.github/workflows/github-major-version-tag.yml)                                   | Major version tag on GitHub                                       |
 | [github-merged-branch-deletion.yml](.github/workflows/github-merged-branch-deletion.yml)                         | Deletion of merged branches on GitHub                             |
 | [github-pr-branch-aggregation.yml](.github/workflows/github-pr-branch-aggregation.yml)                           | Aggregation of open pull request branches                         |
