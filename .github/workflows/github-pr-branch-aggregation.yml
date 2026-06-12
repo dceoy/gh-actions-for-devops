@@ -11,8 +11,29 @@ on:
       delete-merged-branch:
         required: false
         type: boolean
-        description: Delete the merged branches
+        description: >-
+          Deprecated compatibility input. Use delete-open-pr-branches to make
+          the destructive open PR branch deletion explicit.
         default: false
+      delete-open-pr-branches:
+        required: false
+        type: boolean
+        description: >-
+          Delete same-repository open PR branches after they are merged into
+          the current pull request branch.
+        default: false
+      delete-branch-author-allowlist:
+        required: false
+        type: string
+        description: Comma-separated trusted PR authors whose branches may be deleted
+        default: github-actions[bot]
+      delete-branch-head-owner-allowlist:
+        required: false
+        type: string
+        description: >-
+          Optional comma-separated head repository owners whose branches may be
+          deleted. Defaults to the current repository owner when omitted.
+        default: null
       runs-on:
         required: false
         type: string
@@ -22,6 +43,9 @@ on:
       merged-pr-branches-json:
         description: JSON array of the merged branches
         value: ${{ jobs.branch-list.outputs.pr_branches_json }}
+      merged-pr-branch-records-json:
+        description: JSON array of selected pull request branch records
+        value: ${{ jobs.branch-list.outputs.pr_branch_records_json }}
     secrets:
       GH_TOKEN:
         required: false
@@ -46,6 +70,7 @@ jobs:
       GH_TOKEN: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}  # zizmor: ignore[secrets-outside-env] caller-provided secret
     outputs:
       pr_branches_json: ${{ steps.list-open-prs.outputs.pr_branches_json }}
+      pr_branch_records_json: ${{ steps.list-open-prs.outputs.pr_branch_records_json }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
@@ -55,14 +80,29 @@ jobs:
       - name: List open pull request branches
         id: list-open-prs
         run: |
-          gh pr list --state open --json headRefName \
+          records_json="$(
+            gh pr list --state open \
+              --json author,headRefName,headRepositoryOwner,isCrossRepository,number \
             | jq -cr \
                 --arg prefix "${BRANCH_PREFIX}" \
                 --arg head_ref "${HEAD_REF}" \
-                '[.[].headRefName | select(startswith($prefix))]
-                  | reverse
-                  | map(select(. != $head_ref))
-                  | "pr_branches_json=\(.)"' \
+                '[.[] | select(
+                    .headRefName != $head_ref
+                    and (.headRefName | startswith($prefix))
+                    and .isCrossRepository == false
+                  ) | {
+                    number,
+                    branch: .headRefName,
+                    headOwner: (.headRepositoryOwner.login // ""),
+                    author: (.author.login // ""),
+                    isCrossRepository
+                  }]
+                  | reverse'
+          )"
+          jq -cr '"pr_branch_records_json=\(.)"' <<< "${records_json}" \
+            | tee -a "${GITHUB_OUTPUT}"
+          jq -cr \
+            '[.[].branch] | "pr_branches_json=\(.)"' <<< "${records_json}" \
             | tee -a "${GITHUB_OUTPUT}"
   branch-merge:
     if: >
@@ -76,7 +116,7 @@ jobs:
     runs-on: ${{ inputs.runs-on }}
     env:
       BRANCH_PREFIX: ${{ inputs.branch-prefix }}
-      BRANCHES_JSON: ${{ needs.branch-list.outputs.pr_branches_json }}
+      BRANCH_RECORDS_JSON: ${{ needs.branch-list.outputs.pr_branch_records_json }}
       HEAD_REF: ${{ github.head_ref }}
       GH_TOKEN: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}  # zizmor: ignore[secrets-outside-env] caller-provided secret
     steps:
@@ -87,23 +127,32 @@ jobs:
           persist-credentials: false
       - name: Fetch the remote branches
         run: |
-          validate_branch() {
-            local branch="$1"
+          validate_branch_record() {
+            local record="$1"
+            local branch head_owner is_cross_repository
+            branch="$(jq -r '.branch' <<< "${record}")"
+            head_owner="$(jq -r '.headOwner' <<< "${record}")"
+            is_cross_repository="$(jq -r '.isCrossRepository' <<< "${record}")"
+            repository_owner="${GITHUB_REPOSITORY%%/*}"
             if [[ -z "${branch}" || -z "${BRANCH_PREFIX}" || "${branch}" != "${BRANCH_PREFIX}"* ]]; then
-              echo "::error::Refusing unexpected branch '${branch}' for prefix '${BRANCH_PREFIX}'"
-              exit 1
+              echo "::error::Refusing unexpected branch '${branch}' for prefix '${BRANCH_PREFIX}'" >&2
+              return 1
             elif [[ "${branch}" == "${HEAD_REF}" ]]; then
-              echo "::error::Refusing to process the current pull request branch '${branch}'"
-              exit 1
+              echo "::error::Refusing to process the current pull request branch '${branch}'" >&2
+              return 1
+            elif [[ "${is_cross_repository}" == "true" || "${head_owner}" != "${repository_owner}" ]]; then
+              echo "::error::Refusing cross-repository branch '${branch}' owned by '${head_owner}'" >&2
+              return 1
             fi
             git check-ref-format "refs/heads/${branch}" >/dev/null
+            echo "${branch}"
           }
 
-          while IFS= read -r branch; do
-            validate_branch "${branch}"
+          while IFS= read -r record; do
+            branch="$(validate_branch_record "${record}")"
             git -c "http.https://github.com/.extraheader=AUTHORIZATION: bearer ${GH_TOKEN}" \
               fetch --no-tags origin "+refs/heads/${branch}:refs/remotes/origin/${branch}"
-          done < <(jq -r '.[]' <<< "${BRANCHES_JSON}")
+          done < <(jq -c '.[]' <<< "${BRANCH_RECORDS_JSON}")
       - name: Configure the Git user
         run: |
           git config --global user.name "${GITHUB_ACTOR}"
@@ -112,27 +161,83 @@ jobs:
         run: |
           while IFS= read -r branch; do
             git merge --allow-unrelated-histories --no-edit "refs/remotes/origin/${branch}"
-          done < <(jq -r '.[]' <<< "${BRANCHES_JSON}")
+          done < <(jq -r '.[].branch' <<< "${BRANCH_RECORDS_JSON}")
       - name: Push the changes
         run: |
           git check-ref-format "refs/heads/${HEAD_REF}" >/dev/null
           git -c "http.https://github.com/.extraheader=AUTHORIZATION: bearer ${GH_TOKEN}" \
             push origin "HEAD:${HEAD_REF}"
-      - name: Delete the merged branches
-        if: inputs.delete-merged-branch
+      - name: Delete aggregated open PR branches
+        if: inputs.delete-open-pr-branches || inputs.delete-merged-branch
+        env:
+          DELETE_BRANCH_AUTHOR_ALLOWLIST: ${{ inputs.delete-branch-author-allowlist }}
+          DELETE_BRANCH_HEAD_OWNER_ALLOWLIST: ${{ inputs.delete-branch-head-owner-allowlist }}
         run: |
           default_branch="$(gh repo view "${GITHUB_REPOSITORY}" --json defaultBranchRef --jq '.defaultBranchRef.name')"
-          while IFS= read -r branch; do
+          repository_owner="${GITHUB_REPOSITORY%%/*}"
+          if [[ -z "${DELETE_BRANCH_AUTHOR_ALLOWLIST}" ]]; then
+            echo "::error::delete-branch-author-allowlist must not be empty"
+            exit 1
+          fi
+          if [[ -z "${DELETE_BRANCH_HEAD_OWNER_ALLOWLIST}" ]]; then
+            DELETE_BRANCH_HEAD_OWNER_ALLOWLIST="${repository_owner}"
+          fi
+
+          is_allowed() {
+            local value="$1"
+            local allowlist="$2"
+            local allowed_item
+            IFS=',' read -r -a allowed_items <<< "${allowlist}"
+            for allowed_item in "${allowed_items[@]}"; do
+              allowed_item="${allowed_item#"${allowed_item%%[![:space:]]*}"}"
+              allowed_item="${allowed_item%"${allowed_item##*[![:space:]]}"}"
+              if [[ "${value}" == "${allowed_item}" ]]; then
+                return 0
+              fi
+            done
+            return 1
+          }
+
+          while IFS= read -r record; do
+            branch="$(jq -r '.branch' <<< "${record}")"
+            pr_number="$(jq -r '.number' <<< "${record}")"
+            head_owner="$(jq -r '.headOwner' <<< "${record}")"
+            author="$(jq -r '.author' <<< "${record}")"
+            is_cross_repository="$(jq -r '.isCrossRepository' <<< "${record}")"
             if [[ -z "${branch}" || -z "${BRANCH_PREFIX}" || "${branch}" != "${BRANCH_PREFIX}"* ]]; then
               echo "::error::Refusing unexpected branch '${branch}' for prefix '${BRANCH_PREFIX}'"
               exit 1
             elif [[ "${branch}" == "${HEAD_REF}" || "${branch}" == "${default_branch}" ]]; then
               echo "::error::Refusing to delete protected branch name '${branch}'"
               exit 1
+            elif [[ "${is_cross_repository}" == "true" || "${head_owner}" != "${repository_owner}" ]]; then
+              echo "::error::Refusing to delete cross-repository branch '${branch}'"
+              exit 1
+            elif ! is_allowed "${author}" "${DELETE_BRANCH_AUTHOR_ALLOWLIST}"; then
+              echo "::error::Refusing to delete '${branch}' from untrusted PR author '${author}'"
+              exit 1
+            elif ! is_allowed "${head_owner}" "${DELETE_BRANCH_HEAD_OWNER_ALLOWLIST}"; then
+              echo "::error::Refusing to delete '${branch}' from untrusted head owner '${head_owner}'"
+              exit 1
             fi
             git check-ref-format "refs/heads/${branch}" >/dev/null
             if ! git merge-base --is-ancestor "refs/remotes/origin/${branch}" HEAD; then
               echo "::error::Refusing to delete '${branch}' because it is not merged into HEAD"
+              exit 1
+            fi
+            open_pr_count="$(gh pr list --state open \
+              --json headRefName,headRepositoryOwner,number \
+              | jq -r \
+                  --arg branch "${branch}" \
+                  --arg head_owner "${head_owner}" \
+                  --argjson pr_number "${pr_number}" \
+                  '[.[] | select(
+                    .number != $pr_number
+                    and .headRefName == $branch
+                    and (.headRepositoryOwner.login // "") == $head_owner
+                  )] | length')"
+            if [[ "${open_pr_count}" != "0" ]]; then
+              echo "::error::Refusing to delete '${branch}' because it is used by another open PR"
               exit 1
             fi
             encoded_branch="$(jq -nr --arg branch "${branch}" '$branch | @uri')"
@@ -143,4 +248,4 @@ jobs:
             fi
             git -c "http.https://github.com/.extraheader=AUTHORIZATION: bearer ${GH_TOKEN}" \
               push origin --delete "${branch}"
-          done < <(jq -r '.[]' <<< "${BRANCHES_JSON}")
+          done < <(jq -c '.[]' <<< "${BRANCH_RECORDS_JSON}")

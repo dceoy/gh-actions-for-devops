@@ -41,8 +41,8 @@ on:
       merge-pr-author-allowlist:
         required: false
         type: string
-        description: Optional comma-separated PR author allowlist for approval or merge
-        default: null
+        description: Comma-separated trusted PR authors allowed for approval or merge
+        default: github-actions[bot]
       search-path-for-lint-and-scan:
         required: false
         type: string
@@ -167,7 +167,9 @@ jobs:
     if: >
       github.event_name == 'pull_request'
       && inputs.merge-pr
-      && startsWith(github.event.pull_request.head.ref, inputs.merge-pr-head-branch-prefix)
+      && inputs.merge-pr-author-allowlist != null
+      && inputs.merge-pr-author-allowlist != ''
+      && github.event.pull_request.head.repo.full_name == github.repository
     needs:
       - terraform-lint-and-scan
     permissions:
@@ -179,6 +181,7 @@ jobs:
       MERGE_PR_AUTHOR_ALLOWLIST: ${{ inputs.merge-pr-author-allowlist }}
       PR_AUTHOR: ${{ github.event.pull_request.user.login }}
       PR_HEAD_REF: ${{ github.event.pull_request.head.ref }}
+      PR_HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
       PR_URL: ${{ github.event.pull_request.html_url }}
       GH_TOKEN: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}  # zizmor: ignore[secrets-outside-env] caller-provided secret
     steps:
@@ -190,21 +193,27 @@ jobs:
           elif [[ "${PR_HEAD_REF}" != "${EXPECTED_HEAD_BRANCH_PREFIX}"* ]]; then
             echo "::error::Pull request branch '${PR_HEAD_REF}' does not match '${EXPECTED_HEAD_BRANCH_PREFIX}'"
             exit 1
+          elif [[ "${PR_HEAD_REPOSITORY}" != "${GITHUB_REPOSITORY}" ]]; then
+            echo "::error::Pull request head repository '${PR_HEAD_REPOSITORY}' is not '${GITHUB_REPOSITORY}'"
+            exit 1
+          elif [[ -z "${MERGE_PR_AUTHOR_ALLOWLIST}" ]]; then
+            echo "::error::merge-pr-author-allowlist must not be empty when merge-pr is true"
+            exit 1
           fi
 
-          if [[ -n "${MERGE_PR_AUTHOR_ALLOWLIST}" ]]; then
-            allowed=false
-            IFS=',' read -r -a allowed_authors <<< "${MERGE_PR_AUTHOR_ALLOWLIST}"
-            for author in "${allowed_authors[@]}"; do
-              if [[ "${PR_AUTHOR}" == "${author}" ]]; then
-                allowed=true
-                break
-              fi
-            done
-            if [[ "${allowed}" != true ]]; then
-              echo "::error::Pull request author '${PR_AUTHOR}' is not in merge-pr-author-allowlist"
-              exit 1
+          allowed=false
+          IFS=',' read -r -a allowed_authors <<< "${MERGE_PR_AUTHOR_ALLOWLIST}"
+          for author in "${allowed_authors[@]}"; do
+            author="${author#"${author%%[![:space:]]*}"}"
+            author="${author%"${author##*[![:space:]]}"}"
+            if [[ "${PR_AUTHOR}" == "${author}" ]]; then
+              allowed=true
+              break
             fi
+          done
+          if [[ "${allowed}" != true ]]; then
+            echo "::error::Pull request author '${PR_AUTHOR}' is not in merge-pr-author-allowlist"
+            exit 1
           fi
       - name: Verify the pull request only changes Terraform lock files
         run: |
