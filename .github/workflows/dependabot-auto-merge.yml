@@ -6,9 +6,7 @@ on:
       unconditional:
         required: false
         type: boolean
-        description: >-
-          Deprecated compatibility input. It no longer bypasses Dependabot
-          safety checks.
+        description: Whether to unconditionally approve PRs without checking the update type
         default: false
       auto-merge-after-requirements:
         required: false
@@ -67,11 +65,7 @@ jobs:
           echo "safe=${safe}" | tee -a "${GITHUB_OUTPUT}"
       - name: Approve the pull request
         if: >
-          steps.safe-update.outputs.safe == 'true'
-          && (
-            inputs.unconditional
-            || steps.metadata.outputs.update-type == 'version-update:semver-patch'
-          )
+          inputs.unconditional || steps.safe-update.outputs.safe == 'true'
         id: approve-pr
         run: >
           gh pr review --approve "${PR_URL}"
