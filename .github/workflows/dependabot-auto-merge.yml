@@ -3,6 +3,13 @@ name: Dependabot auto-merge
 on:
   workflow_call:
     inputs:
+      unconditional:
+        required: false
+        type: boolean
+        description: >-
+          Deprecated compatibility input. It no longer bypasses Dependabot
+          safety checks.
+        default: false
       auto-merge-after-requirements:
         required: false
         type: boolean

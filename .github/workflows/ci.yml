@@ -102,6 +102,8 @@ jobs:
       checks: read
       statuses: read
     uses: ./.github/workflows/dependabot-auto-merge.yml
+    with:
+      unconditional: true
     secrets:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   markdown-format-and-pr:

@@ -76,7 +76,6 @@ The workflows are organized by category for easier navigation. Each workflow is 
 | [docker-pull-from-aws.yml](.github/workflows/docker-pull-from-aws.yml)                                           | Docker image pull from AWS                                        |
 | [docker-save-and-terraform-deploy-to-aws.yml](.github/workflows/docker-save-and-terraform-deploy-to-aws.yml)     | Docker image save and resource deployment to AWS using Terraform  |
 | [gcloud-infra-manager-deployments.yml](.github/workflows/gcloud-infra-manager-deployments.yml)                   | Deployment of Google Cloud resources using Infrastructure Manager |
-| [gemini-cli-review.yml](.github/workflows/gemini-cli-review.yml)                                                 | Pull request review using Gemini CLI                              |
 | [gemini-cli-to-slack.yml](.github/workflows/gemini-cli-to-slack.yml)                                             | Gemini CLI with Slack notification                                |
 | [github-actions-lint-and-scan.yml](.github/workflows/github-actions-lint-and-scan.yml)                           | Lint and security scan for GitHub Actions workflows               |
 | [github-codeql-analysis.yml](.github/workflows/github-codeql-analysis.yml)                                       | GitHub CodeQL Analysis                                            |
