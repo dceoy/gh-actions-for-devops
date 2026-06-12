@@ -30,6 +30,7 @@ jobs:
   claude-code-review:
     if: >
       github.event_name == 'pull_request'
+      && contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.pull_request.author_association)
       && (! github.event.pull_request.draft)
       && (! startsWith(github.head_ref, 'dependabot/'))
       && (! startsWith(github.head_ref, 'renovate/'))
@@ -46,10 +47,23 @@ jobs:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   claude-code-bot:
     if: >
-      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude'))
-      || (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude'))
-      || (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude'))
-      || (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')))
+      (
+        github.event_name == 'issue_comment'
+        && contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
+        && contains(github.event.comment.body, '@claude')
+      ) || (
+        github.event_name == 'pull_request_review_comment'
+        && contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
+        && contains(github.event.comment.body, '@claude')
+      ) || (
+        github.event_name == 'pull_request_review'
+        && contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.review.author_association)
+        && contains(github.event.review.body, '@claude')
+      ) || (
+        github.event_name == 'issues'
+        && contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.issue.author_association)
+        && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude'))
+      )
     permissions:
       contents: read
       pull-requests: write
@@ -64,6 +78,7 @@ jobs:
     if: >
       (
         github.event_name == 'issue_comment'
+        && contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
         && (
           startsWith(github.event.comment.body, '/opencode ')
           || startsWith(github.event.comment.body, '/oc ')
@@ -72,6 +87,7 @@ jobs:
         )
       ) || (
         github.event_name == 'pull_request_review_comment'
+        && contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
         && (
           startsWith(github.event.comment.body, '/opencode ')
           || startsWith(github.event.comment.body, '/oc ')
@@ -80,7 +96,7 @@ jobs:
         )
       )
     permissions:
-      contents: write
+      contents: read
       pull-requests: write
       issues: write
       id-token: write

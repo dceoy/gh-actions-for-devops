@@ -140,8 +140,14 @@ jobs:
     if: >
       github.event.sender.type != 'Bot'
       && (
-        github.event_name == 'pull_request'
-        || github.event_name == 'issue_comment'
+        (
+          github.event_name == 'pull_request'
+          && contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.pull_request.author_association)
+        )
+        || (
+          github.event_name == 'issue_comment'
+          && contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
+        )
       )
     runs-on: ${{ inputs.runs-on }}
     steps:

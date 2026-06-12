@@ -99,6 +99,8 @@ jobs:
       contents: write
       pull-requests: write
       actions: read
+      checks: read
+      statuses: read
     uses: ./.github/workflows/dependabot-auto-merge.yml
     with:
       unconditional: true
