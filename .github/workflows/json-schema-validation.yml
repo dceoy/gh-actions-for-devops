@@ -70,7 +70,22 @@ jobs:
           RELATIVE_PATH_FROM_SCHEMA_DIRECTORY_TO_DATA_FILES: ${{ inputs.relative-path-from-schema-directory-to-data-files }}
         working-directory: ${{ inputs.search-path }}
         run: |
+          reject_shell_metacharacters() {
+            local label="${1}" value="${2}"
+            case "${value}" in
+              *'$'*|*'`'*|*';'*|*'|'*|*'&'*|*'<'*|'>'*)
+                echo "Error: ${label} contains unsupported shell metacharacters"
+                exit 1
+                ;;
+            esac
+          }
+
+          # Reject metacharacters before any double-quoted expansion of caller-controlled patterns.
+          reject_shell_metacharacters "schema-file-name" "${SCHEMA_FILE_NAME}"
+          reject_shell_metacharacters "relative-path-from-schema-directory-to-data-files" "${RELATIVE_PATH_FROM_SCHEMA_DIRECTORY_TO_DATA_FILES}"
+
+          schema_glob="**/${SCHEMA_FILE_NAME}"
           # Pass schema paths and the data glob as positional args; never splice them into bash -c strings.
           # shellcheck disable=SC2016
-          git ls-files -z -- "**/${SCHEMA_FILE_NAME}" \
+          git ls-files -z -- "${schema_glob}" \
             | xargs -0 -I{} bash -c 'cd "$(dirname "$1")" && ajv validate -s "$(basename "$1")" -d "$2"' _ {} "${RELATIVE_PATH_FROM_SCHEMA_DIRECTORY_TO_DATA_FILES}"
