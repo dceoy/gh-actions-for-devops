@@ -27,7 +27,7 @@ on:
         required: false
         description: GitHub token
 permissions:
-  contents: write
+  contents: read
   pull-requests: read
 defaults:
   run:
@@ -37,6 +37,8 @@ jobs:
   branch-list:
     if: >
       github.event_name == 'pull_request'
+      && inputs.branch-prefix != null
+      && inputs.branch-prefix != ''
     runs-on: ${{ inputs.runs-on }}
     env:
       BRANCH_PREFIX: ${{ inputs.branch-prefix }}
@@ -54,17 +56,26 @@ jobs:
         id: list-open-prs
         run: |
           gh pr list --state open --json headRefName \
-            --jq ".[].headRefName | select(. | startswith(\"${BRANCH_PREFIX}\"))" \
-            | tac \
-            | jq -rRs "split(\"\\n\")[:-1] | .-[\"${HEAD_REF}\"] | \"pr_branches_json=\\(.)\"" \
+            | jq -cr \
+                --arg prefix "${BRANCH_PREFIX}" \
+                --arg head_ref "${HEAD_REF}" \
+                '[.[].headRefName | select(startswith($prefix))]
+                  | reverse
+                  | map(select(. != $head_ref))
+                  | "pr_branches_json=\(.)"' \
             | tee -a "${GITHUB_OUTPUT}"
   branch-merge:
     if: >
-      needs.branch-list.outputs.pr_branches_json != '[]'
+      needs.branch-list.result == 'success'
+      && needs.branch-list.outputs.pr_branches_json != '[]'
     needs:
       - branch-list
+    permissions:
+      contents: write
+      pull-requests: read
     runs-on: ${{ inputs.runs-on }}
     env:
+      BRANCH_PREFIX: ${{ inputs.branch-prefix }}
       BRANCHES_JSON: ${{ needs.branch-list.outputs.pr_branches_json }}
       HEAD_REF: ${{ github.head_ref }}
       GH_TOKEN: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}  # zizmor: ignore[secrets-outside-env] caller-provided secret
@@ -73,21 +84,63 @@ jobs:
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
         with:
           fetch-depth: 0
-          persist-credentials: true
+          persist-credentials: false
       - name: Fetch the remote branches
         run: |
-          jq -r '.[]' <<< "${BRANCHES_JSON}" | xargs -t git fetch origin
+          validate_branch() {
+            local branch="$1"
+            if [[ -z "${branch}" || -z "${BRANCH_PREFIX}" || "${branch}" != "${BRANCH_PREFIX}"* ]]; then
+              echo "::error::Refusing unexpected branch '${branch}' for prefix '${BRANCH_PREFIX}'"
+              exit 1
+            elif [[ "${branch}" == "${HEAD_REF}" ]]; then
+              echo "::error::Refusing to process the current pull request branch '${branch}'"
+              exit 1
+            fi
+            git check-ref-format "refs/heads/${branch}" >/dev/null
+          }
+
+          while IFS= read -r branch; do
+            validate_branch "${branch}"
+            git -c "http.https://github.com/.extraheader=AUTHORIZATION: bearer ${GH_TOKEN}" \
+              fetch --no-tags origin "+refs/heads/${branch}:refs/remotes/origin/${branch}"
+          done < <(jq -r '.[]' <<< "${BRANCHES_JSON}")
       - name: Configure the Git user
         run: |
           git config --global user.name "${GITHUB_ACTOR}"
           git config --global user.email "${GITHUB_ACTOR}@users.noreply.github.com"
       - name: Merge the branches
         run: |
-          jq -r '.[]' <<< "${BRANCHES_JSON}" | xargs -I{} -t git merge --allow-unrelated-histories --no-edit origin/{}
+          while IFS= read -r branch; do
+            git merge --allow-unrelated-histories --no-edit "refs/remotes/origin/${branch}"
+          done < <(jq -r '.[]' <<< "${BRANCHES_JSON}")
       - name: Push the changes
         run: |
-          git push origin "HEAD:${HEAD_REF}"
+          git check-ref-format "refs/heads/${HEAD_REF}" >/dev/null
+          git -c "http.https://github.com/.extraheader=AUTHORIZATION: bearer ${GH_TOKEN}" \
+            push origin "HEAD:${HEAD_REF}"
       - name: Delete the merged branches
         if: inputs.delete-merged-branch
         run: |
-          jq -r '.[]' <<< "${BRANCHES_JSON}" | xargs -t git push origin --delete
+          default_branch="$(gh repo view "${GITHUB_REPOSITORY}" --json defaultBranchRef --jq '.defaultBranchRef.name')"
+          while IFS= read -r branch; do
+            if [[ -z "${branch}" || -z "${BRANCH_PREFIX}" || "${branch}" != "${BRANCH_PREFIX}"* ]]; then
+              echo "::error::Refusing unexpected branch '${branch}' for prefix '${BRANCH_PREFIX}'"
+              exit 1
+            elif [[ "${branch}" == "${HEAD_REF}" || "${branch}" == "${default_branch}" ]]; then
+              echo "::error::Refusing to delete protected branch name '${branch}'"
+              exit 1
+            fi
+            git check-ref-format "refs/heads/${branch}" >/dev/null
+            if ! git merge-base --is-ancestor "refs/remotes/origin/${branch}" HEAD; then
+              echo "::error::Refusing to delete '${branch}' because it is not merged into HEAD"
+              exit 1
+            fi
+            encoded_branch="$(jq -nr --arg branch "${branch}" '$branch | @uri')"
+            protected="$(gh api "repos/${GITHUB_REPOSITORY}/branches/${encoded_branch}" --jq '.protected')"
+            if [[ "${protected}" == "true" ]]; then
+              echo "::error::Refusing to delete protected branch '${branch}'"
+              exit 1
+            fi
+            git -c "http.https://github.com/.extraheader=AUTHORIZATION: bearer ${GH_TOKEN}" \
+              push origin --delete "${branch}"
+          done < <(jq -r '.[]' <<< "${BRANCHES_JSON}")

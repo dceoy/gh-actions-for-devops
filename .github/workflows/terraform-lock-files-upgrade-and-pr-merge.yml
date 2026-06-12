@@ -33,6 +33,16 @@ on:
         type: string
         description: Prefix of the branches to merge (e.g., dependabot/terraform/)
         default: null
+      merge-pr-head-branch-prefix:
+        required: false
+        type: string
+        description: Prefix required for lock-file PR branches before approval or merge
+        default: autopr/
+      merge-pr-author-allowlist:
+        required: false
+        type: string
+        description: Optional comma-separated PR author allowlist for approval or merge
+        default: null
       search-path-for-lint-and-scan:
         required: false
         type: string
@@ -91,10 +101,13 @@ on:
     secrets:
       GH_TOKEN:
         required: false
-        description: GitHub token
+        description: >-
+          GitHub token. Use a dedicated PAT or GitHub App token if branch
+          protection requires PR approval; the default GITHUB_TOKEN cannot
+          approve PRs created by the same token.
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
+  pull-requests: read
 defaults:
   run:
     shell: bash -euo pipefail {0}
@@ -103,6 +116,9 @@ jobs:
   branch-merge:
     if: >
       inputs.merged-pr-branch-prefix != null && github.event_name == 'pull_request'
+    permissions:
+      contents: write
+      pull-requests: read
     uses: ./.github/workflows/github-pr-branch-aggregation.yml
     with:
       branch-prefix: ${{ inputs.merged-pr-branch-prefix }}
@@ -113,6 +129,9 @@ jobs:
       (! (failure() || cancelled()))
     needs:
       - branch-merge
+    permissions:
+      contents: write
+      pull-requests: write
     uses: ./.github/workflows/terraform-lock-files-upgrade.yml
     with:
       terraform-working-directories: ${{ inputs.terraform-working-directories }}
@@ -125,6 +144,10 @@ jobs:
   terraform-lint-and-scan:
     needs:
       - terraform-lock-files-upgrade
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
     uses: ./.github/workflows/terraform-lint-and-scan.yml
     with:
       search-path: ${{ inputs.search-path-for-lint-and-scan }}
@@ -143,17 +166,64 @@ jobs:
   pr-merge:
     if: >
       github.event_name == 'pull_request'
+      && inputs.merge-pr
+      && startsWith(github.event.pull_request.head.ref, inputs.merge-pr-head-branch-prefix)
     needs:
       - terraform-lint-and-scan
+    permissions:
+      contents: write
+      pull-requests: write
     runs-on: ubuntu-slim
     env:
+      EXPECTED_HEAD_BRANCH_PREFIX: ${{ inputs.merge-pr-head-branch-prefix }}
+      MERGE_PR_AUTHOR_ALLOWLIST: ${{ inputs.merge-pr-author-allowlist }}
+      PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+      PR_HEAD_REF: ${{ github.event.pull_request.head.ref }}
       PR_URL: ${{ github.event.pull_request.html_url }}
       GH_TOKEN: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}  # zizmor: ignore[secrets-outside-env] caller-provided secret
     steps:
-      - name: Approve the pull request
+      - name: Validate automation pull request
+        run: |
+          if [[ -z "${EXPECTED_HEAD_BRANCH_PREFIX}" ]]; then
+            echo "::error::merge-pr-head-branch-prefix must not be empty"
+            exit 1
+          elif [[ "${PR_HEAD_REF}" != "${EXPECTED_HEAD_BRANCH_PREFIX}"* ]]; then
+            echo "::error::Pull request branch '${PR_HEAD_REF}' does not match '${EXPECTED_HEAD_BRANCH_PREFIX}'"
+            exit 1
+          fi
+
+          if [[ -n "${MERGE_PR_AUTHOR_ALLOWLIST}" ]]; then
+            allowed=false
+            IFS=',' read -r -a allowed_authors <<< "${MERGE_PR_AUTHOR_ALLOWLIST}"
+            for author in "${allowed_authors[@]}"; do
+              if [[ "${PR_AUTHOR}" == "${author}" ]]; then
+                allowed=true
+                break
+              fi
+            done
+            if [[ "${allowed}" != true ]]; then
+              echo "::error::Pull request author '${PR_AUTHOR}' is not in merge-pr-author-allowlist"
+              exit 1
+            fi
+          fi
+      - name: Verify the pull request only changes Terraform lock files
+        run: |
+          changed_files="$(mktemp)"
+          gh pr diff "${PR_URL}" --name-only > "${changed_files}"
+          if [[ ! -s "${changed_files}" ]]; then
+            echo "::error::Pull request diff is empty"
+            exit 1
+          fi
+          while IFS= read -r path; do
+            if [[ "${path}" != ".terraform.lock.hcl" && "${path}" != */.terraform.lock.hcl ]]; then
+              echo "::error::Unexpected file in lock-file pull request: ${path}"
+              exit 1
+            fi
+          done < "${changed_files}"
+      - name: Approve the pull request when the token can approve
+        continue-on-error: true
         run: >
           gh pr review --approve "${PR_URL}"
       - name: Merge the pull request
-        if: inputs.merge-pr
         run: >
           gh pr merge --merge --delete-branch "${PR_URL}"

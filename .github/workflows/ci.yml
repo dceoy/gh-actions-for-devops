@@ -99,9 +99,9 @@ jobs:
       contents: write
       pull-requests: write
       actions: read
+      checks: read
+      statuses: read
     uses: ./.github/workflows/dependabot-auto-merge.yml
-    with:
-      unconditional: true
     secrets:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   markdown-format-and-pr:

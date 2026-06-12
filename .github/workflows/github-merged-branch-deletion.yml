@@ -43,25 +43,66 @@ jobs:
         with:
           fetch-depth: 1
           persist-credentials: false
-      - name: Retrieve the merge commit OID
-        id: retrieve-merge-commit-oid
-        run: >
-          gh pr view "${PR_NUMBER}" --json mergeCommit --jq .mergeCommit.oid
-          | xargs -I{} echo 'merge_commit_oid={}'
-          | tee -a "${GITHUB_OUTPUT}"
-      - name: Retrieve the head ref name
-        if: steps.retrieve-merge-commit-oid.outputs.merge_commit_oid != null
-        run: >
-          gh pr view "${PR_NUMBER}" --json headRefName --jq .headRefName
-          | xargs -I{} echo 'HEAD_REF_ENDPOINT=repos/${{ github.repository }}/git/refs/heads/{}'
-          | tee -a "${GITHUB_ENV}"
-      - name: Check if the head ref branch exists
-        if: env.HEAD_REF_ENDPOINT != ''
-        id: check-if-head-ref-exists
-        continue-on-error: true
-        run: >
-          gh api "${HEAD_REF_ENDPOINT}"
+      - name: Validate the merged branch is safe to delete
+        id: validate-branch
+        run: |
+          if [[ ! "${PR_NUMBER}" =~ ^[0-9]+$ ]]; then
+            echo "::error::Invalid pull request number '${PR_NUMBER}'"
+            exit 1
+          fi
+
+          pr_json="$(gh pr view "${PR_NUMBER}" \
+            --json baseRefName,headRefName,headRepositoryOwner,isCrossRepository,mergedAt,state)"
+          state="$(jq -r '.state' <<< "${pr_json}")"
+          merged_at="$(jq -r '.mergedAt // ""' <<< "${pr_json}")"
+          head_ref="$(jq -r '.headRefName' <<< "${pr_json}")"
+          base_ref="$(jq -r '.baseRefName' <<< "${pr_json}")"
+          head_owner="$(jq -r '.headRepositoryOwner.login // ""' <<< "${pr_json}")"
+          is_cross_repository="$(jq -r '.isCrossRepository' <<< "${pr_json}")"
+          repository_owner="${GITHUB_REPOSITORY%%/*}"
+          default_branch="$(gh repo view "${GITHUB_REPOSITORY}" --json defaultBranchRef --jq '.defaultBranchRef.name')"
+
+          if [[ "${state}" != "MERGED" || -z "${merged_at}" ]]; then
+            echo "::error::Pull request ${PR_NUMBER} is not merged"
+            exit 1
+          elif [[ "${is_cross_repository}" == "true" || "${head_owner}" != "${repository_owner}" ]]; then
+            echo "::notice::Skipping deletion for fork or external head repository branch '${head_ref}'"
+            echo "delete_branch=false" | tee -a "${GITHUB_OUTPUT}"
+            exit 0
+          elif [[ -z "${head_ref}" || "${head_ref}" == "${default_branch}" || "${head_ref}" == "${base_ref}" ]]; then
+            echo "::error::Refusing to delete default/base branch '${head_ref}'"
+            exit 1
+          fi
+          git check-ref-format "refs/heads/${head_ref}" >/dev/null
+
+          open_pr_count="$(gh pr list --state open --json headRefName,headRepositoryOwner,number \
+            | jq -r \
+                --arg head_ref "${head_ref}" \
+                --arg head_owner "${head_owner}" \
+                --argjson pr_number "${PR_NUMBER}" \
+                '[.[] | select(
+                  .number != $pr_number
+                  and .headRefName == $head_ref
+                  and (.headRepositoryOwner.login // "") == $head_owner
+                )] | length')"
+          if [[ "${open_pr_count}" != "0" ]]; then
+            echo "::error::Refusing to delete '${head_ref}' because it is used by another open PR"
+            exit 1
+          fi
+
+          encoded_branch="$(jq -nr --arg branch "${head_ref}" '$branch | @uri')"
+          protected="$(gh api "repos/${GITHUB_REPOSITORY}/branches/${encoded_branch}" --jq '.protected')"
+          if [[ "${protected}" == "true" ]]; then
+            echo "::error::Refusing to delete protected branch '${head_ref}'"
+            exit 1
+          fi
+
+          echo "delete_branch=true" | tee -a "${GITHUB_OUTPUT}"
+          echo "head_ref=${head_ref}" | tee -a "${GITHUB_OUTPUT}"
       - name: Delete the merged branch
-        if: steps.check-if-head-ref-exists.outcome == 'success'
+        if: steps.validate-branch.outputs.delete_branch == 'true'
+        env:
+          HEAD_REF: ${{ steps.validate-branch.outputs.head_ref }}
         run: >
-          gh api -X DELETE "${HEAD_REF_ENDPOINT}"
+          git -c "http.https://github.com/.extraheader=AUTHORIZATION: bearer ${GH_TOKEN}"
+          push origin --delete "${HEAD_REF}"

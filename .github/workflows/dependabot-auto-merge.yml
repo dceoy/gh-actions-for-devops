@@ -3,16 +3,11 @@ name: Dependabot auto-merge
 on:
   workflow_call:
     inputs:
-      unconditional:
-        required: false
-        type: boolean
-        description: Whether to unconditionally auto-merge the PR
-        default: false
       auto-merge-after-requirements:
         required: false
         type: boolean
-        description: Whether to merge the PR automatically only after necessary requirements are met
-        default: false
+        description: Whether to enable auto-merge after branch protection requirements are met
+        default: true
       runs-on:
         required: false
         type: string
@@ -26,6 +21,8 @@ permissions:
   contents: write
   pull-requests: write
   actions: read
+  checks: read
+  statuses: read
 defaults:
   run:
     shell: bash -euo pipefail {0}
@@ -43,19 +40,37 @@ jobs:
         uses: dependabot/fetch-metadata@25dd0e34f4fe68f24cc83900b1fe3fe149efef98  # v3.1.0
         with:
           github-token: ${{ env.GH_TOKEN }}
+      - name: Verify a safe Dependabot update type
+        id: safe-update
+        env:
+          PACKAGE_ECOSYSTEM: ${{ steps.metadata.outputs.package-ecosystem }}
+          UPDATE_TYPE: ${{ steps.metadata.outputs.update-type }}
+        run: |
+          safe=false
+          case "${UPDATE_TYPE}" in
+            version-update:semver-patch)
+              safe=true
+              ;;
+            version-update:semver-minor)
+              if [[ "${PACKAGE_ECOSYSTEM}" != "github_actions" ]]; then
+                safe=true
+              fi
+              ;;
+          esac
+          echo "safe=${safe}" | tee -a "${GITHUB_OUTPUT}"
       - name: Approve the pull request
         if: >
-          inputs.unconditional || steps.metadata.outputs.update-type == 'version-update:semver-patch'
+          steps.safe-update.outputs.safe == 'true'
         id: approve-pr
         run: >
           gh pr review --approve "${PR_URL}"
-      - name: Merge the pull request after necessary requirements are met
+      - name: Verify required checks
+        if: >
+          steps.approve-pr.outcome == 'success' && inputs.auto-merge-after-requirements
+        run: >
+          gh pr checks --required "${PR_URL}"
+      - name: Enable auto-merge after necessary requirements are met
         if: >
           steps.approve-pr.outcome == 'success' && inputs.auto-merge-after-requirements
         run: >
           gh pr merge --merge --delete-branch --auto "${PR_URL}"
-      - name: Merge the pull request immediately
-        if: >
-          steps.approve-pr.outcome == 'success' && (! inputs.auto-merge-after-requirements)
-        run: >
-          gh pr merge --merge --delete-branch "${PR_URL}"
