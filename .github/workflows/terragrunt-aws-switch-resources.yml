@@ -120,11 +120,17 @@ jobs:
         if: inputs.terragrunt-target-ec2-directory != null
         env:
           TERRAGRUNT_TARGET_EC2_DIRECTORY: ${{ inputs.terragrunt-target-ec2-directory }}
-          AWS_EC2_COMMAND: ${{ inputs.start && 'start-instances' || 'stop-instances' }}
+          START: ${{ inputs.start }}
+          TERMINATE: ${{ inputs.terminate }}
         run: |
-          if (! ${{ inputs.start }}) && ${{ inputs.terminate }}; then
+          if [[ "${START}" != "true" ]] && [[ "${TERMINATE}" == "true" ]]; then
             terragrunt destroy --working-dir="${TERRAGRUNT_TARGET_EC2_DIRECTORY}" -auto-approve
           else
+            if [[ "${START}" == "true" ]]; then
+              AWS_EC2_COMMAND=start-instances
+            else
+              AWS_EC2_COMMAND=stop-instances
+            fi
             ec2_instance_ids_txt="$(mktemp)"
             {
               terragrunt output --working-dir="${TERRAGRUNT_TARGET_EC2_DIRECTORY}" \
@@ -134,14 +140,19 @@ jobs:
             } | tee "${ec2_instance_ids_txt}"
             if [[ -s "${ec2_instance_ids_txt}" ]]; then
               xargs -t aws ec2 "${AWS_EC2_COMMAND}" --instance-ids < "${ec2_instance_ids_txt}"
-            elif ${{ inputs.start }}; then
+            elif [[ "${START}" == "true" ]]; then
               terragrunt apply --working-dir="${TERRAGRUNT_TARGET_EC2_DIRECTORY}" -auto-approve
             fi
           fi
       - name: Create or destroy target resources
         if: inputs.terragrunt-target-resource-directories != null
         env:
-          TERRAGRUNT_COMMAND: ${{ inputs.start && 'apply' || 'destroy' }}
+          START: ${{ inputs.start }}
           TERRAGRUNT_TARGET_RESOURCE_DIRECTORIES: ${{ inputs.terragrunt-target-resource-directories }}
         run: |
+          if [[ "${START}" == "true" ]]; then
+            TERRAGRUNT_COMMAND=apply
+          else
+            TERRAGRUNT_COMMAND=destroy
+          fi
           xargs -I{} -t terragrunt "${TERRAGRUNT_COMMAND}" --working-dir='{}' -auto-approve <<< "${TERRAGRUNT_TARGET_RESOURCE_DIRECTORIES}"

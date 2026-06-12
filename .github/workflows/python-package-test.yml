@@ -75,7 +75,7 @@ jobs:
               uv add --dev "${p}"
             fi
           done
-          tee -a "${GITHUB_ENV}" <<< "EXECUTOR=uv run --directory ${PWD}"
+          echo "EXECUTOR_KIND=uv" >> "${GITHUB_ENV}"
       - name: Set up Python
         if: env.LOCK_FILE != 'uv.lock'
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.2.0
@@ -101,16 +101,20 @@ jobs:
               fi
             done
             poetry install --no-interaction --no-root
-            tee -a "${GITHUB_ENV}" <<< "EXECUTOR=poetry run -C ${PWD}"
+            echo "EXECUTOR_KIND=poetry" >> "${GITHUB_ENV}"
           else
             for p in $(tr ' ' '\n' <<< "${ADDITIONAL_PYTHON_PACKAGES}"); do
               if [[ -n "${p}" ]]; then
                 pip install --no-cache-dir "${p}"
               fi
             done
-            tee -a "${GITHUB_ENV}" <<< "EXECUTOR="
+            echo "EXECUTOR_KIND=none" >> "${GITHUB_ENV}"
           fi
       - name: Run tests with pytest
         working-directory: ${{ inputs.package-path }}
-        run: >  # zizmor: ignore[template-injection]
-          ${{ env.EXECUTOR }} pytest
+        run: |
+          case "${EXECUTOR_KIND}" in
+            uv)     uv run pytest ;;
+            poetry) poetry run pytest ;;
+            *)      pytest ;;
+          esac

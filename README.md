@@ -50,9 +50,35 @@ jobs:
       registry-user: myusername
       image-name: my-app
       context: .
+      # Non-sensitive BuildKit secret env/file mappings only (names and paths).
+      secret-envs: GIT_AUTH_TOKEN=GIT_AUTH_TOKEN
     secrets:
       DOCKER_TOKEN: ${{ secrets.DOCKER_TOKEN }}
+      # Masked BuildKit secret lines such as `GIT_AUTH_TOKEN=...` (breaking change: `with.secrets` input removed).
+      BUILD_SECRETS: ${{ secrets.DOCKER_BUILD_SECRETS }}
+
+  aws-parameter-store-update:
+    uses: dceoy/gh-actions-for-devops/.github/workflows/aws-parameter-store-update.yml@main
+    with:
+      aws-iam-role-to-assume: arn:aws:iam::123456789012:role/github-actions
+      aws-region: us-east-1
+    secrets:
+      # Masked parameter values (breaking change: `parameters-from-json` input removed).
+      PARAMETERS_JSON: ${{ secrets.SSM_PARAMETERS_JSON }}
 ```
+
+### Breaking changes (secret handling)
+
+Sensitive values must be passed through the `secrets:` keyword of `workflow_call`, not `with:` inputs. This keeps values masked in logs.
+
+| Workflow                                      | Removed input          | Replacement secret |
+| --------------------------------------------- | ---------------------- | ------------------ |
+| `docker-build-and-push.yml`                   | `secrets`              | `BUILD_SECRETS`    |
+| `docker-build-with-multi-targets.yml`         | `secrets`              | `BUILD_SECRETS`    |
+| `docker-save-and-terraform-deploy-to-aws.yml` | `docker-build-secrets` | `BUILD_SECRETS`    |
+| `aws-parameter-store-update.yml`              | `parameters-from-json` | `PARAMETERS_JSON`  |
+
+`secret-envs` and `secret-files` inputs remain for non-sensitive BuildKit secret _names_ and file _paths_.
 
 ## Reusable Workflows
 

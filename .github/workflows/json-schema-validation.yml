@@ -69,7 +69,8 @@ jobs:
           SCHEMA_FILE_NAME: ${{ inputs.schema-file-name }}
           RELATIVE_PATH_FROM_SCHEMA_DIRECTORY_TO_DATA_FILES: ${{ inputs.relative-path-from-schema-directory-to-data-files }}
         working-directory: ${{ inputs.search-path }}
-        run: >
-          git ls-files -z -- "**/${SCHEMA_FILE_NAME}"
-          | xargs -0 -I{} -t bash -c
-          "cd \"\$(dirname {})\" && ajv validate -s \"\$(basename {})\" -d '${RELATIVE_PATH_FROM_SCHEMA_DIRECTORY_TO_DATA_FILES}'"
+        run: |
+          # Pass schema paths and the data glob as positional args; never splice them into bash -c strings.
+          # shellcheck disable=SC2016
+          git ls-files -z -- "**/${SCHEMA_FILE_NAME}" \
+            | xargs -0 -I{} bash -c 'cd "$(dirname "$1")" && ajv validate -s "$(basename "$1")" -d "$2"' _ {} "${RELATIVE_PATH_FROM_SCHEMA_DIRECTORY_TO_DATA_FILES}"
