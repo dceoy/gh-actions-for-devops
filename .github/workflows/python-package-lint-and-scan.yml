@@ -99,23 +99,27 @@ jobs:
         env:
           INPUTS_ADDITIONAL_PYTHON_PACKAGES: ${{ inputs.additional-python-packages }}
           INPUTS_AUDIT: ${{ inputs.audit }}
+          USE_FLAKE8: ${{ inputs.use-flake8 }}
+          USE_BANDIT: ${{ inputs.use-bandit }}
+          USE_MYPY: ${{ inputs.use-mypy }}
+          USE_PYRIGHT: ${{ inputs.use-pyright }}
         run: |
           uv sync --all-groups
           if [[ "${INPUTS_AUDIT}" == "true" ]]; then
             uv audit --locked
           fi
-          uv add --dev \
-            ${{ inputs.use-flake8 && 'flake8' || '' }} \
-            ${{ inputs.use-bandit && 'bandit' || '' }} \
-            ${{ inputs.use-mypy && 'mypy' || '' }} \
-            ${{ inputs.use-pyright && 'pyright' || '' }} \
-            ruff
+          packages=(ruff)
+          [[ "${USE_FLAKE8}" == "true" ]] && packages+=(flake8)
+          [[ "${USE_BANDIT}" == "true" ]] && packages+=(bandit)
+          [[ "${USE_MYPY}" == "true" ]] && packages+=(mypy)
+          [[ "${USE_PYRIGHT}" == "true" ]] && packages+=(pyright)
+          uv add --dev "${packages[@]}"
           for p in $(tr ' ' '\n' <<< "${INPUTS_ADDITIONAL_PYTHON_PACKAGES}"); do
             if [[ -n "${p}" ]]; then
               uv add --dev "${p}"
             fi
           done
-          tee -a "${GITHUB_ENV}" <<< "EXECUTOR=uv run --directory ${PWD}"
+          echo "EXECUTOR_KIND=uv" >> "${GITHUB_ENV}"
       - name: Set up Python
         if: env.LOCK_FILE != 'uv.lock'
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.2.0
@@ -126,68 +130,91 @@ jobs:
         env:
           ADDITIONAL_PYTHON_PACKAGES: ${{ inputs.additional-python-packages }}
           REQUIREMENTS_TXT_PATH: ${{ inputs.requirements-txt }}
+          USE_FLAKE8: ${{ inputs.use-flake8 }}
+          USE_BANDIT: ${{ inputs.use-bandit }}
+          USE_MYPY: ${{ inputs.use-mypy }}
+          USE_PYRIGHT: ${{ inputs.use-pyright }}
         working-directory: ${{ inputs.package-path }}
         run: |
           pip install -U --no-cache-dir pip
           if [[ -n "${REQUIREMENTS_TXT_PATH}" ]]; then
             pip install -U --no-cache-dir -r "${REQUIREMENTS_TXT_PATH}"
           fi
+          packages=(ruff)
+          [[ "${USE_FLAKE8}" == "true" ]] && packages+=(flake8)
+          [[ "${USE_BANDIT}" == "true" ]] && packages+=(bandit)
+          [[ "${USE_MYPY}" == "true" ]] && packages+=(mypy)
+          [[ "${USE_PYRIGHT}" == "true" ]] && packages+=(pyright)
           if [[ "${LOCK_FILE}" == "poetry.lock" ]]; then
             pip install --no-cache-dir poetry
             poetry lock --no-interaction
-            poetry add --group=dev --no-interaction \
-              ${{ inputs.use-flake8 && 'flake8' || '' }} \
-              ${{ inputs.use-bandit && 'bandit' || '' }} \
-              ${{ inputs.use-mypy && 'mypy' || '' }} \
-              ${{ inputs.use-pyright && 'pyright' || '' }} \
-              ruff
+            poetry add --group=dev --no-interaction "${packages[@]}"
             for p in $(tr ' ' '\n' <<< "${ADDITIONAL_PYTHON_PACKAGES}"); do
               if [[ -n "${p}" ]]; then
                 poetry add --group=dev --no-interaction "${p}"
               fi
             done
             poetry install --no-interaction --no-root
-            tee -a "${GITHUB_ENV}" <<< "EXECUTOR=poetry run -C ${PWD}"
+            echo "EXECUTOR_KIND=poetry" >> "${GITHUB_ENV}"
           else
-            pip install --no-cache-dir \
-              ${{ inputs.use-flake8 && 'flake8' || '' }} \
-              ${{ inputs.use-bandit && 'bandit' || '' }} \
-              ${{ inputs.use-mypy && 'mypy' || '' }} \
-              ${{ inputs.use-pyright && 'pyright' || '' }} \
-              ruff
+            pip install --no-cache-dir "${packages[@]}"
             for p in $(tr ' ' '\n' <<< "${ADDITIONAL_PYTHON_PACKAGES}"); do
               if [[ -n "${p}" ]]; then
                 pip install --no-cache-dir "${p}"
               fi
             done
-            tee -a "${GITHUB_ENV}" <<< "EXECUTOR="
+            echo "EXECUTOR_KIND=none" >> "${GITHUB_ENV}"
           fi
       - name: Lint the code using ruff check
         working-directory: ${{ inputs.package-path }}
-        run: >  # zizmor: ignore[template-injection]
-          ${{ env.EXECUTOR }} ruff check --output-format=github .
+        run: |
+          case "${EXECUTOR_KIND}" in
+            uv)     uv run ruff check --output-format=github . ;;
+            poetry) poetry run ruff check --output-format=github . ;;
+            *)      ruff check --output-format=github . ;;
+          esac
       - name: Check the code using ruff format
         if: inputs.use-ruff-format
         working-directory: ${{ inputs.package-path }}
-        run: >  # zizmor: ignore[template-injection]
-          ${{ env.EXECUTOR }} ruff format --check .
+        run: |
+          case "${EXECUTOR_KIND}" in
+            uv)     uv run ruff format --check . ;;
+            poetry) poetry run ruff format --check . ;;
+            *)      ruff format --check . ;;
+          esac
       - name: Lint the code using flake8
         if: inputs.use-flake8
         working-directory: ${{ inputs.package-path }}
-        run: >  # zizmor: ignore[template-injection]
-          ${{ env.EXECUTOR }} flake8 .
+        run: |
+          case "${EXECUTOR_KIND}" in
+            uv)     uv run flake8 . ;;
+            poetry) poetry run flake8 . ;;
+            *)      flake8 . ;;
+          esac
       - name: Find security issues using bandit
         if: inputs.use-bandit
         working-directory: ${{ inputs.package-path }}
-        run: >  # zizmor: ignore[template-injection]
-          ${{ env.EXECUTOR }} bandit --recursive .
+        run: |
+          case "${EXECUTOR_KIND}" in
+            uv)     uv run bandit --recursive . ;;
+            poetry) poetry run bandit --recursive . ;;
+            *)      bandit --recursive . ;;
+          esac
       - name: Check types using mypy
         if: inputs.use-mypy
         working-directory: ${{ inputs.package-path }}
-        run: >  # zizmor: ignore[template-injection]
-          ${{ env.EXECUTOR }} mypy --install-types --non-interactive .
+        run: |
+          case "${EXECUTOR_KIND}" in
+            uv)     uv run mypy --install-types --non-interactive . ;;
+            poetry) poetry run mypy --install-types --non-interactive . ;;
+            *)      mypy --install-types --non-interactive . ;;
+          esac
       - name: Check types using pyright
         if: inputs.use-pyright
         working-directory: ${{ inputs.package-path }}
-        run: >  # zizmor: ignore[template-injection]
-          ${{ env.EXECUTOR }} pyright --threads=0 .
+        run: |
+          case "${EXECUTOR_KIND}" in
+            uv)     uv run pyright --threads=0 . ;;
+            poetry) poetry run pyright --threads=0 . ;;
+            *)      pyright --threads=0 . ;;
+          esac

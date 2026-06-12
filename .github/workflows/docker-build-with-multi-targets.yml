@@ -38,11 +38,6 @@ on:
         type: string
         description: List of build-time variables
         default: null
-      secrets:
-        required: false
-        type: string
-        description: List of secrets to expose to the build (e.g., key=string, GIT_AUTH_TOKEN=mytoken)
-        default: null
       secret-envs:
         required: false
         type: string
@@ -164,6 +159,9 @@ on:
         description: Timeout in minutes for the job
         default: 360
     secrets:
+      BUILD_SECRETS:
+        required: false
+        description: BuildKit secret values (e.g., GIT_AUTH_TOKEN=mytoken); pass via workflow_call secrets so values are masked
       DOCKER_TOKEN:
         required: false
         description: Registry token
@@ -207,7 +205,6 @@ jobs:
       platforms: ${{ inputs.platforms }}
       target: ${{ fromJSON(matrix.image-to-target).value }}
       build-args: ${{ inputs.build-args }}
-      secrets: ${{ inputs.secrets }}
       secret-envs: ${{ inputs.secret-envs }}
       secret-files: ${{ inputs.secret-files }}
       provenance: ${{ inputs.provenance }}
@@ -231,5 +228,6 @@ jobs:
       runs-on: ${{ inputs.runs-on }}
       timeout-minutes: ${{ inputs.timeout-minutes }}
     secrets:
+      BUILD_SECRETS: ${{ secrets.BUILD_SECRETS }}
       DOCKER_TOKEN: ${{ secrets.DOCKER_TOKEN }}
       GH_TOKEN: ${{ secrets.GH_TOKEN }}

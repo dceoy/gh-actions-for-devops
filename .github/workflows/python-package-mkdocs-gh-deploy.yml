@@ -116,7 +116,7 @@ jobs:
         working-directory: ${{ inputs.package-path }}
         run: |
           uv sync --all-groups
-          tee -a "${GITHUB_ENV}" <<< "EXECUTOR=uv run --directory ${PWD}"
+          echo "EXECUTOR_KIND=uv" >> "${GITHUB_ENV}"
       - name: Set up Python
         if: env.LOCK_FILE != 'uv.lock'
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.2.0
@@ -131,24 +131,27 @@ jobs:
             pip install --no-cache-dir poetry
             poetry lock --no-interaction
             poetry install --no-interaction --no-root
-            tee -a "${GITHUB_ENV}" <<< "EXECUTOR=poetry run -C ${PWD}"
+            echo "EXECUTOR_KIND=poetry" >> "${GITHUB_ENV}"
           else
             pip install -U --no-cache-dir mkdocs
-            tee -a "${GITHUB_ENV}" <<< "EXECUTOR="
+            echo "EXECUTOR_KIND=none" >> "${GITHUB_ENV}"
           fi
       - name: Build MkDocs site
         working-directory: ${{ inputs.package-path }}
         env:
           MKDOCS_CONFIG_FILE: ${{ inputs.mkdocs-config-file }}
-          MKDOCS_STRICT: ${{ inputs.mkdocs-strict && 'true' || null }}
+          MKDOCS_STRICT: ${{ inputs.mkdocs-strict }}
           MKDOCS_THEME: ${{ inputs.mkdocs-theme }}
-        run: | # zizmor: ignore[template-injection]
-          args=(
-            ${MKDOCS_CONFIG_FILE:+--config-file="${MKDOCS_CONFIG_FILE}"}
-            ${MKDOCS_STRICT:+--strict}
-            ${MKDOCS_THEME:+--theme="${MKDOCS_THEME}"}
-          )
-          ${{ env.EXECUTOR }} mkdocs build --clean --site-dir="${MKDOCS_SITE_DIR}" "${args[@]:-}"
+        run: |
+          args=()
+          [[ -n "${MKDOCS_CONFIG_FILE}" ]] && args+=(--config-file="${MKDOCS_CONFIG_FILE}")
+          [[ "${MKDOCS_STRICT}" == "true" ]] && args+=(--strict)
+          [[ -n "${MKDOCS_THEME}" ]] && args+=(--theme="${MKDOCS_THEME}")
+          case "${EXECUTOR_KIND}" in
+            uv)     uv run mkdocs build --clean --site-dir="${MKDOCS_SITE_DIR}" "${args[@]}" ;;
+            poetry) poetry run mkdocs build --clean --site-dir="${MKDOCS_SITE_DIR}" "${args[@]}" ;;
+            *)      mkdocs build --clean --site-dir="${MKDOCS_SITE_DIR}" "${args[@]}" ;;
+          esac
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@84c30a85c19949d7eee79c4ff27748b70285e453  # v4.1.0
         with:

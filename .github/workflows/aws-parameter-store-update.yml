@@ -12,10 +12,6 @@ on:
         type: string
         description: AWS region to use
         default: us-east-1
-      parameters-from-json:
-        required: true
-        type: string
-        description: JSON string containing parameters to update
       dry-run:
         required: false
         type: boolean
@@ -26,6 +22,10 @@ on:
         type: string
         description: Runner to use
         default: ubuntu-slim
+    secrets:
+      PARAMETERS_JSON:
+        required: true
+        description: JSON array of parameters to update (including SecureString values); masked via workflow_call secrets
 permissions:
   contents: read
   id-token: write
@@ -50,7 +50,7 @@ jobs:
           role-session-name: github-actions-${{ github.run_id }}
       - name: Update AWS Parameter Store
         env:
-          PARAMETERS_JSON: ${{ inputs.parameters-from-json }}
+          PARAMETERS_JSON: ${{ secrets.PARAMETERS_JSON }}
           DRY_RUN: ${{ inputs.dry-run }}
         run: |
           validate_parameter_type() {
@@ -155,10 +155,10 @@ jobs:
           }
 
           if [[ -z "${PARAMETERS_JSON}" ]]; then
-            echo "Error: parameters-from-json is required"
+            echo "Error: PARAMETERS_JSON secret is required"
             exit 1
           elif ! jq empty <<< "${PARAMETERS_JSON}" 2>/dev/null; then
-            echo "Error: Invalid JSON format in parameters-from-json"
+            echo "Error: Invalid JSON format in PARAMETERS_JSON secret"
             exit 1
           else
             echo "Processing parameters from JSON..."

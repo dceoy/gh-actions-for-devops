@@ -38,11 +38,6 @@ on:
         type: string
         description: List of build-time variables
         default: null
-      docker-build-secrets:
-        required: false
-        type: string
-        description: List of secrets to expose to the build (e.g., key=string, GIT_AUTH_TOKEN=mytoken)
-        default: null
       docker-build-secret-envs:
         required: false
         type: string
@@ -228,6 +223,16 @@ on:
         type: number
         description: Timeout in minutes for the job
         default: 360
+    secrets:
+      BUILD_SECRETS:
+        required: false
+        description: BuildKit secret values (e.g., GIT_AUTH_TOKEN=mytoken); pass via workflow_call secrets so values are masked
+      DOCKER_TOKEN:
+        required: false
+        description: Registry token
+      GH_TOKEN:
+        required: false
+        description: GitHub token
 permissions:
   contents: read    # This is required for actions/checkout
   id-token: write   # This is required for requesting the JWT
@@ -248,7 +253,6 @@ jobs:
       file: ${{ inputs.dockerfile }}
       platforms: ${{ inputs.docker-platforms }}
       build-args: ${{ inputs.docker-build-args }}
-      secrets: ${{ inputs.docker-build-secrets }}
       secret-envs: ${{ inputs.docker-build-secret-envs }}
       secret-files: ${{ inputs.docker-build-secret-files }}
       push: false
@@ -272,6 +276,7 @@ jobs:
       runs-on: ${{ inputs.runs-on }}
       timeout-minutes: ${{ inputs.timeout-minutes }}
     secrets:
+      BUILD_SECRETS: ${{ secrets.BUILD_SECRETS }}
       DOCKER_TOKEN: ${{ secrets.DOCKER_TOKEN }}
       GH_TOKEN: ${{ secrets.GH_TOKEN }}
   pull:
