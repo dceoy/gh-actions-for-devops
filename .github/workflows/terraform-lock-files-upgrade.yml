@@ -132,7 +132,7 @@ jobs:
           commit-message: ${{ env.COMMIT_MESSAGE }}
           title: ${{ env.COMMIT_MESSAGE }}
           branch: autopr/${{ github.head_ref || github.ref_name }}
-          labels: automated pr
+          labels: agent:github-actions
           body: |
             This PR contains the following updates:
 
