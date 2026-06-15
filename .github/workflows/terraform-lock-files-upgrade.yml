@@ -131,8 +131,8 @@ jobs:
           token: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}  # zizmor: ignore[secrets-outside-env] caller-provided secret
           commit-message: ${{ env.COMMIT_MESSAGE }}
           title: ${{ env.COMMIT_MESSAGE }}
-          branch: autopr/${{ github.head_ref || github.ref_name }}
-          labels: automated pr
+          branch: github-actions/${{ github.head_ref || github.ref_name }}
+          labels: agent:github-actions
           body: |
             This PR contains the following updates:
 

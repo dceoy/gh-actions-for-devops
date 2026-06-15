@@ -103,7 +103,7 @@ jobs:
           {
             echo "commit_message=Reformat HCL code using ${formatters}"
             echo "pr_base=${PR_BASE}"
-            echo "pr_branch=automatedpr/${PR_BASE}"
+            echo "pr_branch=github-actions/${PR_BASE}"
           } >> "${GITHUB_OUTPUT}"
       - name: Detect changed files and create a pull request
         uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1  # v8.1.1
@@ -113,7 +113,7 @@ jobs:
           title: ${{ steps.parameters.outputs.commit_message }}
           branch: ${{ steps.parameters.outputs.pr_branch }}
           base: ${{ steps.parameters.outputs.pr_base }}
-          labels: automated pr
+          labels: agent:github-actions
           body: |
             This PR contains the following updates:
 

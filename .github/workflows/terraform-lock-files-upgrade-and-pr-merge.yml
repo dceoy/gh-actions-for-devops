@@ -37,7 +37,7 @@ on:
         required: false
         type: string
         description: Prefix required for lock-file PR branches before approval or merge
-        default: autopr/
+        default: github-actions/
       merge-pr-author-allowlist:
         required: false
         type: string
