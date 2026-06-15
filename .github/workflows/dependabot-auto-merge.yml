@@ -69,11 +69,21 @@ jobs:
         id: approve-pr
         run: >
           gh pr review --approve "${PR_URL}"
-      - name: Verify required checks
+      - name: Verify required checks if configured
         if: >
           steps.approve-pr.outcome == 'success' && inputs.auto-merge-after-requirements
-        run: >
-          gh pr checks --required "${PR_URL}"
+        run: |
+          if ! check_output="$(gh pr checks --required "${PR_URL}" 2>&1)"; then
+            # Work around the gh CLI behavior where --required exits non-zero
+            # with this message when the PR branch has no required checks.
+            if grep -Fq "no required checks reported" <<<"${check_output}"; then
+              echo "${check_output}"
+              echo "No required checks are configured for this pull request; skipping required-check verification."
+            else
+              echo "${check_output}" >&2
+              exit 1
+            fi
+          fi
       - name: Enable auto-merge after necessary requirements are met
         if: >
           steps.approve-pr.outcome == 'success' && inputs.auto-merge-after-requirements
