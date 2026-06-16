@@ -18,6 +18,13 @@ on:
         type: boolean
         description: Install Hugo extended edition
         default: true
+      go-version:
+        required: false
+        type: string
+        description: >-
+          Go version to install before the Hugo build. Leave empty to skip Go
+          setup. Set to a version such as stable when the site uses Hugo Modules.
+        default: ''
       base-url:
         required: false
         type: string
@@ -97,6 +104,13 @@ jobs:
         with:
           fetch-depth: 1
           persist-credentials: false
+      - name: Set up Go
+        if: inputs.go-version != ''
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c  # v6.4.0
+        with:
+          go-version: ${{ inputs.go-version }}
+          cache: true
+          cache-dependency-path: ${{ inputs.site-path }}/go.sum
       - name: Set up Hugo
         uses: peaceiris/actions-hugo@2752ce1d29631191ea3f27c23495fa06139a5b78  # v3.2.1
         with:
