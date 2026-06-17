@@ -93,7 +93,7 @@ jobs:
       - name: Verify required checks if configured
         if: >
           steps.merge-state.outcome == 'success' &&
-          steps.merge-state.outputs.status == 'CLEAN'
+          (steps.merge-state.outputs.status == 'CLEAN' || steps.merge-state.outputs.status == 'UNSTABLE')
         run: |
           if ! check_output="$(gh pr checks --required "${PR_URL}" 2>&1)"; then
             # Work around the gh CLI behavior where --required exits non-zero
@@ -109,6 +109,6 @@ jobs:
       - name: Enable auto-merge after necessary requirements are met
         if: >
           steps.merge-state.outcome == 'success' &&
-          steps.merge-state.outputs.status == 'CLEAN'
+          (steps.merge-state.outputs.status == 'CLEAN' || steps.merge-state.outputs.status == 'UNSTABLE')
         run: >
           gh pr merge --merge --delete-branch --auto "${PR_URL}"
