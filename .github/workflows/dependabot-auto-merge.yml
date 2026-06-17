@@ -89,3 +89,10 @@ jobs:
           steps.approve-pr.outcome == 'success' && inputs.auto-merge-after-requirements
         run: >
           gh pr merge --merge --delete-branch --auto "${PR_URL}"
+      - name: Comment @dependabot rebase if the PR head branch is behind the base
+        if: steps.approve-pr.outcome == 'success'
+        run: |
+          merge_state="$(gh pr view "${PR_URL}" --json mergeStateStatus --jq '.mergeStateStatus')"
+          if [[ "${merge_state}" == "BEHIND" ]]; then
+            gh pr comment "${PR_URL}" --body "@dependabot rebase"
+          fi
