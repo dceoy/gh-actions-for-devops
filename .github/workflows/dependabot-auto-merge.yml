@@ -69,9 +69,31 @@ jobs:
         id: approve-pr
         run: >
           gh pr review --approve "${PR_URL}"
-      - name: Verify required checks if configured
+      - name: Check whether the PR head branch is behind the base
+        id: merge-state
         if: >
           steps.approve-pr.outcome == 'success' && inputs.auto-merge-after-requirements
+        run: |
+          merge_state="$(gh pr view "${PR_URL}" --json mergeStateStatus --jq '.mergeStateStatus')"
+          case "${merge_state}" in
+            BEHIND|BLOCKED|CLEAN|DIRTY|DRAFT|HAS_HOOKS|UNKNOWN|UNSTABLE)
+              ;;
+            *)
+              echo "Unexpected mergeStateStatus: ${merge_state}" >&2
+              exit 1
+              ;;
+          esac
+          echo "status=${merge_state}" | tee -a "${GITHUB_OUTPUT}"
+      - name: Rebase the PR head branch if it is behind the base
+        if: >
+          steps.merge-state.outcome == 'success' &&
+          steps.merge-state.outputs.status == 'BEHIND'
+        run: >
+          gh pr update-branch --rebase "${PR_URL}"
+      - name: Verify required checks if configured
+        if: >
+          steps.merge-state.outcome == 'success' &&
+          steps.merge-state.outputs.status == 'CLEAN'
         run: |
           if ! check_output="$(gh pr checks --required "${PR_URL}" 2>&1)"; then
             # Work around the gh CLI behavior where --required exits non-zero
@@ -84,21 +106,9 @@ jobs:
               exit 1
             fi
           fi
-      - name: Check whether the PR head branch is behind the base
-        id: merge-state
-        if: >
-          steps.approve-pr.outcome == 'success' && inputs.auto-merge-after-requirements
-        run: |
-          merge_state="$(gh pr view "${PR_URL}" --json mergeStateStatus --jq '.mergeStateStatus')"
-          echo "status=${merge_state}" | tee -a "${GITHUB_OUTPUT}"
-      - name: Request Dependabot rebase if the PR head branch is behind the base
-        if: steps.merge-state.outputs.status == 'BEHIND'
-        run: >
-          gh pr comment "${PR_URL}" --body "@dependabot rebase"
       - name: Enable auto-merge after necessary requirements are met
         if: >
-          steps.approve-pr.outcome == 'success' &&
-          inputs.auto-merge-after-requirements &&
-          steps.merge-state.outputs.status != 'BEHIND'
+          steps.merge-state.outcome == 'success' &&
+          steps.merge-state.outputs.status == 'CLEAN'
         run: >
           gh pr merge --merge --delete-branch --auto "${PR_URL}"
