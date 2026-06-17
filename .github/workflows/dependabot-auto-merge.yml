@@ -84,12 +84,22 @@ jobs:
               ;;
           esac
           echo "status=${merge_state}" | tee -a "${GITHUB_OUTPUT}"
-      - name: Rebase the PR head branch if it is behind the base
+      - name: Request Dependabot rebase if the PR head branch is behind the base
         if: >
           steps.merge-state.outcome == 'success' &&
           steps.merge-state.outputs.status == 'BEHIND'
-        run: >
-          gh pr update-branch --rebase "${PR_URL}"
+        run: |
+          token_login="$(gh api user --jq '.login')"
+          if [[ "${token_login}" == "github-actions[bot]" ]]; then
+            cat <<'EOF' >&2
+          The default GITHUB_TOKEN cannot reliably rebase a pull request and
+          trigger the follow-up pull_request CI run needed for auto-merge.
+          Pass a user PAT or GitHub App installation token as GH_TOKEN if you
+          want this workflow to request Dependabot rebases automatically.
+          EOF
+            exit 1
+          fi
+          gh pr comment "${PR_URL}" --body "@dependabot rebase"
       - name: Verify required checks if configured
         if: >
           steps.merge-state.outcome == 'success' &&
