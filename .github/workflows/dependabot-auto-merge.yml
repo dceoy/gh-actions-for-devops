@@ -91,12 +91,10 @@ jobs:
         run: |
           token_login="$(gh api user --jq '.login')"
           if [[ "${token_login}" == "github-actions[bot]" ]]; then
-            cat <<'EOF' >&2
-          The default GITHUB_TOKEN cannot reliably rebase a pull request and
-          trigger the follow-up pull_request CI run needed for auto-merge.
-          Pass a user PAT or GitHub App installation token as GH_TOKEN if you
-          want this workflow to request Dependabot rebases automatically.
-          EOF
+            echo "The default GITHUB_TOKEN cannot reliably rebase a pull request and" >&2
+            echo "trigger the follow-up pull_request CI run needed for auto-merge." >&2
+            echo "Pass a user PAT or GitHub App installation token as GH_TOKEN if you" >&2
+            echo "want this workflow to request Dependabot rebases automatically." >&2
             exit 1
           fi
           gh pr comment "${PR_URL}" --body "@dependabot rebase"
