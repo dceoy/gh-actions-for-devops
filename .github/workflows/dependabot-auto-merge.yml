@@ -38,7 +38,7 @@ jobs:
     runs-on: ${{ inputs.runs-on }}
     env:
       PR_URL: ${{ github.event.pull_request.html_url }}
-      GH_TOKEN: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}  # zizmor: ignore[secrets-outside-env] caller-provided secret
+      GH_TOKEN: ${{ secrets.GH_TOKEN || github.token }}  # zizmor: ignore[secrets-outside-env] caller-provided secret
     steps:
       - name: Dependabot metadata
         id: metadata
@@ -88,15 +88,7 @@ jobs:
         if: >
           steps.merge-state.outcome == 'success' &&
           steps.merge-state.outputs.status == 'BEHIND'
-        run: |
-          token_login="$(gh api user --jq '.login')"
-          if [[ "${token_login}" == "github-actions[bot]" ]]; then
-            echo "The default GITHUB_TOKEN cannot reliably rebase a pull request and" >&2
-            echo "trigger the follow-up pull_request CI run needed for auto-merge." >&2
-            echo "Pass a user PAT or GitHub App installation token as GH_TOKEN if you" >&2
-            echo "want this workflow to request Dependabot rebases automatically." >&2
-            exit 1
-          fi
+        run: >
           gh pr comment "${PR_URL}" --body "@dependabot rebase"
       - name: Verify required checks if configured
         if: >
