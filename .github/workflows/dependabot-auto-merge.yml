@@ -84,15 +84,21 @@ jobs:
               exit 1
             fi
           fi
-      - name: Enable auto-merge after necessary requirements are met
+      - name: Check whether the PR head branch is behind the base
+        id: merge-state
         if: >
           steps.approve-pr.outcome == 'success' && inputs.auto-merge-after-requirements
-        run: >
-          gh pr merge --merge --delete-branch --auto "${PR_URL}"
-      - name: Comment @dependabot rebase if the PR head branch is behind the base
-        if: steps.approve-pr.outcome == 'success'
         run: |
           merge_state="$(gh pr view "${PR_URL}" --json mergeStateStatus --jq '.mergeStateStatus')"
-          if [[ "${merge_state}" == "BEHIND" ]]; then
-            gh pr comment "${PR_URL}" --body "@dependabot rebase"
-          fi
+          echo "status=${merge_state}" | tee -a "${GITHUB_OUTPUT}"
+      - name: Request Dependabot rebase if the PR head branch is behind the base
+        if: steps.merge-state.outputs.status == 'BEHIND'
+        run: >
+          gh pr comment "${PR_URL}" --body "@dependabot rebase"
+      - name: Enable auto-merge after necessary requirements are met
+        if: >
+          steps.approve-pr.outcome == 'success' &&
+          inputs.auto-merge-after-requirements &&
+          steps.merge-state.outputs.status != 'BEHIND'
+        run: >
+          gh pr merge --merge --delete-branch --auto "${PR_URL}"
