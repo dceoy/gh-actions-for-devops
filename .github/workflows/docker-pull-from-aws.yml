@@ -88,6 +88,10 @@ on:
         type: number
         description: Timeout in minutes for the job
         default: 360
+    secrets:
+      GH_TOKEN:
+        required: false
+        description: GitHub token
 permissions:
   contents: read    # This is required for actions/checkout
   id-token: write   # This is required for requesting the JWT
@@ -150,8 +154,10 @@ jobs:
       - name: Tag the Docker images
         if: inputs.tag-source-to-target-json != null
         run: |
-          jq -r 'to_entries[] | "docker tag \(.key) \(.value)"' <<< "${TAG_SOURCE_TO_TARGET_JSON}" \
-            | xargs -L1 -t bash -c
+          jq -r 'to_entries[] | [.key, .value] | @tsv' <<< "${TAG_SOURCE_TO_TARGET_JSON}" \
+            | while IFS=$'\t' read -r src dst; do
+                docker tag "${src}" "${dst}"
+              done
           jq -r 'values[]' <<< "${TAG_SOURCE_TO_TARGET_JSON}" >> "${IMAGE_URI_LIST_TXT}"
           sort -u -o "${IMAGE_URI_LIST_TXT}" "${IMAGE_URI_LIST_TXT}"
       - name: Save the Docker images to an image tarball

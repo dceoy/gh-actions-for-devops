@@ -168,14 +168,29 @@ on:
       GH_TOKEN:
         required: false
         description: GitHub token
+    outputs:
+      target-matrix-json:
+        description: JSON array of image name and target stage matrix entries
+        value: ${{ jobs.create-target-matrix.outputs.target-matrix-json }}
+      image-refs-json:
+        description: JSON array of primary Docker image references
+        value: ${{ jobs.collect-outputs.outputs.image-refs-json }}
+      build-push-digests-json:
+        description: JSON array of Docker image digests
+        value: ${{ jobs.collect-outputs.outputs.build-push-digests-json }}
+      image-artifact-names-json:
+        description: JSON array of image tarball artifact names
+        value: ${{ jobs.collect-outputs.outputs.image-artifact-names-json }}
 permissions:
   contents: write
+  packages: write
 defaults:
   run:
     shell: bash -euo pipefail {0}
     working-directory: .
 jobs:
   create-target-matrix:
+    if: inputs.image-name-to-target-stage-json != null
     runs-on: ubuntu-slim
     outputs:
       target-matrix-json: ${{ steps.create-target-matrix.outputs.target_matrix_json }}
@@ -184,13 +199,21 @@ jobs:
         id: create-target-matrix
         env:
           IMAGE_NAME_TO_TARGET_STAGE_JSON: ${{ inputs.image-name-to-target-stage-json }}
-        run: >
-          jq -c 'to_entries[]' <<< "${IMAGE_NAME_TO_TARGET_STAGE_JSON}"
-          | jq -rRs 'split("\n")[:-1] | "target_matrix_json=\(.)"'
-          | tee -a "${GITHUB_OUTPUT}"
+        run: |
+          delimiter="target_matrix_json_$(uuidgen)"
+          {
+            echo "target_matrix_json<<${delimiter}"
+            jq -c 'to_entries | map(. + {artifact: ((.key + "-" + (.value | tostring)) | gsub("[^A-Za-z0-9_.-]"; "-"))})' \
+              <<< "${IMAGE_NAME_TO_TARGET_STAGE_JSON}"
+            echo "${delimiter}"
+          } | tee -a "${GITHUB_OUTPUT}"
   build-and-push:
     needs:
       - create-target-matrix
+    permissions:
+      contents: write
+      packages: write
+      id-token: write
     strategy:
       fail-fast: false
       matrix:
@@ -203,7 +226,7 @@ jobs:
       context: ${{ inputs.context }}
       file: ${{ inputs.file }}
       platforms: ${{ inputs.platforms }}
-      target: ${{ fromJSON(matrix.image-to-target).value }}
+      target: ${{ matrix.image-to-target.value }}
       build-args: ${{ inputs.build-args }}
       secret-envs: ${{ inputs.secret-envs }}
       secret-files: ${{ inputs.secret-files }}
@@ -222,12 +245,59 @@ jobs:
       trivy-config: ${{ inputs.trivy-config }}
       trivy-timeout: ${{ inputs.trivy-timeout }}
       docker-metadata-action-tags: ${{ inputs.docker-metadata-action-tags }}
-      image-artifact-name: ${{ inputs.image-artifact-name }}
+      image-artifact-name: ${{ format('{0}-{1}', inputs.image-artifact-name, matrix.image-to-target.artifact) }}
       image-artifact-retention-days: ${{ inputs.image-artifact-retention-days }}
       image-artifact-overwrite: ${{ inputs.image-artifact-overwrite }}
+      build-output-artifact-name: ${{ format('{0}-outputs-{1}', inputs.image-artifact-name, matrix.image-to-target.artifact) }}
       runs-on: ${{ inputs.runs-on }}
       timeout-minutes: ${{ inputs.timeout-minutes }}
     secrets:
       BUILD_SECRETS: ${{ secrets.BUILD_SECRETS }}
       DOCKER_TOKEN: ${{ secrets.DOCKER_TOKEN }}
       GH_TOKEN: ${{ secrets.GH_TOKEN }}
+  collect-outputs:
+    needs:
+      - build-and-push
+    runs-on: ubuntu-slim
+    outputs:
+      image-refs-json: ${{ steps.outputs.outputs.image_refs_json }}
+      build-push-digests-json: ${{ steps.outputs.outputs.build_push_digests_json }}
+      image-artifact-names-json: ${{ steps.outputs.outputs.image_artifact_names_json }}
+    steps:
+      - name: Download build output artifacts
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
+        with:
+          pattern: ${{ inputs.image-artifact-name }}-outputs-*
+          path: /tmp/docker-build-outputs
+          merge-multiple: false
+      - name: Download image tarball artifacts
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
+        with:
+          pattern: ${{ inputs.image-artifact-name }}-*
+          path: /tmp/docker-image-artifacts
+          merge-multiple: false
+      - name: Upload combined image tarball artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: ${{ inputs.image-artifact-name }}
+          path: /tmp/docker-image-artifacts/**/*.tar
+          retention-days: ${{ inputs.image-artifact-retention-days }}
+          overwrite: ${{ inputs.image-artifact-overwrite }}
+      - name: Collect matrix outputs
+        id: outputs
+        run: |
+          outputs_json="$(find /tmp/docker-build-outputs -type f -name docker-build-output.json -print0 \
+            | sort -z | xargs -0 -r jq -s -c .)"
+          [[ -n "${outputs_json}" ]] || outputs_json='[]'
+          delimiter="matrix_outputs_$(uuidgen)"
+          {
+            echo "image_refs_json<<${delimiter}"
+            jq -c '[.[].image_ref]' <<< "${outputs_json}"
+            echo "${delimiter}"
+            echo "build_push_digests_json<<${delimiter}"
+            jq -c '[.[].build_push_digest]' <<< "${outputs_json}"
+            echo "${delimiter}"
+            echo "image_artifact_names_json<<${delimiter}"
+            jq -c '[.[].image_artifact_name]' <<< "${outputs_json}"
+            echo "${delimiter}"
+          } | tee -a "${GITHUB_OUTPUT}"

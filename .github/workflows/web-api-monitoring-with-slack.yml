@@ -6,7 +6,7 @@ on:
       api-url:
         required: true
         type: string
-        description: Web API URL to call
+        description: Web API URL to call. Redirects are not followed; use the final HTTPS destination.
       http-method:
         required: false
         type: string
@@ -21,7 +21,8 @@ on:
         required: false
         type: string
         description: >
-          Extra HTTP headers, newline-separated (e.g., 'Authorization: Bearer TOKEN')
+          Extra HTTP headers, newline-separated. Do not pass secrets here; use
+          repository or organization secrets in the caller expression instead.
         default: null
       body:
         required: false
@@ -81,7 +82,7 @@ jobs:
           HEADERS: ${{ inputs.headers }}
           TMP_RESPONSE_BODY_TXT_PATH: /tmp/response_body.txt
         run: |
-          commands=(curl -sSL -o "${TMP_RESPONSE_BODY_TXT_PATH}" -w "%{http_code}" -X "${HTTP_METHOD}" "${API_URL}")
+          commands=(curl -sS --proto '=https' --max-redirs 0 -o "${TMP_RESPONSE_BODY_TXT_PATH}" -w "%{http_code}" -X "${HTTP_METHOD}" "${API_URL}")
           if [[ -n "${BODY}" ]]; then
             commands+=(--data "${BODY}")
           fi
@@ -90,11 +91,16 @@ jobs:
               commands+=(-H "${line}")
             done <<< "${HEADERS}"
           fi
-          status=$("${commands[@]}")
-          response_body=$(cat "${TMP_RESPONSE_BODY_TXT_PATH}")
+          if ! status="$("${commands[@]}")"; then
+            status=000
+          fi
+          response_body="$(cat "${TMP_RESPONSE_BODY_TXT_PATH}" 2>/dev/null || true)"
+          delimiter="response_body_$(uuidgen)"
           {
             echo "status=${status}"
-            echo "response_body=${response_body}"
+            echo "response_body<<${delimiter}"
+            echo "${response_body}"
+            echo "${delimiter}"
           } | tee -a "${GITHUB_OUTPUT}"
       - name: Classify result, build Slack message fields
         id: result
@@ -114,10 +120,13 @@ jobs:
             fi
             echo "summary_plain=API responded ${RETURNED_STATUS} (expected ${EXPECTED_STATUS})"
             echo "ts=$(date +%s)"
-            if [[ ${MASK_RESPONSE_BODY} ]]; then
+            if [[ "${MASK_RESPONSE_BODY}" == 'true' ]]; then
               echo 'escaped_response_body=[REDACTED]'
             else
-              echo "escaped_response_body=${RESPONSE_BODY//\"/\\\"}"
+              delimiter="escaped_response_body_$(uuidgen)"
+              echo "escaped_response_body<<${delimiter}"
+              echo "${RESPONSE_BODY//\"/\\\"}"
+              echo "${delimiter}"
             fi
           } | tee -a "${GITHUB_OUTPUT}"
       - name: Send Slack notification (conditional)
@@ -153,7 +162,7 @@ jobs:
                     value: ${{ steps.external-api-call.outputs.status }}
                     short: true
                   - title: Response Body
-                    value: ${{ steps.external-api-call.outputs.escaped_response_body }}
+                    value: ${{ toJSON(steps.result.outputs.escaped_response_body) }}
                     short: true
                 footer: Commit - ${{ github.sha }}
                 footer_icon: https://platform.slack-edge.com/img/default_application_icon.png

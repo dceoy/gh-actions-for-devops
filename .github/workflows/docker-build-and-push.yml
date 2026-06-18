@@ -153,6 +153,11 @@ on:
         type: boolean
         description: Overwrite existing artifacts
         default: true
+      build-output-artifact-name:
+        required: false
+        type: string
+        description: Build output JSON artifact name to upload
+        default: null
       runs-on:
         required: false
         type: string
@@ -183,6 +188,9 @@ on:
       build-push-digest:
         description: Docker image digest
         value: ${{ jobs.build-and-push.outputs.build-push-digest }}
+      image-ref:
+        description: Primary Docker image reference
+        value: ${{ jobs.build-and-push.outputs.image-ref }}
 permissions:
   contents: write
   packages: write
@@ -214,6 +222,10 @@ jobs:
       (! (failure() || cancelled()))
     needs:
       - prebuild-lint-and-scan
+    permissions:
+      contents: write
+      packages: write
+      id-token: write
     runs-on: ${{ inputs.runs-on }}
     timeout-minutes: ${{ inputs.timeout-minutes }}
     env:
@@ -276,6 +288,19 @@ jobs:
           DIGEST: ${{ steps.docker-build.outputs.digest }}
         run: >
           xargs -I{} -t cosign sign --yes "{}@${DIGEST}" <<< "${TAGS}"
+      - name: Verify the image signatures
+        if: inputs.cosign && inputs.push
+        env:
+          TAGS: ${{ steps.meta.outputs.tags }}
+          DIGEST: ${{ steps.docker-build.outputs.digest }}
+        run: |
+          while IFS= read -r tag; do
+            [[ -n "${tag}" ]] || continue
+            cosign verify \
+              --certificate-identity-regexp "https://github.com/${GITHUB_REPOSITORY}/.github/workflows/.+@refs/.+" \
+              --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+              "${tag}@${DIGEST}"
+          done <<< "${TAGS}"
       - name: Pull Docker images
         if: inputs.push
         env:
@@ -294,6 +319,30 @@ jobs:
           path: ${{ env.IMAGE_TAR }}
           retention-days: ${{ inputs.image-artifact-retention-days }}
           overwrite: ${{ inputs.image-artifact-overwrite }}
+      - name: Write build outputs
+        if: inputs.build-output-artifact-name != null
+        env:
+          IMAGE_ARTIFACT_NAME: ${{ inputs.image-artifact-name }}
+          IMAGE_REF: ${{ fromJson(steps.meta.outputs.json).tags[0] }}
+          BUILD_PUSH_DIGEST: ${{ steps.docker-build.outputs.digest }}
+        run: |
+          jq -n \
+            --arg image_artifact_name "${IMAGE_ARTIFACT_NAME}" \
+            --arg image_ref "${IMAGE_REF}" \
+            --arg build_push_digest "${BUILD_PUSH_DIGEST}" \
+            '{
+              image_artifact_name: $image_artifact_name,
+              image_ref: $image_ref,
+              build_push_digest: $build_push_digest
+            }' > /tmp/docker-build-output.json
+      - name: Upload build outputs
+        if: inputs.build-output-artifact-name != null
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: ${{ inputs.build-output-artifact-name }}
+          path: /tmp/docker-build-output.json
+          retention-days: ${{ inputs.image-artifact-retention-days }}
+          overwrite: true
   postbuild-scan:
     if: >
       inputs.scan-after-build
@@ -301,7 +350,7 @@ jobs:
       - build-and-push
     uses: ./.github/workflows/docker-image-scan.yml
     with:
-      image-refs-json: '["${{ needs.build-and-push.outputs.image-ref }}"]'
+      image-refs-json: ${{ toJSON(fromJSON(needs.build-and-push.outputs.metadata-json).tags) }}
       image-artifact-name: ${{ inputs.image-artifact-name }}
       trivy-scanners: ${{ inputs.trivy-scanners }}
       trivy-severity: ${{ inputs.trivy-severity }}

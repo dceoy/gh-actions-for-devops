@@ -137,7 +137,7 @@ jobs:
               elif [[ -f package.json ]]; then
                 npm install
               else
-                npm upgrade -g
+                :
               fi
               npm install --save-dev \
                 typescript \
@@ -169,14 +169,16 @@ jobs:
         run: |
           case "${PACKAGE_MANAGER:-}" in
             pnpm )
-              if pnpm audit --fix; then
-                pnpm install
-              fi
+              pnpm audit --fix
+              pnpm install
               ;;
             npm )
-              if npm audit fix; then
-                :
-              fi
+              npm audit fix
+              ;;
+            yarn )
+              # Yarn Classic cannot remediate audit findings. Report them without
+              # preventing the formatting PR from being created.
+              yarn audit || true
               ;;
           esac
       - name: Format and lint the code using Biome
@@ -235,7 +237,11 @@ jobs:
             formatter_text='TypeScript formatters'
           fi
           {
-            echo "commit_message=Reformat TypeScript code using ${formatter_text} and fix security vulnerabilities"
+            if [[ "${{ inputs.audit }}" == 'true' ]]; then
+              echo "commit_message=Reformat TypeScript code using ${formatter_text} and fix security vulnerabilities"
+            else
+              echo "commit_message=Reformat TypeScript code using ${formatter_text}"
+            fi
             echo "pr_base=${PR_BASE}"
             echo "pr_branch=github-actions/${PR_BASE}"
           } >> "${GITHUB_OUTPUT}"

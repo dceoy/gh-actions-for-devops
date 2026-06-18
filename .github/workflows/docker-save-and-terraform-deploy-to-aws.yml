@@ -245,6 +245,10 @@ jobs:
     if: >
       inputs.apply && inputs.docker-image-name-to-target-stage-json != null
     uses: ./.github/workflows/docker-build-with-multi-targets.yml
+    permissions:
+      contents: write
+      packages: write
+      id-token: write
     with:
       image-name-to-target-stage-json: ${{ inputs.docker-image-name-to-target-stage-json }}
       registry: ${{ inputs.docker-registry }}
@@ -302,6 +306,8 @@ jobs:
       trivy-timeout: ${{ inputs.trivy-timeout }}
       runs-on: ${{ inputs.runs-on }}
       timeout-minutes: ${{ inputs.timeout-minutes }}
+    secrets:
+      GH_TOKEN: ${{ secrets.GH_TOKEN }}
   deploy:
     if: >
       (! (failure() || cancelled()))
@@ -317,7 +323,7 @@ jobs:
       apply: ${{ inputs.apply }}
       terraform-version: ${{ inputs.terraform-version }}
       terragrunt-version: ${{ inputs.terragrunt-version }}
-      use-docker: true
+      use-docker: ${{ needs.build.result == 'success' || needs.pull.result == 'success' }}
       docker-metadata-action-images: ${{ inputs.docker-metadata-action-images }}
       docker-metadata-action-tags: ${{ inputs.docker-metadata-action-tags }}
       docker-image-artifact-name: ${{ inputs.docker-image-artifact-name }}

@@ -93,7 +93,7 @@ jobs:
         run: |
           lintr::lint_package(path = Sys.getenv('PACKAGE_PATH'))
       - name: Lint the code using lintr::lint_dir()
-        if: (! (inputs.lint-before-pr && inputs.format-package))
+        if: inputs.lint-before-pr && (! inputs.format-package)
         shell: Rscript {0}
         env:
           PACKAGE_PATH: ${{ inputs.package-path }}

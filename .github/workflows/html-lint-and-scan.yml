@@ -135,7 +135,7 @@ jobs:
               elif [[ -f package.json ]]; then
                 npm install
               else
-                npm upgrade -g
+                :
               fi
               npm install --save-dev --legacy-peer-deps \
                 ${{ inputs.use-prettier && 'prettier' || '' }} \
