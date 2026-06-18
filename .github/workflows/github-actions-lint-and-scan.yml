@@ -205,9 +205,14 @@ jobs:
         run: >
           pip install 'pyflakes==3.4.0'
       - name: Execute actionlint
-        working-directory: ${{ inputs.search-path }}
-        run: >
-          git ls-files -z -- '*.yml' '*.yaml' | xargs -0 -t actionlint
+        env:
+          SEARCH_PATH: ${{ inputs.search-path }}
+        run: |
+          files=()
+          while IFS= read -r -d '' file; do
+            files+=("${SEARCH_PATH}/${file}")
+          done < <(git -C "${SEARCH_PATH}" ls-files -z -- '*.yml' '*.yaml')
+          actionlint "${files[@]}"
       - name: Run zizmor
         if: inputs.use-zizmor
         uses: zizmorcore/zizmor-action@5f14fd08f7cf1cb1609c1e344975f152c7ee938d  # v0.5.6
