@@ -1,7 +1,0 @@
-{
-  "name": "cache-smoke",
-  "private": true,
-  "scripts": {
-    "test": "node -e \"process.exit(0)\""
-  }
-}
