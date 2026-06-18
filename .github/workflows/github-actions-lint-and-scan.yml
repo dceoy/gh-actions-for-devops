@@ -213,6 +213,10 @@ jobs:
           while IFS= read -r -d '' file; do
             files+=("${SEARCH_PATH}/${file}")
           done < <(git -C "${SEARCH_PATH}" ls-files -z -- '*.yml' '*.yaml')
+          if ((${#files[@]} == 0)); then
+            echo "No GitHub Actions workflow YAML files found under ${SEARCH_PATH}; skipping actionlint."
+            exit 0
+          fi
           actionlint "${files[@]}"
       - name: Run zizmor
         if: inputs.use-zizmor
