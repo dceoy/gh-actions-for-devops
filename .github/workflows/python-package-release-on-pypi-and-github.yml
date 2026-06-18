@@ -223,7 +223,8 @@ jobs:
           REPOSITORY: ${{ github.repository }}
           GH_TOKEN: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}  # zizmor: ignore[secrets-outside-env] caller-provided secret
         run: |
-          gh release create "${GITHUB_REF_NAME}" --repo "${REPOSITORY}" --generate-notes --verify-tag
+          gh release view "${GITHUB_REF_NAME}" --repo "${REPOSITORY}" >/dev/null 2>&1 \
+            || gh release create "${GITHUB_REF_NAME}" --repo "${REPOSITORY}" --generate-notes --verify-tag
       - name: Upload artifact signatures to GitHub Release
         env:
           REPOSITORY: ${{ github.repository }}

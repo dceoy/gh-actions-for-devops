@@ -4,10 +4,9 @@ on:
   workflow_call:
     inputs:
       image-name-to-target-stage-json:
-        required: false
+        required: true
         type: string
         description: JSON object with image names as keys and target stages as values
-        default: null
       registry:
         required: false
         type: string
@@ -168,8 +167,19 @@ on:
       GH_TOKEN:
         required: false
         description: GitHub token
+    outputs:
+      target-matrix-json:
+        description: JSON array of image name and target stage matrix entries
+        value: ${{ jobs.create-target-matrix.outputs.target-matrix-json }}
+      image-refs-json:
+        description: JSON array of primary Docker image references
+        value: ${{ jobs.collect-outputs.outputs.image-refs-json }}
+      build-push-digests-json:
+        description: JSON array of Docker image digests
+        value: ${{ jobs.collect-outputs.outputs.build-push-digests-json }}
 permissions:
   contents: write
+  packages: write
 defaults:
   run:
     shell: bash -euo pipefail {0}
@@ -184,13 +194,20 @@ jobs:
         id: create-target-matrix
         env:
           IMAGE_NAME_TO_TARGET_STAGE_JSON: ${{ inputs.image-name-to-target-stage-json }}
-        run: >
-          jq -c 'to_entries[]' <<< "${IMAGE_NAME_TO_TARGET_STAGE_JSON}"
-          | jq -rRs 'split("\n")[:-1] | "target_matrix_json=\(.)"'
-          | tee -a "${GITHUB_OUTPUT}"
+        run: |
+          {
+            echo 'target_matrix_json<<EOF'
+            jq -c 'to_entries | map(. + {artifact: ((.key + "-" + (.value | tostring)) | gsub("[^A-Za-z0-9_.-]"; "-"))})' \
+              <<< "${IMAGE_NAME_TO_TARGET_STAGE_JSON}"
+            echo EOF
+          } | tee -a "${GITHUB_OUTPUT}"
   build-and-push:
     needs:
       - create-target-matrix
+    permissions:
+      contents: write
+      packages: write
+      id-token: write
     strategy:
       fail-fast: false
       matrix:
@@ -203,7 +220,7 @@ jobs:
       context: ${{ inputs.context }}
       file: ${{ inputs.file }}
       platforms: ${{ inputs.platforms }}
-      target: ${{ fromJSON(matrix.image-to-target).value }}
+      target: ${{ matrix.image-to-target.value }}
       build-args: ${{ inputs.build-args }}
       secret-envs: ${{ inputs.secret-envs }}
       secret-files: ${{ inputs.secret-files }}
@@ -222,7 +239,7 @@ jobs:
       trivy-config: ${{ inputs.trivy-config }}
       trivy-timeout: ${{ inputs.trivy-timeout }}
       docker-metadata-action-tags: ${{ inputs.docker-metadata-action-tags }}
-      image-artifact-name: ${{ inputs.image-artifact-name }}
+      image-artifact-name: ${{ format('{0}-{1}', inputs.image-artifact-name, matrix.image-to-target.artifact) }}
       image-artifact-retention-days: ${{ inputs.image-artifact-retention-days }}
       image-artifact-overwrite: ${{ inputs.image-artifact-overwrite }}
       runs-on: ${{ inputs.runs-on }}
@@ -231,3 +248,24 @@ jobs:
       BUILD_SECRETS: ${{ secrets.BUILD_SECRETS }}
       DOCKER_TOKEN: ${{ secrets.DOCKER_TOKEN }}
       GH_TOKEN: ${{ secrets.GH_TOKEN }}
+  collect-outputs:
+    needs:
+      - build-and-push
+    runs-on: ubuntu-slim
+    outputs:
+      image-refs-json: ${{ steps.outputs.outputs.image_refs_json }}
+      build-push-digests-json: ${{ steps.outputs.outputs.build_push_digests_json }}
+    steps:
+      - name: Collect matrix outputs
+        id: outputs
+        env:
+          BUILD_AND_PUSH_OUTPUTS_JSON: ${{ toJSON(needs.build-and-push.outputs) }}
+        run: |
+          {
+            echo 'image_refs_json<<EOF'
+            jq -c '[.["image-ref"] // empty]' <<< "${BUILD_AND_PUSH_OUTPUTS_JSON}"
+            echo EOF
+            echo 'build_push_digests_json<<EOF'
+            jq -c '[.["build-push-digest"] // empty]' <<< "${BUILD_AND_PUSH_OUTPUTS_JSON}"
+            echo EOF
+          } | tee -a "${GITHUB_OUTPUT}"

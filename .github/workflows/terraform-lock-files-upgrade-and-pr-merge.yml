@@ -141,6 +141,8 @@ jobs:
       terragrunt-version: ${{ inputs.terragrunt-version }}
       create-pr: false
       runs-on: ${{ inputs.runs-on }}
+    secrets:
+      GH_TOKEN: ${{ secrets.GH_TOKEN }}
   terraform-lint-and-scan:
     needs:
       - terraform-lock-files-upgrade
@@ -163,6 +165,8 @@ jobs:
       trivy-config: ${{ inputs.trivy-config }}
       trivy-timeout: ${{ inputs.trivy-timeout }}
       runs-on: ${{ inputs.runs-on }}
+    secrets:
+      GH_TOKEN: ${{ secrets.GH_TOKEN }}
   pr-merge:
     if: >
       github.event_name == 'pull_request'

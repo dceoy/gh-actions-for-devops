@@ -183,6 +183,9 @@ on:
       build-push-digest:
         description: Docker image digest
         value: ${{ jobs.build-and-push.outputs.build-push-digest }}
+      image-ref:
+        description: Primary Docker image reference
+        value: ${{ jobs.build-and-push.outputs.image-ref }}
 permissions:
   contents: write
   packages: write
@@ -214,6 +217,10 @@ jobs:
       (! (failure() || cancelled()))
     needs:
       - prebuild-lint-and-scan
+    permissions:
+      contents: write
+      packages: write
+      id-token: write
     runs-on: ${{ inputs.runs-on }}
     timeout-minutes: ${{ inputs.timeout-minutes }}
     env:
@@ -276,6 +283,18 @@ jobs:
           DIGEST: ${{ steps.docker-build.outputs.digest }}
         run: >
           xargs -I{} -t cosign sign --yes "{}@${DIGEST}" <<< "${TAGS}"
+      - name: Verify the image signatures
+        if: inputs.cosign && inputs.push
+        env:
+          TAGS: ${{ steps.meta.outputs.tags }}
+          DIGEST: ${{ steps.docker-build.outputs.digest }}
+        run: |
+          while IFS= read -r tag; do
+            cosign verify \
+              --certificate-identity-regexp "https://github.com/${GITHUB_REPOSITORY}/.github/workflows/.+@refs/.+" \
+              --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+              "${tag}@${DIGEST}"
+          done <<< "${TAGS}"
       - name: Pull Docker images
         if: inputs.push
         env:
@@ -301,7 +320,7 @@ jobs:
       - build-and-push
     uses: ./.github/workflows/docker-image-scan.yml
     with:
-      image-refs-json: '["${{ needs.build-and-push.outputs.image-ref }}"]'
+      image-refs-json: ${{ toJSON(fromJSON(needs.build-and-push.outputs.metadata-json).tags) }}
       image-artifact-name: ${{ inputs.image-artifact-name }}
       trivy-scanners: ${{ inputs.trivy-scanners }}
       trivy-severity: ${{ inputs.trivy-severity }}

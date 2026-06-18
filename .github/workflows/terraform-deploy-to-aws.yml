@@ -211,7 +211,7 @@ jobs:
         run: |
           terragrunt run --all -- validate
       - name: Check whether the configuration of Terraform is valid
-        if: inputs.terragrunt-version != null
+        if: inputs.terragrunt-version == null
         working-directory: ${{ inputs.terraform-or-terragrunt-working-directory }}
         run: |
           terraform validate

@@ -90,8 +90,17 @@ jobs:
           TERRAGRUNT_INIT: terragrunt init --non-interactive -backend=false -upgrade -reconfigure && terragrunt validate && rm -rf .terragrunt-cache
         run: |
           if [[ -n "${TERRAFORM_WORKING_DIRECTORY_TO_VERSION_TF_JSON}" ]]; then
-            jq -r "to_entries[] | \"cp \\(.value) \\(.key) && cd \\(.key) && ${TERRAFORM_INIT} && rm -f \$(basename \\(.value))\"" <<< "${TERRAFORM_WORKING_DIRECTORY_TO_VERSION_TF_JSON}" \
-              | xargs -I{} -t bash -c '{}'
+            jq -r 'to_entries[] | [.key, .value] | @tsv' <<< "${TERRAFORM_WORKING_DIRECTORY_TO_VERSION_TF_JSON}" \
+              | while IFS=$'\t' read -r working_dir version_tf; do
+                  cp "${version_tf}" "${working_dir}"
+                  (
+                    cd "${working_dir}"
+                    terraform init -backend=false -upgrade -reconfigure
+                    terraform validate
+                    rm -rf .terraform
+                    rm -f "$(basename "${version_tf}")"
+                  )
+                done
             jq -r 'keys[] | sub("/$"; "")' <<< "${TERRAFORM_WORKING_DIRECTORY_TO_VERSION_TF_JSON}" \
               | xargs -I{} git ls-files -- "{}/${TERRAFORM_LOCK_FILE}" \
               | jq -rRs 'split("\n")[:-1] | "UPDATED_FILES_JSON=\(.)"' \
@@ -108,9 +117,32 @@ jobs:
             done <<< "${target_dirs}"
             xargs dirname < "${updated_files_txt}" | while read -r d; do
               if [[ -n "${TERRAGRUNT_WORKING_DIRECTORIES}" ]] && [[ -f "${d}/terragrunt.hcl" ]]; then
-                bash -xc "cd ${d} && mv terragrunt.hcl _ && grep -A 10 '^terraform {' _ > terragrunt.hcl && ${TERRAGRUNT_INIT} && mv _ terragrunt.hcl"
+                (
+                  cd "${d}"
+                  mv terragrunt.hcl terragrunt.hcl.orig
+                  awk '
+                    /^terraform[[:space:]]*\{/ { in_block = 1 }
+                    in_block { print }
+                    in_block {
+                      opens += gsub(/\{/, "{")
+                      closes += gsub(/\}/, "}")
+                      if (opens > 0 && opens == closes) {
+                        exit
+                      }
+                    }
+                  ' terragrunt.hcl.orig > terragrunt.hcl
+                  terragrunt init --non-interactive -backend=false -upgrade -reconfigure
+                  terragrunt validate
+                  rm -rf .terragrunt-cache
+                  mv terragrunt.hcl.orig terragrunt.hcl
+                )
               else
-                bash -xc "cd ${d} && ${TERRAFORM_INIT}"
+                (
+                  cd "${d}"
+                  terraform init -backend=false -upgrade -reconfigure
+                  terraform validate
+                  rm -rf .terraform
+                )
               fi
             done
             jq -rRs 'split("\n")[:-1] | "UPDATED_FILES_JSON=\(.)"' "${updated_files_txt}" | tee -a "${GITHUB_ENV}"
