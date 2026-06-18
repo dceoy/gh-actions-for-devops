@@ -17,6 +17,21 @@ on:
         type: string
         description: Version of uv to use (applicable only if uv.lock is present)
         default: latest
+      enable-cache:
+        required: false
+        type: boolean
+        description: Cache dependency downloads (never built executables)
+        default: true
+      cache-dependency-path:
+        required: false
+        type: string
+        description: Dependency file used to scope the cache
+        default: null
+      cache-salt:
+        required: false
+        type: string
+        description: Optional value used to bust the uv cache
+        default: null
       requirements-txt:
         required: false
         type: string
@@ -56,6 +71,8 @@ defaults:
 jobs:
   bundle:
     runs-on: ${{ inputs.runs-on }}
+    env:
+      PIP_NO_CACHE_DIR: ${{ inputs.enable-cache && 'false' || 'true' }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
@@ -76,6 +93,9 @@ jobs:
         uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39  # v8.2.0
         with:
           version: ${{ inputs.uv-version }}
+          enable-cache: ${{ inputs.enable-cache }}
+          cache-dependency-glob: ${{ inputs.cache-dependency-path || 'uv.lock' }}
+          cache-suffix: ${{ inputs.cache-salt }}
       - name: Install packages using uv
         if: env.LOCK_FILE == 'uv.lock'
         run: |
@@ -87,23 +107,25 @@ jobs:
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.2.0
         with:
           python-version: ${{ inputs.python-version }}
+          cache: ${{ inputs.enable-cache && (inputs.cache-dependency-path != '' || env.LOCK_FILE == 'poetry.lock' || inputs.requirements-txt != '') && 'pip' || '' }}
+          cache-dependency-path: ${{ inputs.cache-dependency-path || (env.LOCK_FILE == 'poetry.lock' && 'poetry.lock') || inputs.requirements-txt || '' }}
       - name: Install packages
         if: env.LOCK_FILE != 'uv.lock'
         env:
           REQUIREMENTS_TXT_PATH: ${{ inputs.requirements-txt }}
         run: |
           if [[ "${LOCK_FILE}" == "poetry.lock" ]]; then
-            python -m pip install --no-cache-dir poetry
+            python -m pip install poetry
             poetry lock --no-interaction
             poetry add --group=dev --no-interaction PyInstaller
             poetry install --no-interaction
             echo "EXECUTOR_KIND=poetry" >> "${GITHUB_ENV}"
           else
-            python -m pip install -U --no-cache-dir pip
+            python -m pip install -U pip
             if [[ -n "${REQUIREMENTS_TXT_PATH}" ]]; then
-              python -m pip install -U --no-cache-dir -r "${REQUIREMENTS_TXT_PATH}"
+              python -m pip install -U -r "${REQUIREMENTS_TXT_PATH}"
             fi
-            python -m pip install --no-cache-dir PyInstaller
+            python -m pip install PyInstaller
             echo "EXECUTOR_KIND=none" >> "${GITHUB_ENV}"
           fi
       - name: Build an executable file

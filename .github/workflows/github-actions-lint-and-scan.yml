@@ -18,6 +18,16 @@ on:
         type: string
         description: Python version to use
         default: 3.x
+      enable-cache:
+        required: false
+        type: boolean
+        description: Cache pinned linter and Python tool downloads
+        default: true
+      cache-salt:
+        required: false
+        type: string
+        description: Optional value used to bust tool caches
+        default: null
       use-shellcheck:
         required: false
         type: boolean
@@ -141,30 +151,59 @@ defaults:
 jobs:
   github-actions-lint-scan:
     runs-on: ${{ inputs.runs-on }}
+    env:
+      PIP_NO_CACHE_DIR: ${{ inputs.enable-cache && 'false' || 'true' }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
         with:
           fetch-depth: 1
           persist-credentials: false
+      - name: Cache actionlint and ShellCheck
+        if: inputs.enable-cache
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae  # v5.0.5
+        with:
+          path: ~/.local/bin
+          key: gha-linters-${{ runner.os }}-${{ runner.arch }}-actionlint-1.7.7-shellcheck-0.10.0-${{ inputs.cache-salt }}
       - name: Install actionlint
         run: |
-          curl -sSL -o /tmp/download-actionlint.bash \
-            https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash
-          bash /tmp/download-actionlint.bash latest /usr/local/bin
-      - name: Install ShellCheck
+          mkdir -p "${HOME}/.local/bin"
+          if [[ ! -x "${HOME}/.local/bin/actionlint" ]]; then
+            arch=x86_64
+            [[ "${RUNNER_ARCH}" == "ARM64" ]] && arch=arm64
+            curl --fail --location --silent --show-error \
+              "https://github.com/rhysd/actionlint/releases/download/v1.7.7/actionlint_1.7.7_linux_${arch}.tar.gz" \
+              | tar -xz -C "${HOME}/.local/bin" actionlint
+          fi
+          echo "${HOME}/.local/bin" >> "${GITHUB_PATH}"
+      - name: Install ShellCheck when unavailable
         if: inputs.use-shellcheck
         run: |
-          sudo apt-get -y update
-          sudo apt-get -y install --no-install-recommends --no-install-suggests shellcheck
+          if command -v shellcheck >/dev/null; then
+            exit 0
+          fi
+          if [[ ! -x "${HOME}/.local/bin/shellcheck" ]]; then
+            arch=x86_64
+            [[ "${RUNNER_ARCH}" == "ARM64" ]] && arch=aarch64
+            curl --fail --location --silent --show-error \
+              "https://github.com/koalaman/shellcheck/releases/download/v0.10.0/shellcheck-v0.10.0.linux.${arch}.tar.xz" \
+              | tar -xJ --strip-components=1 -C "${RUNNER_TEMP}" "shellcheck-v0.10.0/shellcheck"
+            install -m 0755 "${RUNNER_TEMP}/shellcheck" "${HOME}/.local/bin/shellcheck"
+          fi
       - name: Setup Python
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.2.0
         with:
           python-version: ${{ inputs.python-version }}
+      - name: Cache Python linter downloads
+        if: inputs.enable-cache && inputs.use-pyflakes
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae  # v5.0.5
+        with:
+          path: ~/.cache/pip
+          key: gha-python-linters-${{ runner.os }}-${{ inputs.python-version }}-pyflakes-3.4.0-${{ inputs.cache-salt }}
       - name: Install pyflakes
         if: inputs.use-pyflakes
         run: >
-          pip install -U --no-cache-dir pyflakes
+          pip install 'pyflakes==3.4.0'
       - name: Execute actionlint
         working-directory: ${{ inputs.search-path }}
         run: >
@@ -203,3 +242,5 @@ jobs:
       search-path: ${{ inputs.search-path }}
       python-version: ${{ inputs.python-version }}
       yamllint-config-data: ${{ inputs.yamllint-config-data }}
+      enable-cache: ${{ inputs.enable-cache }}
+      cache-salt: ${{ inputs.cache-salt }}

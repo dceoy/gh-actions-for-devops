@@ -33,6 +33,21 @@ on:
         type: string
         description: Version of uv to use (applicable only if uv.lock is present)
         default: latest
+      enable-cache:
+        required: false
+        type: boolean
+        description: Cache dependency downloads (never distributions or credentials)
+        default: true
+      cache-dependency-path:
+        required: false
+        type: string
+        description: Dependency file used to scope the cache
+        default: null
+      cache-salt:
+        required: false
+        type: string
+        description: Optional value used to bust the uv cache
+        default: null
       requirements-txt:
         required: false
         type: string
@@ -82,6 +97,8 @@ jobs:
   build:
     name: Build the Python 🐍 distribution 📦
     runs-on: ${{ inputs.runs-on }}
+    env:
+      PIP_NO_CACHE_DIR: ${{ inputs.enable-cache && 'false' || 'true' }}
     outputs:
       project-name: ${{ steps.read-project-name.outputs.project_name }}
     steps:
@@ -105,11 +122,16 @@ jobs:
         uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39  # v8.2.0
         with:
           version: ${{ inputs.uv-version }}
+          enable-cache: ${{ inputs.enable-cache }}
+          cache-dependency-glob: ${{ inputs.cache-dependency-path || format('{0}/uv.lock', inputs.package-path) }}
+          cache-suffix: ${{ inputs.cache-salt }}
       - name: Set up Python
         if: env.LOCK_FILE != 'uv.lock'
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.2.0
         with:
           python-version: ${{ inputs.python-version }}
+          cache: ${{ inputs.enable-cache && (inputs.cache-dependency-path != '' || env.LOCK_FILE == 'poetry.lock' || inputs.requirements-txt != '') && 'pip' || '' }}
+          cache-dependency-path: ${{ inputs.cache-dependency-path || (env.LOCK_FILE == 'poetry.lock' && format('{0}/poetry.lock', inputs.package-path)) || (inputs.requirements-txt != '' && format('{0}/{1}', inputs.package-path, inputs.requirements-txt)) || '' }}
       - name: Read the project name
         id: read-project-name
         working-directory: ${{ inputs.package-path }}
@@ -137,15 +159,15 @@ jobs:
           if [[ "${LOCK_FILE}" == "uv.lock" ]]; then
             uv build
           else
-            pip install -U --no-cache-dir pip
+            pip install -U pip
             if [[ -n "${REQUIREMENTS_TXT_PATH}" ]]; then
-              pip install -U --no-cache-dir -r "${REQUIREMENTS_TXT_PATH}"
+              pip install -U -r "${REQUIREMENTS_TXT_PATH}"
             fi
             if [[ "${LOCK_FILE}" == "poetry.lock" ]]; then
-              pip install --no-cache-dir poetry
+              pip install poetry
               poetry build --format=wheel --no-interaction
             else
-              pip install --no-cache-dir build
+              pip install build
               python -m build
             fi
           fi

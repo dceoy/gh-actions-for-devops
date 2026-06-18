@@ -8,11 +8,31 @@ on:
         type: string
         description: Path to search for files
         default: .
+      package-path:
+        required: false
+        type: string
+        description: Path containing an optional package.json and lockfile
+        default: .
       node-version:
         required: false
         type: string
         description: Node.js version to use
         default: latest
+      enable-cache:
+        required: false
+        type: boolean
+        description: Cache the pinned jsonlint tool download
+        default: true
+      cache-dependency-path:
+        required: false
+        type: string
+        description: Lockfile used to scope a package-manager cache
+        default: null
+      cache-salt:
+        required: false
+        type: string
+        description: Optional value used to bust the jsonlint cache
+        default: null
       runs-on:
         required: false
         type: string
@@ -33,13 +53,52 @@ jobs:
         with:
           fetch-depth: 1
           persist-credentials: false
-      - name: Setup Node.js
+      - name: Detect the package manager
+        working-directory: ${{ inputs.package-path }}
+        run: |
+          if [[ -f package-lock.json ]]; then
+            echo 'PACKAGE_MANAGER=npm' >> "${GITHUB_ENV}"
+            echo 'PACKAGE_LOCK_FILE=package-lock.json' >> "${GITHUB_ENV}"
+          elif [[ -f pnpm-lock.yaml ]]; then
+            echo 'PACKAGE_MANAGER=pnpm' >> "${GITHUB_ENV}"
+            echo 'PACKAGE_LOCK_FILE=pnpm-lock.yaml' >> "${GITHUB_ENV}"
+          elif [[ -f yarn.lock ]]; then
+            echo 'PACKAGE_MANAGER=yarn' >> "${GITHUB_ENV}"
+            echo 'PACKAGE_LOCK_FILE=yarn.lock' >> "${GITHUB_ENV}"
+          fi
+      - name: Setup Node.js for pnpm installation
+        if: inputs.enable-cache && env.PACKAGE_MANAGER == 'pnpm'
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e  # v6.4.0
         with:
           node-version: ${{ inputs.node-version }}
+      - name: Install pnpm before cache setup
+        if: inputs.enable-cache && env.PACKAGE_MANAGER == 'pnpm'
+        run: npm install -g pnpm
+      - name: Setup Node.js with package-manager cache
+        if: inputs.enable-cache && env.PACKAGE_MANAGER != ''
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e  # v6.4.0
+        with:
+          node-version: ${{ inputs.node-version }}
+          cache: ${{ env.PACKAGE_MANAGER }}
+          cache-dependency-path: ${{ inputs.cache-dependency-path || format('{0}/{1}', inputs.package-path, env.PACKAGE_LOCK_FILE) }}
+      - name: Setup Node.js without package-manager cache
+        if: '! inputs.enable-cache || env.PACKAGE_MANAGER == '''''
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e  # v6.4.0
+        with:
+          node-version: ${{ inputs.node-version }}
+      - name: Cache jsonlint
+        if: inputs.enable-cache
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae  # v5.0.5
+        with:
+          path: ~/.cache/gh-actions-for-devops/jsonlint
+          key: jsonlint-${{ runner.os }}-${{ inputs.node-version }}-1.6.3-${{ inputs.cache-salt }}
       - name: Install jsonlint
         run: |
-          npm install -g jsonlint
+          tool_dir="${HOME}/.cache/gh-actions-for-devops/jsonlint"
+          if [[ ! -x "${tool_dir}/node_modules/.bin/jsonlint" ]]; then
+            npm install --prefix "${tool_dir}" 'jsonlint@1.6.3'
+          fi
+          echo "${tool_dir}/node_modules/.bin" >> "${GITHUB_PATH}"
       - name: Execute jsonlint
         working-directory: ${{ inputs.search-path }}
         run: >
