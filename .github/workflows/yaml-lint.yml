@@ -42,9 +42,10 @@ defaults:
 jobs:
   lint:
     runs-on: ${{ inputs.runs-on }}
-    env:
-      PIP_NO_CACHE_DIR: ${{ inputs.enable-cache && 'false' || 'true' }}
     steps:
+      - name: Disable pip cache
+        if: '! inputs.enable-cache'
+        run: echo 'PIP_NO_CACHE_DIR=true' >> "${GITHUB_ENV}"
       - name: Checkout repository
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
         with:
