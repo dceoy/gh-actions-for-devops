@@ -153,6 +153,11 @@ on:
         type: boolean
         description: Overwrite existing artifacts
         default: true
+      build-output-artifact-name:
+        required: false
+        type: string
+        description: Build output JSON artifact name to upload
+        default: null
       runs-on:
         required: false
         type: string
@@ -313,6 +318,30 @@ jobs:
           path: ${{ env.IMAGE_TAR }}
           retention-days: ${{ inputs.image-artifact-retention-days }}
           overwrite: ${{ inputs.image-artifact-overwrite }}
+      - name: Write build outputs
+        if: inputs.build-output-artifact-name != null
+        env:
+          IMAGE_ARTIFACT_NAME: ${{ inputs.image-artifact-name }}
+          IMAGE_REF: ${{ fromJson(steps.meta.outputs.json).tags[0] }}
+          BUILD_PUSH_DIGEST: ${{ steps.docker-build.outputs.digest }}
+        run: |
+          jq -n \
+            --arg image_artifact_name "${IMAGE_ARTIFACT_NAME}" \
+            --arg image_ref "${IMAGE_REF}" \
+            --arg build_push_digest "${BUILD_PUSH_DIGEST}" \
+            '{
+              image_artifact_name: $image_artifact_name,
+              image_ref: $image_ref,
+              build_push_digest: $build_push_digest
+            }' > /tmp/docker-build-output.json
+      - name: Upload build outputs
+        if: inputs.build-output-artifact-name != null
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: ${{ inputs.build-output-artifact-name }}
+          path: /tmp/docker-build-output.json
+          retention-days: ${{ inputs.image-artifact-retention-days }}
+          overwrite: true
   postbuild-scan:
     if: >
       inputs.scan-after-build

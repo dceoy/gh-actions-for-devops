@@ -177,6 +177,9 @@ on:
       build-push-digests-json:
         description: JSON array of Docker image digests
         value: ${{ jobs.collect-outputs.outputs.build-push-digests-json }}
+      image-artifact-names-json:
+        description: JSON array of image tarball artifact names
+        value: ${{ jobs.collect-outputs.outputs.image-artifact-names-json }}
 permissions:
   contents: write
   packages: write
@@ -242,6 +245,7 @@ jobs:
       image-artifact-name: ${{ format('{0}-{1}', inputs.image-artifact-name, matrix.image-to-target.artifact) }}
       image-artifact-retention-days: ${{ inputs.image-artifact-retention-days }}
       image-artifact-overwrite: ${{ inputs.image-artifact-overwrite }}
+      build-output-artifact-name: ${{ format('{0}-outputs-{1}', inputs.image-artifact-name, matrix.image-to-target.artifact) }}
       runs-on: ${{ inputs.runs-on }}
       timeout-minutes: ${{ inputs.timeout-minutes }}
     secrets:
@@ -255,17 +259,30 @@ jobs:
     outputs:
       image-refs-json: ${{ steps.outputs.outputs.image_refs_json }}
       build-push-digests-json: ${{ steps.outputs.outputs.build_push_digests_json }}
+      image-artifact-names-json: ${{ steps.outputs.outputs.image_artifact_names_json }}
     steps:
+      - name: Download build output artifacts
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
+        with:
+          pattern: ${{ inputs.image-artifact-name }}-outputs-*
+          path: /tmp/docker-build-outputs
+          merge-multiple: false
       - name: Collect matrix outputs
         id: outputs
-        env:
-          BUILD_AND_PUSH_OUTPUTS_JSON: ${{ toJSON(needs.build-and-push.outputs) }}
         run: |
+          outputs_json="$(
+            find /tmp/docker-build-outputs -type f -name docker-build-output.json -print0 \
+              | sort -z \
+              | xargs -0 jq -s -c .
+          )"
           {
             echo 'image_refs_json<<EOF'
-            jq -c '[.["image-ref"] // empty]' <<< "${BUILD_AND_PUSH_OUTPUTS_JSON}"
+            jq -c '[.[].image_ref]' <<< "${outputs_json}"
             echo EOF
             echo 'build_push_digests_json<<EOF'
-            jq -c '[.["build-push-digest"] // empty]' <<< "${BUILD_AND_PUSH_OUTPUTS_JSON}"
+            jq -c '[.[].build_push_digest]' <<< "${outputs_json}"
+            echo EOF
+            echo 'image_artifact_names_json<<EOF'
+            jq -c '[.[].image_artifact_name]' <<< "${outputs_json}"
             echo EOF
           } | tee -a "${GITHUB_OUTPUT}"
