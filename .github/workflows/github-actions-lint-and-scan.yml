@@ -169,7 +169,7 @@ jobs:
         run: |
           mkdir -p "${HOME}/.local/bin"
           if [[ ! -x "${HOME}/.local/bin/actionlint" ]]; then
-            arch=x86_64
+            arch=amd64
             [[ "${RUNNER_ARCH}" == "ARM64" ]] && arch=arm64
             curl --fail --location --silent --show-error \
               "https://github.com/rhysd/actionlint/releases/download/v1.7.7/actionlint_1.7.7_linux_${arch}.tar.gz" \
