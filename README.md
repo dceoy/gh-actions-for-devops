@@ -71,6 +71,10 @@ jobs:
 
 Sensitive values must be passed through the `secrets:` keyword of `workflow_call`, not `with:` inputs. This keeps values masked in logs.
 
+### Dependency caches
+
+Non-mutating Python and Node lint/test workflows cache dependency-manager downloads by default. Cache keys are scoped by the runner OS, runtime/tool version, package manager, package path, and lockfile content. Set `enable-cache: false` to disable caching, use `cache-dependency-path` for a lockfile in a non-default location, or change `cache-salt` (where supported) to force a fresh cache. Caches contain dependency downloads only; credentials and generated build artifacts are not cached.
+
 | Workflow                                      | Removed input          | Replacement secret |
 | --------------------------------------------- | ---------------------- | ------------------ |
 | `docker-build-and-push.yml`                   | `secrets`              | `BUILD_SECRETS`    |
