@@ -176,7 +176,9 @@ jobs:
               npm audit fix
               ;;
             yarn )
-              yarn audit
+              # Yarn Classic cannot remediate audit findings. Report them without
+              # preventing the formatting PR from being created.
+              yarn audit || true
               ;;
           esac
       - name: Format and lint the code using Biome

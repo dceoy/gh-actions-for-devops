@@ -233,7 +233,7 @@ jobs:
         # `dist/` contains the built packages, and the
         # sigstore-produced signatures and certificates.
         run: |
-          gh release upload "${GITHUB_REF_NAME}" dist/** --repo "${REPOSITORY}"
+          gh release upload "${GITHUB_REF_NAME}" dist/** --repo "${REPOSITORY}" --clobber
   publish-to-pypi:
     name: Publish the Python 🐍 distribution 📦 to PyPI
     if: >

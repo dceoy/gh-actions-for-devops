@@ -326,6 +326,6 @@ jobs:
       use-docker: ${{ needs.build.result == 'success' || needs.pull.result == 'success' }}
       docker-metadata-action-images: ${{ inputs.docker-metadata-action-images }}
       docker-metadata-action-tags: ${{ inputs.docker-metadata-action-tags }}
-      docker-image-artifact-name: ${{ needs.build.result == 'success' && fromJSON(needs.build.outputs.image-artifact-names-json)[0] || inputs.docker-image-artifact-name }}
+      docker-image-artifact-name: ${{ inputs.docker-image-artifact-name }}
       runs-on: ${{ inputs.runs-on }}
       timeout-minutes: ${{ inputs.timeout-minutes }}

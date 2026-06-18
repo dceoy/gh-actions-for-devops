@@ -6,7 +6,7 @@ on:
       api-url:
         required: true
         type: string
-        description: Web API URL to call
+        description: Web API URL to call. Redirects are not followed; use the final HTTPS destination.
       http-method:
         required: false
         type: string
@@ -162,7 +162,7 @@ jobs:
                     value: ${{ steps.external-api-call.outputs.status }}
                     short: true
                   - title: Response Body
-                    value: ${{ steps.result.outputs.escaped_response_body }}
+                    value: ${{ toJSON(steps.result.outputs.escaped_response_body) }}
                     short: true
                 footer: Commit - ${{ github.sha }}
                 footer_icon: https://platform.slack-edge.com/img/default_application_icon.png
