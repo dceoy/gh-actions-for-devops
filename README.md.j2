@@ -71,6 +71,16 @@ jobs:
 
 Sensitive values must be passed through the `secrets:` keyword of `workflow_call`, not `with:` inputs. This keeps values masked in logs.
 
+### Dependency caches
+
+The Python, TypeScript, HTML, JSON, YAML, Shell, and GitHub Actions workflows listed below cache dependency or pinned-tool downloads by default. This includes formatting, PR creation, build, deployment, and release workflows because their caches contain downloads only; caches never include the working tree, generated build/release artifacts, deployment output, or credentials.
+
+- Set `enable-cache: false` to avoid restoring or saving caches.
+- Set `cache-dependency-path` to a repository-relative dependency file when the default lockfile or requirements file is elsewhere. Defaults are resolved under `package-path`, so nested projects use keys based on their own `uv.lock`, `poetry.lock`, `requirements-txt`, `package-lock.json`, `pnpm-lock.yaml`, or `yarn.lock`.
+- Change `cache-salt` where offered to force a fresh uv or pinned-tool cache. `actions/setup-python` and `actions/setup-node` caches are busted by changing the dependency-file content or path.
+
+Keys are scoped by runner OS, architecture where relevant, runtime/tool version, package manager, nested package/dependency path, dependency-file content, and optional salt. Supported workflows are `python-package-lint-and-scan.yml`, `python-package-test.yml`, `python-package-format-and-pr.yml`, `python-pyinstaller.yml`, `python-package-mkdocs-gh-deploy.yml`, `python-package-release-on-pypi-and-github.yml`, `typescript-package-lint-and-scan.yml`, `typescript-package-format-and-pr.yml`, `typescript-package-script.yml`, `html-lint-and-scan.yml`, `json-lint.yml`, `yaml-lint.yml`, `shell-lint.yml`, and `github-actions-lint-and-scan.yml`.
+
 | Workflow | Removed input | Replacement secret |
 | --- | --- | --- |
 | `docker-build-and-push.yml` | `secrets` | `BUILD_SECRETS` |

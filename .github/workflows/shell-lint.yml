@@ -8,6 +8,16 @@ on:
         type: string
         description: Path to search for files
         default: .
+      enable-cache:
+        required: false
+        type: boolean
+        description: Cache the pinned ShellCheck download when it is not preinstalled
+        default: true
+      cache-salt:
+        required: false
+        type: string
+        description: Optional value used to bust the ShellCheck cache
+        default: null
       runs-on:
         required: false
         type: string
@@ -28,10 +38,27 @@ jobs:
         with:
           fetch-depth: 1
           persist-credentials: false
-      - name: Install ShellCheck
+      - name: Cache ShellCheck
+        if: inputs.enable-cache
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae  # v5.0.5
+        with:
+          path: ~/.local/bin/shellcheck
+          key: shellcheck-${{ runner.os }}-${{ runner.arch }}-v0.10.0-${{ inputs.cache-salt }}
+      - name: Install ShellCheck when unavailable
         run: |
-          sudo apt-get -y update
-          sudo apt-get -y install --no-install-recommends --no-install-suggests shellcheck
+          if command -v shellcheck >/dev/null; then
+            exit 0
+          fi
+          mkdir -p "${HOME}/.local/bin"
+          if [[ ! -x "${HOME}/.local/bin/shellcheck" ]]; then
+            arch=x86_64
+            [[ "${RUNNER_ARCH}" == "ARM64" ]] && arch=aarch64
+            curl --fail --location --silent --show-error \
+              "https://github.com/koalaman/shellcheck/releases/download/v0.10.0/shellcheck-v0.10.0.linux.${arch}.tar.xz" \
+              | tar -xJ --strip-components=1 -C "${RUNNER_TEMP}" "shellcheck-v0.10.0/shellcheck"
+            install -m 0755 "${RUNNER_TEMP}/shellcheck" "${HOME}/.local/bin/shellcheck"
+          fi
+          echo "${HOME}/.local/bin" >> "${GITHUB_PATH}"
       - name: Execute shellcheck
         working-directory: ${{ inputs.search-path }}
         run: >

@@ -18,6 +18,21 @@ on:
         type: string
         description: Version of uv to use (applicable only if uv.lock is present)
         default: latest
+      enable-cache:
+        required: false
+        type: boolean
+        description: Cache dependency downloads (never site output or credentials)
+        default: true
+      cache-dependency-path:
+        required: false
+        type: string
+        description: Dependency file used to scope the cache
+        default: null
+      cache-salt:
+        required: false
+        type: string
+        description: Optional value used to bust the uv cache
+        default: null
       mkdocs-config-file:
         required: false
         type: string
@@ -59,6 +74,21 @@ on:
         type: string
         description: Version of uv to use (applicable only if uv.lock is present)
         default: latest
+      enable-cache:
+        required: false
+        type: boolean
+        description: Cache dependency downloads (never site output or credentials)
+        default: true
+      cache-dependency-path:
+        required: false
+        type: string
+        description: Dependency file used to scope the cache
+        default: null
+      cache-salt:
+        required: false
+        type: string
+        description: Optional value used to bust the uv cache
+        default: null
       mkdocs-config-file:
         required: false
         type: string
@@ -91,6 +121,9 @@ jobs:
     env:
       MKDOCS_SITE_DIR: ${{ inputs.package-path }}/site
     steps:
+      - name: Disable pip cache
+        if: '! inputs.enable-cache'
+        run: echo 'PIP_NO_CACHE_DIR=true' >> "${GITHUB_ENV}"
       - name: Checkout repository
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
         with:
@@ -111,6 +144,9 @@ jobs:
         uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39  # v8.2.0
         with:
           version: ${{ inputs.uv-version }}
+          enable-cache: ${{ inputs.enable-cache }}
+          cache-dependency-glob: ${{ inputs.cache-dependency-path || format('{0}/uv.lock', inputs.package-path) }}
+          cache-suffix: ${{ inputs.cache-salt }}
       - name: Install packages using uv
         if: env.LOCK_FILE == 'uv.lock'
         working-directory: ${{ inputs.package-path }}
@@ -122,18 +158,20 @@ jobs:
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.2.0
         with:
           python-version: ${{ inputs.python-version }}
+          cache: ${{ inputs.enable-cache && (inputs.cache-dependency-path != '' || env.LOCK_FILE == 'poetry.lock') && 'pip' || '' }}
+          cache-dependency-path: ${{ inputs.cache-dependency-path || (env.LOCK_FILE == 'poetry.lock' && format('{0}/poetry.lock', inputs.package-path)) || '' }}
       - name: Install packages
         if: env.LOCK_FILE != 'uv.lock'
         working-directory: ${{ inputs.package-path }}
         run: |
-          pip install -U --no-cache-dir pip
+          pip install -U pip
           if [[ "${LOCK_FILE}" == "poetry.lock" ]]; then
-            pip install --no-cache-dir poetry
+            pip install poetry
             poetry lock --no-interaction
             poetry install --no-interaction --no-root
             echo "EXECUTOR_KIND=poetry" >> "${GITHUB_ENV}"
           else
-            pip install -U --no-cache-dir mkdocs
+            pip install -U mkdocs
             echo "EXECUTOR_KIND=none" >> "${GITHUB_ENV}"
           fi
       - name: Build MkDocs site
