@@ -96,7 +96,7 @@ jobs:
           SCRIPT_TYPE: ${{ inputs.script-type }}
         run: >
           tr ',' '\n' <<< "${AI_ASSISTANTS}"
-          | xargs -L1 -t specify init --force --here --ignore-agent-tools --script "${SCRIPT_TYPE}" --ai
+          | xargs -L1 -t specify init --force --here --ignore-agent-tools --script "${SCRIPT_TYPE}" --integration
       - name: Prettify output files
         if: inputs.prettify-md-and-json
         run: >
