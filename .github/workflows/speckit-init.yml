@@ -105,7 +105,9 @@ jobs:
         if: inputs.script-type == 'sh' && inputs.disable-shellcheck
         working-directory: .specify/scripts
         run: |
-          find . -type f -name '*.sh' -exec sed -ie '2i# shellcheck disable=all' {} \;
+          while IFS= read -r f; do
+            grep -qF '# shellcheck disable=all' "$f" || sed -ie '2i# shellcheck disable=all' "$f"
+          done < <(find . -type f -name '*.sh')
           find . -type f -name '*.she' -delete
       - name: Commit and push the changes
         uses: EndBug/add-and-commit@290ea2c423ad77ca9c62ae0f5b224379612c0321  # v10.0.0
