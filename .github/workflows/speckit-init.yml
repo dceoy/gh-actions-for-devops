@@ -105,8 +105,12 @@ jobs:
         if: inputs.script-type == 'sh' && inputs.disable-shellcheck
         working-directory: .specify/scripts
         run: |
-          find . -type f -name '*.sh' -exec sed -ie '2i# shellcheck disable=all' {} \;
-          find . -type f -name '*.she' -delete
+          if find . -type f -name '*.sh' -exec head -n 2 {} \; | grep -q '# shellcheck disable=all'; then
+            echo "Shellcheck is already disabled in Spec Kit shell scripts."
+          else
+            find . -type f -name '*.sh' -exec sed -ie '2i# shellcheck disable=all' {} \;
+            find . -type f -name '*.she' -delete
+          fi
       - name: Commit and push the changes
         uses: EndBug/add-and-commit@290ea2c423ad77ca9c62ae0f5b224379612c0321  # v10.0.0
         with:
