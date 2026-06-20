@@ -147,9 +147,9 @@ jobs:
     needs:
       - terraform-lock-files-upgrade
     permissions:
-      contents: read
-      security-events: write
+      contents: write
       actions: read
+      security-events: write
     uses: ./.github/workflows/terraform-lint-and-scan.yml
     with:
       search-path: ${{ inputs.search-path-for-lint-and-scan }}
