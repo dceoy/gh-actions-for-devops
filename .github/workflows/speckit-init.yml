@@ -103,7 +103,7 @@ jobs:
           npx prettier --write './**/*.{md,json}'
       - name: Disable shellcheck in Spec Kit shell scripts
         if: inputs.script-type == 'sh' && inputs.disable-shellcheck
-        working-directory: .specify/scripts
+        working-directory: .specify
         run: |
           while IFS= read -r f; do
             grep -qF '# shellcheck disable=all' "$f" || sed -ie '2i# shellcheck disable=all' "$f"
