@@ -10,7 +10,7 @@
           },
           {
             "type": "command",
-            "command": "cd src && golangci-lint -c ../.golangci.yml fmt --enable=gofumpt --enable=goimports && golangci-lint -c ../.golangci.yml run --fix && govulncheck ./... && gosec ./..."
+            "command": "REPO=$(git rev-parse --show-toplevel 2>/dev/null) && test -n \"$REPO\" && cd \"$REPO/src\" && golangci-lint -c ../.golangci.yml fmt --enable=gofumpt --enable=goimports && golangci-lint -c ../.golangci.yml run --fix && govulncheck ./... && gosec ./..."
           }
         ]
       }
