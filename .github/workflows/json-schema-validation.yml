@@ -62,7 +62,7 @@ jobs:
         with:
           node-version: ${{ inputs.node-version }}
       - name: Install ajv-cli
-        run: >
+        run: >  # zizmor: ignore[adhoc-packages] installs schema validation tool
           npm install -g ajv-cli
       - name: Validate JSON files using ajv-cli
         env:
