@@ -12,16 +12,16 @@ on:
         type: string
         description: Additional arguments to pass directly to Claude Code Action
         default: '--allowed-tools "Bash(gh:*)",mcp__github_inline_comment__create_inline_comment --model "opusplan"'
-      use-bedrock:
+      aws-role-to-assume:
         required: false
-        type: boolean
-        description: Whether to use Amazon Bedrock for Claude Code Action
-        default: false
+        type: string
+        description: IAM role ARN to assume via GitHub OIDC for Amazon Bedrock access
+        default: null
       aws-region:
         required: false
         type: string
         description: AWS region for Bedrock and OIDC credential configuration
-        default: us-west-2
+        default: us-east-1
       runs-on:
         required: false
         type: string
@@ -34,9 +34,6 @@ on:
       GH_TOKEN:
         required: false
         description: GitHub token for accessing the repository
-      AWS_ROLE_TO_ASSUME:
-        required: false
-        description: IAM role ARN to assume via GitHub OIDC for Amazon Bedrock access
 permissions:
   contents: read
   pull-requests: write
@@ -74,15 +71,16 @@ jobs:
             fi
           fi
       - name: Configure AWS credentials
-        if: inputs.use-bedrock
+        if: inputs.aws-role-to-assume != null
         uses: aws-actions/configure-aws-credentials@e7f100cf4c008499ea8adda475de1042d6975c7b  # v6.2.0
         with:
-          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          role-to-assume: ${{ inputs.aws-role-to-assume }}
           aws-region: ${{ inputs.aws-region }}
+          role-session-name: github-actions-${{ github.run_id }}
       - name: Run PR review with Claude Code
         uses: anthropics/claude-code-action@4d7e1f0cd85743fdc93b1c8040ab54395da024e2  # v1.0.149
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          use_bedrock: ${{ inputs.use-bedrock }}
+          use_bedrock: ${{ inputs.aws-role-to-assume != null }}
           prompt: '/review-pr REPO: ${{ github.repository }} PR_NUMBER: ${{ github.event.pull_request.number }}'
           claude_args: ${{ inputs.claude-args }}
