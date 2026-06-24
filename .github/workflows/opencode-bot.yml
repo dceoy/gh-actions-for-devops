@@ -1,5 +1,5 @@
 ---
-name: Mention bot using opencode
+name: Mention bot using OpenCode
 on:
   # issue_comment:
   #   types:
@@ -71,6 +71,7 @@ permissions:
   pull-requests: write
   issues: write
   id-token: write
+  actions: read
 jobs:
   opencode-bot:
     if: >
