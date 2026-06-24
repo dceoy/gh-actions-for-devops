@@ -78,7 +78,7 @@ jobs:
           aws-region: ${{ inputs.aws-region }}
           role-session-name: github-actions-${{ github.run_id }}
       - name: Run PR review with Claude Code
-        uses: anthropics/claude-code-action@9dd8b95a392eb34b6f5fb56cf5a64cb735912d4b  # v1.0.150
+        uses: anthropics/claude-code-action@806af32823ef69c8ef357086c573a902af641307  # v1.0.151
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           use_bedrock: ${{ inputs.aws-role-to-assume != null }}
