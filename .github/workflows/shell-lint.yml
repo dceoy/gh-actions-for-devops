@@ -8,6 +8,14 @@ on:
         type: string
         description: Path to search for files
         default: .
+      file-names:
+        required: false
+        type: string
+        description: Newline-separated file names or pathspecs passed to git ls-files
+        default: |
+          *.sh
+          *.bash
+          *.bats
       enable-cache:
         required: false
         type: boolean
@@ -61,6 +69,12 @@ jobs:
           echo "${HOME}/.local/bin" >> "${GITHUB_PATH}"
       - name: Execute shellcheck
         working-directory: ${{ inputs.search-path }}
-        run: >
-          git ls-files -z -- '*.sh' '*.bash' '*.bats'
-          | xargs -0 -t shellcheck --external-sources
+        env:
+          FILE_NAMES: ${{ inputs.file-names }}
+        run: |
+          files=()
+          while IFS= read -r f; do
+            [[ -n "${f}" ]] && files+=("${f}")
+          done <<< "${FILE_NAMES}"
+          [[ ${#files[@]} -eq 0 ]] && { echo "::error::file-names input produced no entries"; exit 1; }
+          git ls-files -z -- "${files[@]}" | xargs -0 -r -t shellcheck --external-sources
