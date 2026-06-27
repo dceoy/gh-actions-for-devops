@@ -8,7 +8,7 @@ on:
         type: string
         description: Path to search for files
         default: .
-      file-names:
+      file-to-show:
         required: false
         type: string
         description: Newline-separated file names or pathspecs passed to git ls-files
@@ -70,10 +70,10 @@ jobs:
       - name: Execute shellcheck
         working-directory: ${{ inputs.search-path }}
         env:
-          FILE_NAMES: ${{ inputs.file-names }}
+          FILES_TO_SHOW: ${{ inputs.file-to-show }}
         run: |
-          file_names=()
-          while IFS= read -r file_name; do
-            [[ -n "${file_name}" ]] && file_names+=("${file_name}")
-          done <<< "${FILE_NAMES}"
-          git ls-files -z -- "${file_names[@]}" | xargs -0 -r -t shellcheck --external-sources
+          files=()
+          while IFS= read -r f; do
+            [[ -n "${f}" ]] && files+=("${f}")
+          done <<< "${FILES_TO_SHOW}"
+          git ls-files -z -- "${files[@]}" | xargs -0 -r -t shellcheck --external-sources
