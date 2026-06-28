@@ -1,0 +1,35 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "agent": {
+    "plan": {
+      "permission": {
+        "edit": "deny",
+        "bash": {
+          "*": "deny",
+          "git status": "allow",
+          "git status *": "allow",
+          "git diff": "allow",
+          "git diff *": "allow",
+          "git log": "allow",
+          "git log *": "allow",
+          "git show": "allow",
+          "git show *": "allow",
+          "gh pr view": "allow",
+          "gh pr view *": "allow",
+          "gh pr diff": "allow",
+          "gh pr diff *": "allow",
+          "gh pr list": "allow",
+          "gh pr list *": "allow"
+        },
+        "task": {
+          "*": "deny",
+          "code-reviewer": "allow",
+          "comment-analyzer": "allow",
+          "pr-test-analyzer": "allow",
+          "silent-failure-hunter": "allow",
+          "type-design-analyzer": "allow"
+        }
+      }
+    }
+  }
+}

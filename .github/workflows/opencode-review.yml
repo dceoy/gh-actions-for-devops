@@ -1,12 +1,10 @@
 ---
-name: Mention bot using OpenCode
+name: Pull request review using OpenCode
 on:
-  # issue_comment:
+  # pull_request:
   #   types:
-  #     - created
-  # pull_request_review_comment:
-  #   types:
-  #     - created
+  #     - opened
+  #     - ready_for_review
   workflow_call:
     inputs:
       model:
@@ -27,8 +25,13 @@ on:
       prompt:
         required: false
         type: string
-        description: Custom prompt to override the default prompt
-        default: null
+        description: Prompt to override the default, which runs this repo's /review-pr workflow
+        default: >
+          Review this pull request by executing the workflow in `.opencode/commands/review-pr.md` with arguments `code comments tests errors types parallel`.
+          Read that file, then orchestrate the specialized subagents under `.opencode/agents/` (code-reviewer, pr-test-analyzer, silent-failure-hunter, type-design-analyzer, comment-analyzer) via the Task tool, launching all applicable ones in parallel.
+          Exclude code-simplifier; this is a read-only review and code-simplifier applies edits.
+          Review only; do not modify code.
+          Aggregate findings into the PR Review Summary format (Critical Issues, Important Issues, Suggestions, Strengths) with file:line references and return the summary as your final response.
       use-github-token:
         required: false
         type: boolean
@@ -68,18 +71,9 @@ permissions:
   id-token: write
   actions: read
 jobs:
-  opencode-bot:
+  opencode-review:
     if: >
-      (
-        github.event_name != 'issue_comment'
-        && github.event_name != 'pull_request_review_comment'
-      ) || (
-        github.event_name == 'issue_comment'
-        && contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
-      ) || (
-        github.event_name == 'pull_request_review_comment'
-        && contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
-      )
+      github.event_name == 'pull_request'
     runs-on: ${{ inputs.runs-on }}
     steps:
       - name: Checkout repository
