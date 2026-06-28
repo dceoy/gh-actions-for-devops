@@ -47,7 +47,7 @@ Recommended workflow:
 ## Adaptations from the source plugin
 
 - Claude `plugin.json` manifest removed; OpenCode discovers files by location.
-- Agent frontmatter converted to OpenCode schema (`mode: subagent`, `color` retained; `model: opus`/`inherit` dropped so the session model is inherited).
+- Agent frontmatter converted to OpenCode schema (`mode: subagent`, `color` mapped to the supported OpenCode palette; `model: opus`/`inherit` dropped so the session model is inherited).
 - Command frontmatter trimmed to `description`; the body keeps `$ARGUMENTS`.
 - `CLAUDE.md` references changed to `AGENTS.md` (this repo's guidelines file, aliased by `CLAUDE.md`).
 - Stack-specific examples from the original author's TypeScript/React project (ES modules, React Props, `errorIds.ts`, Sentry/Statsig loggers) were genericized so the agents are useful across this repo's Go codebase and other stacks.
