@@ -15,8 +15,11 @@ on:
       agent:
         required: false
         type: string
-        description: Primary agent to use (falls back to default_agent or 'build')
-        default: null
+        description: >-
+          Primary agent to use. Defaults to the read-only 'plan' agent so the
+          automatic PR review path cannot edit files; override only with a
+          review-safe primary agent.
+        default: plan
       share:
         required: false
         type: string
