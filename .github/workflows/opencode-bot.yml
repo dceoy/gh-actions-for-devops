@@ -23,7 +23,7 @@ on:
         required: false
         type: string
         description: Share the opencode session (defaults to true for public repos)
-        default: false
+        default: null
       prompt:
         required: false
         type: string
