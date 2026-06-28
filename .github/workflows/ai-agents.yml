@@ -88,7 +88,7 @@ jobs:
       issues: write
       id-token: write
       actions: read
-    uses: ./.github/workflows/opencode-bot.yml
+    uses: ./.github/workflows/opencode-review.yml
     secrets:
       OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
