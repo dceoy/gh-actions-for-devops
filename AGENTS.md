@@ -2,7 +2,7 @@
 
 ## Project Structure & Module Organization
 
-This repository publishes reusable GitHub Actions workflows for DevOps tasks. Workflow definitions live in `.github/workflows/`; the `workflows` symlink points there for convenience. The generated public documentation is `README.md`, and its source template is `README.md.j2`. The README generator is a small Go module in `src/`, with production code in `src/build_readme_md.go`, tests in `src/test_build_readme_md_test.go`, and its container build in `src/Dockerfile`. Local automation and agent instructions are under `.agents/`, including `.agents/skills/local-qa`.
+This repository publishes reusable GitHub Actions workflows for DevOps tasks. Workflow definitions live in `.github/workflows/`; the `workflows` symlink points there for convenience. The generated public documentation is `README.md`, and its source template is `README.md.j2`. The README generator is a small Go module in `src/`, with production code in `src/build_readme_md.go`, tests in `src/test_build_readme_md_test.go`, and its container build in `src/Dockerfile`. Local automation and agent instructions are under `.agents/`, including `.agents/skills/local-qa`. OpenCode review subagents and the `/review-pr` command live under `.opencode/` (auto-discovered by OpenCode), converted from Anthropic's `pr-review-toolkit` plugin.
 
 ## Build, Test, and Development Commands
 
