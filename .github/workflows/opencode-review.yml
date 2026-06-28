@@ -77,17 +77,36 @@ jobs:
           fetch-depth: 1
           token: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}  # zizmor: ignore[secrets-outside-env] caller-provided secret
           persist-credentials: false
+      - name: Get opencode version
+        id: opencode-version
+        shell: bash
+        run: |
+          VERSION=$(curl -sf https://api.github.com/repos/anomalyco/opencode/releases/latest | grep -o '"tag_name": *"[^"]*"' | cut -d'"' -f4)
+          echo "version=${VERSION:-latest}" >> "${GITHUB_OUTPUT}"
+      - name: Cache opencode binary
+        id: opencode-cache
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae  # v5.0.5
+        with:
+          path: ~/.opencode/bin
+          key: opencode-${{ runner.os }}-${{ runner.arch }}-${{ steps.opencode-version.outputs.version }}
+      - name: Install opencode
+        if: steps.opencode-cache.outputs.cache-hit != 'true'
+        shell: bash
+        run: curl -fsSL https://opencode.ai/install | bash
+      - name: Add opencode to PATH
+        shell: bash
+        run: echo "${HOME}/.opencode/bin" >> "${GITHUB_PATH}"
       - name: Run opencode
-        uses: anomalyco/opencode/github@bebe5442a5c2395f2eafe9d7dca463e453532e52   # v1.14.28
+        shell: bash
         env:
           OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}  # zizmor: ignore[secrets-outside-env] caller-provided secret
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}  # zizmor: ignore[secrets-outside-env] caller-provided secret
-        with:
-          model: ${{ inputs.model }}
-          agent: ${{ inputs.agent }}
-          share: ${{ inputs.share }}
-          prompt: ${{ inputs.prompt }}
-          use_github_token: ${{ inputs.use-github-token }}
-          mentions: ${{ inputs.mentions }}
-          variant: ${{ inputs.variant }}
-          oidc_base_url: ${{ inputs.oidc-base-url }}
+          MODEL: ${{ inputs.model }}
+          AGENT: ${{ inputs.agent }}
+          SHARE: ${{ inputs.share }}
+          PROMPT: ${{ inputs.prompt }}
+          USE_GITHUB_TOKEN: ${{ inputs.use-github-token }}
+          MENTIONS: ${{ inputs.mentions }}
+          VARIANT: ${{ inputs.variant }}
+          OIDC_BASE_URL: ${{ inputs.oidc-base-url }}
+        run: opencode github run
