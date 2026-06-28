@@ -22,8 +22,8 @@ on:
       share:
         required: false
         type: string
-        description: Share the opencode session (defaults to true for public repos)
-        default: null
+        description: Share the opencode session
+        default: false
       prompt:
         required: false
         type: string
@@ -103,10 +103,12 @@ jobs:
       - name: Install opencode
         if: steps.opencode-cache.outputs.cache-hit != 'true'
         shell: bash
-        run: curl -fsSL https://opencode.ai/install | bash
+        run: >
+          curl -fsSL https://opencode.ai/install | bash
       - name: Add opencode to PATH
         shell: bash
-        run: echo "${HOME}/.opencode/bin" >> "${GITHUB_PATH}"
+        run: >
+          echo "${HOME}/.opencode/bin" >> "${GITHUB_PATH}"
       - name: Run opencode
         shell: bash
         env:
@@ -120,4 +122,5 @@ jobs:
           MENTIONS: ${{ inputs.mentions }}
           VARIANT: ${{ inputs.variant }}
           OIDC_BASE_URL: ${{ inputs.oidc-base-url }}
-        run: opencode github run
+        run: >
+          opencode github run

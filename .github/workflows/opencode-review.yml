@@ -15,22 +15,23 @@ on:
       agent:
         required: false
         type: string
-        description: >-
-          Primary agent to use. Defaults to the read-only 'plan' agent so the
-          automatic PR review path cannot edit files; override only with a
-          review-safe primary agent.
-        default: plan
+        description: Primary agent to use (falls back to default_agent or 'build')
+        default: null
       share:
         required: false
         type: string
-        description: Share the opencode session (defaults to true for public repos)
-        default: null
+        description: Share the opencode session
+        default: false
       prompt:
         required: false
         type: string
         description: Prompt to override the default, which runs this repo's /review-pr workflow
-        default: |
-          Review this pull request by executing the workflow in `.opencode/commands/review-pr.md` with arguments `code comments tests errors types parallel`. Read that file, then orchestrate the specialized subagents under `.opencode/agents/` (code-reviewer, pr-test-analyzer, silent-failure-hunter, type-design-analyzer, comment-analyzer) via the Task tool, launching all applicable ones in parallel. Exclude code-simplifier; this is a read-only review and code-simplifier applies edits. Review only; do not modify code. Aggregate findings into the PR Review Summary format (Critical Issues, Important Issues, Suggestions, Strengths) with file:line references and return the summary as your final response.
+        default: >
+          Review this pull request by executing the workflow in `.opencode/commands/review-pr.md` with arguments `code comments tests errors types parallel`.
+          Read that file, then orchestrate the specialized subagents under `.opencode/agents/` (code-reviewer, pr-test-analyzer, silent-failure-hunter, type-design-analyzer, comment-analyzer) via the Task tool, launching all applicable ones in parallel.
+          Exclude code-simplifier; this is a read-only review and code-simplifier applies edits.
+          Review only; do not modify code.
+          Aggregate findings into the PR Review Summary format (Critical Issues, Important Issues, Suggestions, Strengths) with file:line references and return the summary as your final response.
       use-github-token:
         required: false
         type: boolean
@@ -96,10 +97,12 @@ jobs:
       - name: Install opencode
         if: steps.opencode-cache.outputs.cache-hit != 'true'
         shell: bash
-        run: curl -fsSL https://opencode.ai/install | bash
+        run: >
+          curl -fsSL https://opencode.ai/install | bash
       - name: Add opencode to PATH
         shell: bash
-        run: echo "${HOME}/.opencode/bin" >> "${GITHUB_PATH}"
+        run: >
+          echo "${HOME}/.opencode/bin" >> "${GITHUB_PATH}"
       - name: Run opencode
         shell: bash
         env:
@@ -113,4 +116,5 @@ jobs:
           MENTIONS: ${{ inputs.mentions }}
           VARIANT: ${{ inputs.variant }}
           OIDC_BASE_URL: ${{ inputs.oidc-base-url }}
-        run: opencode github run
+        run: >
+          opencode github run
