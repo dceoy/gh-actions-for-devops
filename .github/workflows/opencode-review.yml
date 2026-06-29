@@ -11,7 +11,7 @@ on:
         required: false
         type: string
         description: Model to use with opencode
-        default: opencode-go/glm-5.2
+        default: opencode-go/minimax-m3
       agent:
         required: false
         type: string
@@ -41,7 +41,7 @@ on:
         required: false
         type: string
         description: Model variant for provider-specific reasoning effort (e.g., high, max, minimal)
-        default: max
+        default: thinking
       oidc-base-url:
         required: false
         type: string
