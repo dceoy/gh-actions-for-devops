@@ -162,7 +162,7 @@ jobs:
           persist-credentials: false
       - name: Cache actionlint and ShellCheck
         if: inputs.enable-cache
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae  # v5.0.5
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
         with:
           path: ~/.local/bin
           key: gha-linters-${{ runner.os }}-${{ runner.arch }}-actionlint-1.7.7-shellcheck-0.10.0-${{ inputs.cache-salt }}
@@ -197,7 +197,7 @@ jobs:
           python-version: ${{ inputs.python-version }}
       - name: Cache Python linter downloads
         if: inputs.enable-cache && inputs.use-pyflakes
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae  # v5.0.5
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
         with:
           path: ~/.cache/pip
           key: gha-python-linters-${{ runner.os }}-${{ inputs.python-version }}-pyflakes-3.4.0-${{ inputs.cache-salt }}
