@@ -68,6 +68,17 @@ jobs:
     with:
       language: >
         ["go"]
+  github-joern-analysis:
+    if: >
+      github.event_name == 'push'
+      || (github.event_name == 'workflow_dispatch' && inputs.workflow == 'analyze')
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+    uses: ./.github/workflows/github-joern-analysis.yml
+    with:
+      scan-path: ./src
   github-release:
     if: >
       github.event_name == 'workflow_dispatch' && inputs.workflow == 'release'

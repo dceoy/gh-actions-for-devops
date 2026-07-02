@@ -1,0 +1,157 @@
+---
+name: GitHub Joern Analysis
+on:
+  workflow_call:
+    inputs:
+      scan-path:
+        required: false
+        type: string
+        description: File or directory path to analyze with Joern
+        default: .
+      joern-image:
+        required: false
+        type: string
+        description: Joern container image to use
+        default: ghcr.io/joernio/joern
+      scan-tags:
+        required: false
+        type: string
+        description: Comma-separated Joern query tags to run
+        default: ""
+      scan-names:
+        required: false
+        type: string
+        description: Comma-separated Joern query names to run
+        default: ""
+      update-querydb:
+        required: false
+        type: boolean
+        description: Fetch the latest Joern Query Database before scanning
+        default: true
+      overwrite:
+        required: false
+        type: boolean
+        description: Regenerate the Code Property Graph before scanning
+        default: true
+      sarif-output:
+        required: false
+        type: string
+        description: Path to write Joern SARIF output
+        default: joern-results.sarif
+      upload-sarif:
+        required: false
+        type: boolean
+        description: Upload Joern SARIF results to GitHub code scanning
+        default: true
+      runs-on:
+        required: false
+        type: string
+        description: Runner to use
+        default: ubuntu-latest
+permissions:
+  security-events: write
+  actions: read
+  contents: read
+defaults:
+  run:
+    shell: bash -euo pipefail {0}
+    working-directory: .
+jobs:
+  joern-analysis:
+    runs-on: ${{ inputs.runs-on }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Pull Joern container image
+        env:
+          JOERN_IMAGE: ${{ inputs.joern-image }}
+        run: |
+          docker pull "${JOERN_IMAGE}"
+          mkdir -p "${RUNNER_TEMP}/joern-home"
+      - name: Run Joern scan
+        env:
+          JOERN_IMAGE: ${{ inputs.joern-image }}
+          JOERN_SCAN_NAMES: ${{ inputs.scan-names }}
+          JOERN_SCAN_PATH: ${{ inputs.scan-path }}
+          JOERN_SCAN_TAGS: ${{ inputs.scan-tags }}
+          JOERN_OVERWRITE: ${{ inputs.overwrite }}
+          JOERN_UPDATE_QUERYDB: ${{ inputs.update-querydb }}
+        run: |
+          docker run --rm \
+            --entrypoint /bin/bash \
+            --user "$(id -u):$(id -g)" \
+            -e HOME="${RUNNER_TEMP}/joern-home" \
+            -e JOERN_OVERWRITE \
+            -e JOERN_SCAN_NAMES \
+            -e JOERN_SCAN_PATH \
+            -e JOERN_SCAN_TAGS \
+            -e JOERN_UPDATE_QUERYDB \
+            -v "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}" \
+            -v "${RUNNER_TEMP}:${RUNNER_TEMP}" \
+            -w "${GITHUB_WORKSPACE}" \
+            "${JOERN_IMAGE}" \
+            -euo pipefail \
+            -c '
+              if [[ "${JOERN_UPDATE_QUERYDB}" == "true" ]]; then
+                joern-scan --updatedb
+              fi
+
+              scan_args=(--store)
+              if [[ "${JOERN_OVERWRITE}" == "true" ]]; then
+                scan_args+=(--overwrite)
+              fi
+              if [[ -n "${JOERN_SCAN_TAGS}" ]]; then
+                scan_args+=(--tags "${JOERN_SCAN_TAGS}")
+              fi
+              if [[ -n "${JOERN_SCAN_NAMES}" ]]; then
+                scan_args+=(--names "${JOERN_SCAN_NAMES}")
+              fi
+
+              joern-scan "${JOERN_SCAN_PATH}" "${scan_args[@]}"
+            '
+      - name: Export Joern SARIF
+        env:
+          JOERN_IMAGE: ${{ inputs.joern-image }}
+          JOERN_SARIF_OUTPUT: ${{ inputs.sarif-output }}
+        run: |
+          shopt -s globstar nullglob
+          cpg_files=(workspace/**/cpg.bin workspace/**/cpg.bin.zip)
+          if [[ ${#cpg_files[@]} -ne 1 ]]; then
+            printf 'Expected one Joern CPG file, found %s:\n' "${#cpg_files[@]}" >&2
+            printf '  %s\n' "${cpg_files[@]}" >&2
+            exit 1
+          fi
+
+          mkdir -p "$(dirname "${JOERN_SARIF_OUTPUT}")"
+          tee "${RUNNER_TEMP}/export-joern-sarif.sc" > /dev/null <<'EOF'
+          @main def exec(cpgFile: String, outFile: String) = {
+            importCpg(cpgFile)
+            cpg.finding.toSarifJson() |> outFile
+          }
+          EOF
+
+          docker run --rm \
+            --entrypoint /bin/bash \
+            --user "$(id -u):$(id -g)" \
+            -e HOME="${RUNNER_TEMP}/joern-home" \
+            -e JOERN_CPG_FILE="${cpg_files[0]}" \
+            -e JOERN_SARIF_OUTPUT \
+            -v "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}" \
+            -v "${RUNNER_TEMP}:${RUNNER_TEMP}" \
+            -w "${GITHUB_WORKSPACE}" \
+            "${JOERN_IMAGE}" \
+            -euo pipefail \
+            -c '
+              joern \
+                --script "${RUNNER_TEMP}/export-joern-sarif.sc" \
+                --param "cpgFile=${JOERN_CPG_FILE}" \
+                --param "outFile=${JOERN_SARIF_OUTPUT}"
+            '
+      - name: Upload Joern SARIF results
+        if: inputs.upload-sarif
+        uses: github/codeql-action/upload-sarif@87557b9c84dde89fdd9b10e88954ac2f4248e463  # v4.36.1
+        with:
+          sarif_file: ${{ inputs.sarif-output }}
