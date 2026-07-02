@@ -143,7 +143,7 @@ jobs:
           echo "EXECUTOR_KIND=uv" >> "${GITHUB_ENV}"
       - name: Set up Python
         if: env.LOCK_FILE != 'uv.lock'
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.2.0
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1  # v6.3.0
         with:
           python-version: ${{ inputs.python-version }}
           cache: ${{ inputs.enable-cache && (inputs.cache-dependency-path != '' || env.LOCK_FILE == 'poetry.lock' || inputs.requirements-txt != '') && 'pip' || '' }}
