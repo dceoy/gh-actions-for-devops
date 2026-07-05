@@ -53,7 +53,7 @@ jobs:
         working-directory: ${{ inputs.search-path }}
         env:
           BATS_FILTER: ${{ inputs.bats-filter }}
-          BATS_LIB_PATH: ${{ steps.setup-bats.outputs.lib-path }}
+          BATS_LIB_PATH: ${{ steps.setup-bats.outputs['lib-path'] }}
           TERM: xterm
           TEST_PATHS: ${{ inputs.test-paths }}
         run: |
