@@ -14,11 +14,6 @@ on:
         description: Newline-separated Bats test file names or pathspecs passed to git ls-files
         default: |
           *.bats
-      bats-filter:
-        required: false
-        type: string
-        description: Filter regex passed to bats --filter; supports values containing spaces
-        default: null
       runs-on:
         required: false
         type: string
@@ -40,25 +35,15 @@ jobs:
           fetch-depth: 1
           persist-credentials: false
       - name: Setup Bats and Bats libraries
-        uses: bats-core/bats-action@4.0.0  # zizmor: ignore[unpinned-uses] release tag required for actionlint metadata resolution
+        uses: bats-core/bats-action@77d6fb60505b4d0d1d73e48bd035b55074bbfb43  # 4.0.0
       - name: Run Bats tests
         working-directory: ${{ inputs.search-path }}
         env:
-          BATS_FILTER: ${{ inputs.bats-filter }}
-          TERM: xterm
           TEST_PATHS: ${{ inputs.test-paths }}
         run: |
-          test_paths=()
-          while IFS= read -r p; do
-            [[ -n "${p}" ]] && test_paths+=("${p}")
+          files=()
+          while IFS= read -r f; do
+            [[ -n "${f}" ]] && files+=("${f}")
           done <<< "${TEST_PATHS}"
-          if ((${#test_paths[@]} == 0)); then
-            echo "::error::test-paths input produced no entries"
-            exit 1
-          fi
-
-          if [[ -n "${BATS_FILTER}" ]]; then
-            git ls-files -z -- "${test_paths[@]}" | xargs -0 -r -t bats --filter "${BATS_FILTER}"
-          else
-            git ls-files -z -- "${test_paths[@]}" | xargs -0 -r -t bats
-          fi
+          [[ ${#files[@]} -eq 0 ]] && { echo "::error::test-paths input produced no entries"; exit 1; }
+          git ls-files -z -- "${files[@]}" | xargs -0 -r -t bats
