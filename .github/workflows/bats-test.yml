@@ -24,11 +24,6 @@ on:
         type: string
         description: Filter regex passed to bats --filter; supports values containing spaces
         default: null
-      bats-arguments:
-        required: false
-        type: string
-        description: Whitespace-separated additional arguments passed to bats; values containing spaces are not supported
-        default: null
       runs-on:
         required: false
         type: string
@@ -57,7 +52,6 @@ jobs:
       - name: Run Bats tests
         working-directory: ${{ inputs.search-path }}
         env:
-          BATS_ARGUMENTS: ${{ inputs.bats-arguments }}
           BATS_FILTER: ${{ inputs.bats-filter }}
           BATS_LIB_PATH: ${{ steps.setup-bats.outputs.lib-path }}
           TERM: xterm
@@ -72,10 +66,7 @@ jobs:
             exit 1
           fi
 
-          files=()
-          while IFS= read -r -d '' file; do
-            files+=("${file}")
-          done < <(git ls-files -z -- "${test_paths[@]}")
+          mapfile -d '' -t files < <(git ls-files -z -- "${test_paths[@]}")
           if ((${#files[@]} == 0)); then
             echo "No Bats test files found under ${PWD}; skipping."
             exit 0
@@ -84,10 +75,5 @@ jobs:
           bats_args=()
           if [[ -n "${BATS_FILTER}" ]]; then
             bats_args+=(--filter "${BATS_FILTER}")
-          fi
-          if [[ -n "${BATS_ARGUMENTS}" ]]; then
-            extra_bats_args=()
-            read -r -a extra_bats_args <<< "${BATS_ARGUMENTS}"
-            bats_args+=("${extra_bats_args[@]}")
           fi
           bats "${bats_args[@]}" "${files[@]}"
