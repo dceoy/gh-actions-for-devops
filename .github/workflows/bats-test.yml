@@ -46,7 +46,7 @@ jobs:
           persist-credentials: false
       - name: Setup Bats and Bats libraries
         id: setup-bats
-        uses: bats-core/bats-action@77d6fb60505b4d0d1d73e48bd035b55074bbfb43  # 4.0.0
+        uses: bats-core/bats-action@4.0.0  # zizmor: ignore[unpinned-uses] release tag required for actionlint metadata resolution
         with:
           bats-version: ${{ inputs.bats-version }}
       - name: Run Bats tests
