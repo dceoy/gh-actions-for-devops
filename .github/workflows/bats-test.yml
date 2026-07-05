@@ -19,10 +19,15 @@ on:
         type: string
         description: Version of Bats to install
         default: latest
+      bats-filter:
+        required: false
+        type: string
+        description: Filter regex passed to bats --filter; supports values containing spaces
+        default: null
       bats-arguments:
         required: false
         type: string
-        description: Additional arguments passed to bats
+        description: Whitespace-separated additional arguments passed to bats; values containing spaces are not supported
         default: null
       runs-on:
         required: false
@@ -53,11 +58,12 @@ jobs:
         uses: bats-core/bats-action@77d6fb60505b4d0d1d73e48bd035b55074bbfb43  # 4.0.0
         with:
           bats-version: ${{ inputs.bats-version }}
-          github-token: ${{ secrets.GH_TOKEN || github.token }}  # zizmor: ignore[secrets-outside-env] caller-provided secret
+          github-token: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}  # zizmor: ignore[secrets-outside-env] caller-provided secret
       - name: Run Bats tests
         working-directory: ${{ inputs.search-path }}
         env:
           BATS_ARGUMENTS: ${{ inputs.bats-arguments }}
+          BATS_FILTER: ${{ inputs.bats-filter }}
           BATS_LIB_PATH: ${{ steps.setup-bats.outputs.lib-path }}
           TERM: xterm
           TEST_PATHS: ${{ inputs.test-paths }}
@@ -81,7 +87,12 @@ jobs:
           fi
 
           bats_args=()
+          if [[ -n "${BATS_FILTER}" ]]; then
+            bats_args+=(--filter "${BATS_FILTER}")
+          fi
           if [[ -n "${BATS_ARGUMENTS}" ]]; then
-            read -r -a bats_args <<< "${BATS_ARGUMENTS}"
+            extra_bats_args=()
+            read -r -a extra_bats_args <<< "${BATS_ARGUMENTS}"
+            bats_args+=("${extra_bats_args[@]}")
           fi
           bats "${bats_args[@]}" "${files[@]}"
