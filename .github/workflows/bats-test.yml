@@ -45,7 +45,6 @@ jobs:
           fetch-depth: 1
           persist-credentials: false
       - name: Setup Bats and Bats libraries
-        id: setup-bats
         uses: bats-core/bats-action@4.0.0  # zizmor: ignore[unpinned-uses] release tag required for actionlint metadata resolution
         with:
           bats-version: ${{ inputs.bats-version }}
@@ -53,7 +52,6 @@ jobs:
         working-directory: ${{ inputs.search-path }}
         env:
           BATS_FILTER: ${{ inputs.bats-filter }}
-          BATS_LIB_PATH: ${{ steps.setup-bats.outputs['lib-path'] }}
           TERM: xterm
           TEST_PATHS: ${{ inputs.test-paths }}
         run: |
@@ -66,14 +64,8 @@ jobs:
             exit 1
           fi
 
-          mapfile -d '' -t files < <(git ls-files -z -- "${test_paths[@]}")
-          if ((${#files[@]} == 0)); then
-            echo "No Bats test files found under ${PWD}; skipping."
-            exit 0
-          fi
-
-          bats_args=()
           if [[ -n "${BATS_FILTER}" ]]; then
-            bats_args+=(--filter "${BATS_FILTER}")
+            git ls-files -z -- "${test_paths[@]}" | xargs -0 -r -t bats --filter "${BATS_FILTER}"
+          else
+            git ls-files -z -- "${test_paths[@]}" | xargs -0 -r -t bats
           fi
-          bats "${bats_args[@]}" "${files[@]}"
