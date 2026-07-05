@@ -14,11 +14,6 @@ on:
         description: Newline-separated Bats test file names or pathspecs passed to git ls-files
         default: |
           *.bats
-      bats-version:
-        required: false
-        type: string
-        description: Version of Bats to install
-        default: latest
       bats-filter:
         required: false
         type: string
@@ -46,8 +41,6 @@ jobs:
           persist-credentials: false
       - name: Setup Bats and Bats libraries
         uses: bats-core/bats-action@4.0.0  # zizmor: ignore[unpinned-uses] release tag required for actionlint metadata resolution
-        with:
-          bats-version: ${{ inputs.bats-version }}
       - name: Run Bats tests
         working-directory: ${{ inputs.search-path }}
         env:
