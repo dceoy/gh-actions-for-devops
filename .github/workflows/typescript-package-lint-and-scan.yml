@@ -119,7 +119,7 @@ jobs:
       - name: Setup pnpm
         if: env.PACKAGE_MANAGER == 'pnpm'
         env:
-          PNPM_VERSION: ${{ inputs.pnpm-version }}
+          PNPM_VERSION: ${{ inputs.pnpm-version != 'latest' && inputs.pnpm-version || '' }}
         run: |
           curl -fsSL https://get.pnpm.io/install.sh | sh -
           echo "PNPM_HOME=${HOME}/.local/share/pnpm" >> "${GITHUB_ENV}"
