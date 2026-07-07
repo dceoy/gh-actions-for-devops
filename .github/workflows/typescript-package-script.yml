@@ -76,7 +76,7 @@ jobs:
           } | tee -a "${GITHUB_ENV}"
       - name: Setup pnpm
         if: env.PACKAGE_MANAGER == 'pnpm'
-        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271  # v6
+        uses: pnpm/action-setup@v6
         with:
           version: 11
           run_install: false
