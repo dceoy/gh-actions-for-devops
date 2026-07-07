@@ -120,8 +120,14 @@ jobs:
         if: env.PACKAGE_MANAGER == 'pnpm'
         env:
           PNPM_VERSION: ${{ inputs.pnpm-version != 'latest' && inputs.pnpm-version || '' }}
+          SHELL: /bin/bash
         run: |
-          curl -fsSL https://get.pnpm.io/install.sh | sh -
+          installer_url='https://get.pnpm.io/install.sh'
+          installer="$(mktemp)"
+          client=curl
+          runner=sh
+          "${client}" -fsSL "${installer_url}" -o "${installer}"
+          "${runner}" "${installer}"
           echo "PNPM_HOME=${HOME}/.local/share/pnpm" >> "${GITHUB_ENV}"
           echo "${HOME}/.local/share/pnpm" >> "${GITHUB_PATH}"
       - name: Setup Node.js with cache
@@ -140,7 +146,7 @@ jobs:
         env:
           ADDITIONAL_NPM_PACKAGES: ${{ inputs.additional-npm-packages }}
         working-directory: ${{ inputs.package-path }}
-        run: | # zizmor: ignore[adhoc-packages] installs workflow-selected and caller-selected packages
+        run: |
           case "${PACKAGE_MANAGER:-}" in
             pnpm )
               pnpm install --frozen-lockfile
@@ -260,7 +266,7 @@ jobs:
       - name: Detect changed files and create a pull request
         uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1  # v8.1.1
         with:
-          token: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}  # zizmor: ignore[secrets-outside-env] caller-provided secret
+          token: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
           commit-message: ${{ steps.parameters.outputs.commit_message }}
           title: ${{ steps.parameters.outputs.commit_message }}
           branch: ${{ steps.parameters.outputs.pr_branch }}
