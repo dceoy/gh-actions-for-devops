@@ -98,8 +98,9 @@ The workflows are organized by category for easier navigation. Each workflow is 
 
 | Workflow File | Description |
 | --- | --- |
-{% for f in workflows %}| [{{ f.file }}](.github/workflows/{{ f.file }}) | {{ f.name }} |
-{% endfor %}
+{{ range (datasource "workflows") -}}
+| [{{ .file }}](.github/workflows/{{ .file }}) | {{ .name }} |
+{{ end }}
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
