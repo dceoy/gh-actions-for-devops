@@ -146,7 +146,7 @@ jobs:
         env:
           ADDITIONAL_NPM_PACKAGES: ${{ inputs.additional-npm-packages }}
         working-directory: ${{ inputs.package-path }}
-        run: |
+        run: | # zizmor: ignore[adhoc-packages] installs workflow-selected and caller-selected packages
           case "${PACKAGE_MANAGER:-}" in
             pnpm )
               pnpm install --frozen-lockfile
@@ -266,7 +266,7 @@ jobs:
       - name: Detect changed files and create a pull request
         uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1  # v8.1.1
         with:
-          token: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}  # zizmor: ignore[secrets-outside-env] caller-provided secret
           commit-message: ${{ steps.parameters.outputs.commit_message }}
           title: ${{ steps.parameters.outputs.commit_message }}
           branch: ${{ steps.parameters.outputs.pr_branch }}
