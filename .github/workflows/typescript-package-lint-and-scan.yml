@@ -146,7 +146,7 @@ jobs:
         env:
           ADDITIONAL_NPM_PACKAGES: ${{ inputs.additional-npm-packages }}
         working-directory: ${{ inputs.package-path }}
-        run: |
+        run: | # zizmor: ignore[adhoc-packages] installs workflow-selected and caller-selected packages
           case "${PACKAGE_MANAGER:-}" in
             pnpm )
               pnpm install --frozen-lockfile
