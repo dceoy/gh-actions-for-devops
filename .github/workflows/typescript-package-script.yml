@@ -22,7 +22,7 @@ on:
         required: false
         type: string
         description: pnpm version to install with the official installer
-        default: '10.13.1'
+        default: latest
       enable-cache:
         required: false
         type: boolean
