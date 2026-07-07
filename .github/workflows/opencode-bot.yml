@@ -99,7 +99,7 @@ jobs:
           token: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}  # zizmor: ignore[secrets-outside-env] caller-provided secret
           persist-credentials: false
       - name: Run OpenCode
-        uses: dceoy/opencode-action@3f3595d178e387204fdfed64e268955a02dfa40e  # v0.2.3
+        uses: dceoy/opencode-action@bbb641bc7005028edd35dcc3a7ea10d0885c0ba8  # v0.2.5
         env:
           OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}  # zizmor: ignore[secrets-outside-env] caller-provided secret
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}  # zizmor: ignore[secrets-outside-env] caller-provided secret
