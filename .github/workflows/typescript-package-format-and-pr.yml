@@ -122,12 +122,9 @@ jobs:
           PNPM_VERSION: ${{ inputs.pnpm-version != 'latest' && inputs.pnpm-version || '' }}
           SHELL: /bin/bash
         run: |
-          installer_url='https://get.pnpm.io/install.sh'
           installer="$(mktemp)"
-          client='curl'
-          runner='sh'
-          "${client}" -fsSL "${installer_url}" -o "${installer}"
-          "${runner}" "${installer}"
+          curl -fsSL -o "${installer}" https://get.pnpm.io/install.sh
+          bash "${installer}"
           echo "PNPM_HOME=${HOME}/.local/share/pnpm" >> "${GITHUB_ENV}"
           echo "${HOME}/.local/share/pnpm" >> "${GITHUB_PATH}"
       - name: Setup Node.js with cache
