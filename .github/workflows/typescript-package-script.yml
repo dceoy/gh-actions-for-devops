@@ -107,7 +107,7 @@ jobs:
           node-version: ${{ inputs.node-version }}
       - name: Install dependencies
         working-directory: ${{ inputs.package-path }}
-        run: |
+        run: | # zizmor: ignore[adhoc-packages] installs caller-selected package manager dependencies
           case "${PACKAGE_MANAGER:-}" in
             pnpm )
               pnpm install --frozen-lockfile
