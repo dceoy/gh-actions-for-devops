@@ -13,6 +13,11 @@ on:
         type: string
         description: Node.js version to use
         default: latest
+      pnpm-version:
+        required: false
+        type: string
+        description: pnpm version to install with the official installer
+        default: '10.13.1'
       enable-cache:
         required: false
         type: boolean
@@ -113,8 +118,10 @@ jobs:
           } | tee -a "${GITHUB_ENV}"
       - name: Setup pnpm
         if: env.PACKAGE_MANAGER == 'pnpm'
+        env:
+          PNPM_VERSION: ${{ inputs.pnpm-version }}
         run: |
-          curl -fsSL https://get.pnpm.io/install.sh | bash -
+          curl -fsSL https://get.pnpm.io/install.sh | sh -
           echo "PNPM_HOME=${HOME}/.local/share/pnpm" >> "${GITHUB_ENV}"
           echo "${HOME}/.local/share/pnpm" >> "${GITHUB_PATH}"
       - name: Setup Node.js with cache
