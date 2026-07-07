@@ -18,11 +18,6 @@ on:
         type: string
         description: Node.js version to use
         default: latest
-      pnpm-version:
-        required: false
-        type: string
-        description: Deprecated compatibility input for pnpm version
-        default: latest
       enable-cache:
         required: false
         type: boolean
