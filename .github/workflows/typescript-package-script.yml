@@ -83,8 +83,11 @@ jobs:
         if: env.PACKAGE_MANAGER == 'pnpm'
         env:
           PNPM_VERSION: ${{ inputs.pnpm-version != 'latest' && inputs.pnpm-version || '' }}
+          SHELL: /bin/bash
         run: |
-          curl -fsSL https://get.pnpm.io/install.sh | sh -
+          installer="$(mktemp)"
+          curl -fsSL -o "${installer}" https://get.pnpm.io/install.sh
+          bash "${installer}"
           echo "PNPM_HOME=${HOME}/.local/share/pnpm" >> "${GITHUB_ENV}"
           echo "${HOME}/.local/share/pnpm" >> "${GITHUB_PATH}"
       - name: Setup Node.js with cache
