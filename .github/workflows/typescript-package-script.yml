@@ -87,8 +87,8 @@ jobs:
         run: |
           installer_url='https://get.pnpm.io/install.sh'
           installer="$(mktemp)"
-          client=curl
-          runner=sh
+          client='curl'
+          runner='sh'
           "${client}" -fsSL "${installer_url}" -o "${installer}"
           "${runner}" "${installer}"
           echo "PNPM_HOME=${HOME}/.local/share/pnpm" >> "${GITHUB_ENV}"
