@@ -140,10 +140,10 @@ jobs:
           [[ "${RUNNER_ARCH}" == 'ARM64' ]] && arch=arm64
           curl --fail --location --silent --show-error \
             --output "${HOME}/.local/bin/yq" \
-            "https://github.com/mikefarah/yq/releases/download/v4.53.3/yq_linux_${arch}"
+            "https://github.com/mikefarah/yq/releases/latest/download/yq_linux_${arch}"
           curl --fail --location --silent --show-error \
             --output "${HOME}/.local/bin/gomplate" \
-            "https://github.com/hairyhenderson/gomplate/releases/download/v4.3.3/gomplate_linux-${arch}"
+            "https://github.com/hairyhenderson/gomplate/releases/latest/download/gomplate_linux-${arch}"
           chmod +x "${HOME}/.local/bin/yq" "${HOME}/.local/bin/gomplate"
           echo "${HOME}/.local/bin" >> "${GITHUB_PATH}"
       - name: Update README.md
