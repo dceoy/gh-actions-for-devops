@@ -8,13 +8,6 @@ on:
         type: string
         description: Path to search for files
         default: .
-      patterns:
-        required: false
-        type: string
-        description: Newline-separated git ls-files patterns for YAML files
-        default: |
-          *.yml
-          *.yaml
       python-version:
         required: false
         type: string
@@ -73,28 +66,7 @@ jobs:
       - name: Execute yamllint
         env:
           YAMLLINT_CONFIG_DATA: ${{ inputs.yamllint-config-data }}
-          YAMLLINT_PATTERNS: ${{ inputs.patterns }}
         working-directory: ${{ inputs.search-path }}
-        run: |
-          patterns=()
-          while IFS= read -r pattern; do
-            [[ -z "${pattern}" ]] && continue
-            patterns+=("${pattern}")
-          done <<< "${YAMLLINT_PATTERNS}"
-
-          if ((${#patterns[@]} == 0)); then
-            echo "No yamllint patterns configured; skipping yamllint."
-            exit 0
-          fi
-
-          files=()
-          while IFS= read -r -d '' file; do
-            files+=("${file}")
-          done < <(git ls-files -z -- "${patterns[@]}")
-
-          if ((${#files[@]} == 0)); then
-            echo "No YAML files matched yamllint patterns under ${PWD}; skipping yamllint."
-            exit 0
-          fi
-
-          yamllint --config-data="${YAMLLINT_CONFIG_DATA}" "${files[@]}"
+        run: >
+          git ls-files -z -- '*.yml' '*.yaml'
+          | xargs -0 -t yamllint --config-data="${YAMLLINT_CONFIG_DATA}"
