@@ -167,7 +167,7 @@ jobs:
       # renovate: datasource=github-releases depName=koalaman/shellcheck
       SHELLCHECK_VERSION: v0.10.0
       # renovate: datasource=pypi depName=pyflakes versioning=pep440
-      PYFLAKES_VERSION: 3.4.0
+      PYFLAKES_VERSION: "3.4.0"
     steps:
       - name: Disable pip cache
         if: '! inputs.enable-cache'
@@ -185,6 +185,8 @@ jobs:
           key: gha-linters-${{ runner.os }}-${{ runner.arch }}-actionlint-${{ env.ACTIONLINT_VERSION }}-shellcheck-${{ env.SHELLCHECK_VERSION }}-${{ inputs.cache-salt }}
       - name: Install actionlint
         run: |
+          # shellcheck disable=SC2154
+          [[ "${ACTIONLINT_VERSION}" =~ ^v[0-9]+(\.[0-9]+)*([._+-][A-Za-z0-9]+)*$ ]] || { echo "invalid ACTIONLINT_VERSION"; exit 1; }
           mkdir -p "${HOME}/.local/bin"
           if [[ ! -x "${HOME}/.local/bin/actionlint" ]]; then
             arch=amd64
@@ -198,6 +200,8 @@ jobs:
       - name: Install ShellCheck when unavailable
         if: inputs.use-shellcheck
         run: |
+          # shellcheck disable=SC2154
+          [[ "${SHELLCHECK_VERSION}" =~ ^v[0-9]+(\.[0-9]+)*([._+-][A-Za-z0-9]+)*$ ]] || { echo "invalid SHELLCHECK_VERSION"; exit 1; }
           if command -v shellcheck >/dev/null; then
             exit 0
           fi
@@ -221,7 +225,9 @@ jobs:
           key: gha-python-linters-${{ runner.os }}-${{ inputs.python-version }}-pyflakes-${{ env.PYFLAKES_VERSION }}-${{ inputs.cache-salt }}
       - name: Install pyflakes
         if: inputs.use-pyflakes
-        run: >
+        run: |
+          # shellcheck disable=SC2154
+          [[ "${PYFLAKES_VERSION}" =~ ^[0-9]+(\.[0-9]+)*([._+-][A-Za-z0-9]+)*$ ]] || { echo "invalid PYFLAKES_VERSION"; exit 1; }
           pip install "pyflakes==${PYFLAKES_VERSION}"
       - name: Execute actionlint
         env:
