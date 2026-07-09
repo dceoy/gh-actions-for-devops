@@ -1,13 +1,27 @@
 ---
-name: Lint and security scan for GitHub Actions workflows
+name: Lint and security scan for GitHub Actions workflows and actions
 on:
   workflow_call:
     inputs:
       search-path:
         required: false
         type: string
-        description: Path to search for files
+        description: Path to search for GitHub Actions workflow files
         default: .github/workflows
+      action-metadata-search-path:
+        required: false
+        type: string
+        description: Path to search for GitHub Action metadata files
+        default: .
+      action-metadata-yamllint-patterns:
+        required: false
+        type: string
+        description: Newline-separated git ls-files patterns for GitHub Action metadata files
+        default: |
+          action.yml
+          action.yaml
+          **/action.yml
+          **/action.yaml
       go-version:
         required: false
         type: string
@@ -53,6 +67,11 @@ on:
         type: boolean
         description: Whether to use Zizmor for security auditing
         default: true
+      zizmor-inputs:
+        required: false
+        type: string
+        description: Whitespace-separated inputs to audit with Zizmor
+        default: .
       zizmor-online-audits:
         required: false
         type: boolean
@@ -222,7 +241,7 @@ jobs:
         if: inputs.use-zizmor
         uses: zizmorcore/zizmor-action@192e21d79ab29983730a13d1382995c2307fbcaa  # v0.5.7
         with:
-          inputs: ${{ inputs.search-path }}
+          inputs: ${{ inputs.zizmor-inputs }}
           online-audits: ${{ inputs.zizmor-online-audits }}
           persona: ${{ inputs.zizmor-persona }}
           min-severity: ${{ inputs.zizmor-min-severity }}
@@ -250,6 +269,16 @@ jobs:
     uses: ./.github/workflows/yaml-lint.yml
     with:
       search-path: ${{ inputs.search-path }}
+      python-version: ${{ inputs.python-version }}
+      yamllint-config-data: ${{ inputs.yamllint-config-data }}
+      enable-cache: ${{ inputs.enable-cache }}
+      cache-salt: ${{ inputs.cache-salt }}
+  action-metadata-yaml-lint:
+    if: inputs.use-yamllint
+    uses: ./.github/workflows/yaml-lint.yml
+    with:
+      search-path: ${{ inputs.action-metadata-search-path }}
+      patterns: ${{ inputs.action-metadata-yamllint-patterns }}
       python-version: ${{ inputs.python-version }}
       yamllint-config-data: ${{ inputs.yamllint-config-data }}
       enable-cache: ${{ inputs.enable-cache }}
