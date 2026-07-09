@@ -40,6 +40,9 @@ defaults:
 jobs:
   lint:
     runs-on: ${{ inputs.runs-on }}
+    env:
+      # renovate: datasource=github-releases depName=koalaman/shellcheck
+      SHELLCHECK_VERSION: v0.10.0
     steps:
       - name: Checkout repository
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
@@ -51,7 +54,7 @@ jobs:
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
         with:
           path: ~/.local/bin/shellcheck
-          key: shellcheck-${{ runner.os }}-${{ runner.arch }}-v0.10.0-${{ inputs.cache-salt }}
+          key: shellcheck-${{ runner.os }}-${{ runner.arch }}-${{ env.SHELLCHECK_VERSION }}-${{ inputs.cache-salt }}
       - name: Install ShellCheck when unavailable
         run: |
           if command -v shellcheck >/dev/null; then
@@ -62,8 +65,8 @@ jobs:
             arch=x86_64
             [[ "${RUNNER_ARCH}" == "ARM64" ]] && arch=aarch64
             curl --fail --location --silent --show-error \
-              "https://github.com/koalaman/shellcheck/releases/download/v0.10.0/shellcheck-v0.10.0.linux.${arch}.tar.xz" \
-              | tar -xJ --strip-components=1 -C "${RUNNER_TEMP}" "shellcheck-v0.10.0/shellcheck"
+              "https://github.com/koalaman/shellcheck/releases/download/${SHELLCHECK_VERSION}/shellcheck-${SHELLCHECK_VERSION}.linux.${arch}.tar.xz" \
+              | tar -xJ --strip-components=1 -C "${RUNNER_TEMP}" "shellcheck-${SHELLCHECK_VERSION}/shellcheck"
             install -m 0755 "${RUNNER_TEMP}/shellcheck" "${HOME}/.local/bin/shellcheck"
           fi
           echo "${HOME}/.local/bin" >> "${GITHUB_PATH}"
