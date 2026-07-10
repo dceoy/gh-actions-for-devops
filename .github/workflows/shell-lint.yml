@@ -56,8 +56,9 @@ jobs:
           path: ~/.local/bin/shellcheck
           key: shellcheck-${{ runner.os }}-${{ runner.arch }}-${{ env.SHELLCHECK_VERSION }}-${{ inputs.cache-salt }}
       - name: Install ShellCheck when unavailable
+        env:
+          SHELLCHECK_VERSION: ${{ env.SHELLCHECK_VERSION }}
         run: |
-          # shellcheck disable=SC2154
           [[ "${SHELLCHECK_VERSION}" =~ ^v[0-9]+(\.[0-9]+)*([._+-][A-Za-z0-9]+)*$ ]] || { echo "invalid SHELLCHECK_VERSION"; exit 1; }
           if command -v shellcheck >/dev/null; then
             exit 0

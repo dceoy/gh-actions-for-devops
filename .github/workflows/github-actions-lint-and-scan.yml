@@ -184,8 +184,9 @@ jobs:
           path: ~/.local/bin
           key: gha-linters-${{ runner.os }}-${{ runner.arch }}-actionlint-${{ env.ACTIONLINT_VERSION }}-shellcheck-${{ env.SHELLCHECK_VERSION }}-${{ inputs.cache-salt }}
       - name: Install actionlint
+        env:
+          ACTIONLINT_VERSION: ${{ env.ACTIONLINT_VERSION }}
         run: |
-          # shellcheck disable=SC2154
           [[ "${ACTIONLINT_VERSION}" =~ ^v[0-9]+(\.[0-9]+)*([._+-][A-Za-z0-9]+)*$ ]] || { echo "invalid ACTIONLINT_VERSION"; exit 1; }
           mkdir -p "${HOME}/.local/bin"
           if [[ ! -x "${HOME}/.local/bin/actionlint" ]]; then
@@ -199,8 +200,9 @@ jobs:
           echo "${HOME}/.local/bin" >> "${GITHUB_PATH}"
       - name: Install ShellCheck when unavailable
         if: inputs.use-shellcheck
+        env:
+          SHELLCHECK_VERSION: ${{ env.SHELLCHECK_VERSION }}
         run: |
-          # shellcheck disable=SC2154
           [[ "${SHELLCHECK_VERSION}" =~ ^v[0-9]+(\.[0-9]+)*([._+-][A-Za-z0-9]+)*$ ]] || { echo "invalid SHELLCHECK_VERSION"; exit 1; }
           if command -v shellcheck >/dev/null; then
             exit 0
@@ -225,8 +227,9 @@ jobs:
           key: gha-python-linters-${{ runner.os }}-${{ inputs.python-version }}-pyflakes-${{ env.PYFLAKES_VERSION }}-${{ inputs.cache-salt }}
       - name: Install pyflakes
         if: inputs.use-pyflakes
+        env:
+          PYFLAKES_VERSION: ${{ env.PYFLAKES_VERSION }}
         run: |
-          # shellcheck disable=SC2154
           [[ "${PYFLAKES_VERSION}" =~ ^[0-9]+(\.[0-9]+)*([._+-][A-Za-z0-9]+)*$ ]] || { echo "invalid PYFLAKES_VERSION"; exit 1; }
           pip install "pyflakes==${PYFLAKES_VERSION}"
       - name: Execute actionlint

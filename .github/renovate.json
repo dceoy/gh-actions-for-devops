@@ -6,9 +6,9 @@
     {
       "customType": "regex",
       "description": "Update tool versions declared in GitHub Actions workflow env blocks",
-      "fileMatch": ["^\\.github/workflows/.+\\.ya?ml$"],
+      "managerFilePatterns": ["^\\.github/workflows/.+\\.ya?ml$"],
       "matchStrings": [
-        "(?m)^\\s*# renovate: datasource=(?<datasource>[a-z-]+) depName=(?<depName>[A-Za-z0-9_./-]+)(?: versioning=(?<versioning>[a-z0-9-]+))?[ \\t]*\\r?\\n\\s*\\S+_VERSION:[ \\t]*['\"]?(?<currentValue>v?[0-9A-Za-z.+_-]+)['\"]?\\s*$"
+        "[ \\t]*# renovate: datasource=(?<datasource>[a-z-]+) depName=(?<depName>[A-Za-z0-9_./-]+)(?: versioning=(?<versioning>[a-z0-9-]+))?[ \\t]*\\r?\\n[ \\t]*\\S+_VERSION:[ \\t]*['\"]?(?<currentValue>v?[0-9A-Za-z.+_-]+)['\"]?[ \\t]*(?:\\r\\n|\\r|\\n|$)"
       ],
       "versioningTemplate": "{{#if versioning}}{{{versioning}}}{{else}}semver-coerced{{/if}}"
     }
