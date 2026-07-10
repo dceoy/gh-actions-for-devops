@@ -5,16 +5,72 @@
 from __future__ import annotations
 
 import importlib.util
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
 
 SCRIPT = Path(__file__).with_name("check-workflow-dependency-versions.py")
+QA_SCRIPT = Path(__file__).with_name("qa.sh")
+REPO_ROOT = Path(
+    subprocess.run(
+        ["git", "rev-parse", "--show-toplevel"],
+        check=True,
+        capture_output=True,
+        text=True,
+        cwd=Path(__file__).parent,
+    ).stdout.strip()
+)
 SPEC = importlib.util.spec_from_file_location("version_check", SCRIPT)
 assert SPEC is not None
 assert SPEC.loader is not None
 VERSION_CHECK = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(VERSION_CHECK)
+
+
+def _qa_script_checker_invocation(cwd: Path) -> subprocess.CompletedProcess[str]:
+    """Reproduce qa.sh's SCRIPT_DIR-based checker invocation, run from cwd.
+
+    The snippet is copied verbatim from qa.sh and executed from a script
+    colocated with the real checker so BASH_SOURCE resolves the same way it
+    does for qa.sh itself, regardless of the caller's working directory.
+    """
+    wanted_prefixes = ("SCRIPT_DIR=", "REPO_ROOT=", 'cd "${REPO_ROOT}"')
+    lines = QA_SCRIPT.read_text(encoding="utf-8").splitlines()
+    snippet = [
+        line
+        for line in lines
+        if line.strip().startswith(wanted_prefixes)
+        or "check-workflow-dependency-versions.py" in line
+    ]
+    assert len(snippet) == 4, snippet
+    script_body = "#!/usr/bin/env bash\nset -euo pipefail\n" + "\n".join(snippet) + "\n"
+    with tempfile.NamedTemporaryFile(
+        "w", suffix=".sh", dir=QA_SCRIPT.parent, delete=False
+    ) as handle:
+        handle.write(script_body)
+        temp_script = Path(handle.name)
+    try:
+        temp_script.chmod(0o755)
+        return subprocess.run(
+            ["bash", str(temp_script)],
+            cwd=cwd,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    finally:
+        temp_script.unlink()
+
+
+class QaScriptCheckerInvocationTest(unittest.TestCase):
+    def test_invocation_from_repository_root(self) -> None:
+        result = _qa_script_checker_invocation(REPO_ROOT)
+        assert result.returncode == 0, result.stderr
+
+    def test_invocation_from_different_working_directory(self) -> None:
+        result = _qa_script_checker_invocation(REPO_ROOT / "src")
+        assert result.returncode == 0, result.stderr
 
 
 class CheckWorkflowDependencyVersionsTest(unittest.TestCase):
@@ -93,8 +149,53 @@ class CheckWorkflowDependencyVersionsTest(unittest.TestCase):
             "schema-version: '2020-12-01'",
             "port: 8080",
             "timeout-minutes: 30",
+            "retention-days: 90",
+            "fetch-depth: 0",
+            "max-tokens: 100000",
             "run: echo 2026-07-10",
             "uses: actions/checkout@0123456789012345678901234567890123456789  # v4.2.0",
+        )
+        for case in cases:
+            with self.subTest(case=case):
+                assert not self.check(case)
+
+    def test_rejects_bare_integer_and_generic_input_versions(self) -> None:
+        cases = (
+            "image: postgres:16",
+            "services:\n  db:\n    image: postgres:16",
+            "node-version: 20",
+            "run: npx package@1",
+            "with:\n  version: 1.2.3",
+        )
+        for case in cases:
+            with self.subTest(case=case):
+                assert self.check(case)
+
+    def test_allows_renovate_annotations_on_supported_shapes(self) -> None:
+        cases = (
+            "# renovate: datasource=npm depName=tool\nTOOL_VERSION: '1.2.3'",
+            "inputs:\n  dotnet-version:\n    type: string\n"
+            "    # renovate: datasource=dotnet-version depName=dotnet\n"
+            "    default: '8.0.422'",
+        )
+        for case in cases:
+            with self.subTest(case=case):
+                assert not self.check(case)
+
+    def test_rejects_misplaced_or_unsupported_renovate_annotations(self) -> None:
+        cases = (
+            "# renovate: datasource=node-version depName=node\nnode-version: 20",
+            "# renovate: datasource=docker depName=postgres\nimage: postgres:16",
+            "# renovate: datasource=npm depName=tool\nwith:\n  version: 1.2.3",
+        )
+        for case in cases:
+            with self.subTest(case=case):
+                assert self.check(case)
+
+    def test_allows_explicit_dependency_version_allow_exception(self) -> None:
+        cases = (
+            "# dependency-version: allow reason=immutable-test-fixture\n"
+            "image: postgres:16",
         )
         for case in cases:
             with self.subTest(case=case):

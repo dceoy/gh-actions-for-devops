@@ -27,6 +27,11 @@ RUNTIME_INPUT = re.compile(
 DEFAULT = re.compile(r"^\s*default:\s*(?P<value>.+?)\s*$")
 CACHE_KEY = re.compile(r"^\s*(?:key|restore-keys):\s*(?P<value>.+?)\s*$")
 CONTAINER = re.compile(r"^\s*(?:container|image):\s*(?P<value>\S+)\s*$")
+GENERIC_VERSION_KEY = re.compile(r"^\s*version:\s*(?P<value>.+?)\s*$")
+DIGEST_SUFFIX = re.compile(r"@sha256:[0-9a-f]{64}$")
+RENOVATE_MANAGED_SHAPE = re.compile(
+    r"^\s*(?:[A-Za-z][A-Za-z0-9_]*_VERSION|default):\s*\S.*$"
+)
 SHELL_VERSION = re.compile(
     rf"\b[A-Za-z_][A-Za-z0-9_]*VERSION\s*=\s*['\"]?{VERSION_LITERAL.pattern}"
 )
@@ -39,23 +44,42 @@ INSTALL = re.compile(
     re.IGNORECASE,
 )
 DOWNLOAD = re.compile(r"\b(?:curl|wget)\b|https?://", re.IGNORECASE)
+BARE_INSTALLER_SELECTOR = re.compile(r"@\d+(?![0-9A-Za-z.])")
 COMMAND_VERSION = re.compile(
     rf"(?:==|@|=|(?<=\w)-|--version\s+)\s*{VERSION_LITERAL.pattern}|"
+    rf"{BARE_INSTALLER_SELECTOR.pattern}|"
     rf"\b(?:install|run)\s+(?:\S+\s+){{0,3}}{VERSION_LITERAL.pattern}"
 )
 
 
 def previous_annotation(lines: list[str], index: int) -> str | None:
-    """Return the adjacent dependency-version annotation, if present."""
+    """Return the adjacent dependency-version annotation, if present.
+
+    A `# renovate:` comment only counts when it sits directly above a line
+    shaped like one of this repository's Renovate regex managers actually
+    match (`*_VERSION: <value>` or `default: <value>`); otherwise Renovate
+    cannot act on it, so the annotation is not sufficient. `# dependency-
+    version: allow` is an explicit, unconditional exception.
+    """
     for previous in reversed(lines[:index]):
         if not previous.strip():
             continue
         if RENOVATE.match(previous):
-            return "renovate"
+            return "renovate" if RENOVATE_MANAGED_SHAPE.match(lines[index]) else None
         if ALLOW.match(previous):
             return "allow"
         return None
     return None
+
+
+def container_tag(value: str) -> str | None:
+    """Return the literal tag of a container/image reference, if pinned."""
+    stripped = value.strip("'\"")
+    if DIGEST_SUFFIX.search(stripped):
+        return None
+    if ":" not in stripped:
+        return None
+    return stripped.rsplit(":", maxsplit=1)[-1]
 
 
 def is_dynamic(value: str) -> bool:
@@ -151,6 +175,22 @@ def check_file(path: Path) -> list[str]:  # noqa: C901
                 reported.add(number)
             continue
 
+        generic_version = GENERIC_VERSION_KEY.match(line)
+        if (
+            generic_version
+            and (
+                VERSION_LITERAL.search(generic_version.group("value"))
+                or MAJOR_SELECTOR.fullmatch(generic_version.group("value"))
+            )
+            and not is_dynamic(generic_version.group("value"))
+        ):
+            if not annotation:
+                problems.append(
+                    report(path, number, line, "unmanaged action input version")
+                )
+                reported.add(number)
+            continue
+
         default = DEFAULT.match(line)
         if (
             default
@@ -181,19 +221,22 @@ def check_file(path: Path) -> list[str]:  # noqa: C901
             continue
 
         container = CONTAINER.match(line)
-        if (
-            container
-            and VERSION_LITERAL.search(container.group("value"))
-            and not annotation
-        ):
-            problems.append(
-                report(path, number, line, "unmanaged container image version")
-            )
-            reported.add(number)
-            continue
+        if container:
+            tag = container_tag(container.group("value"))
+            if (
+                tag
+                and not is_dynamic(tag)
+                and (VERSION_LITERAL.fullmatch(tag) or MAJOR_SELECTOR.fullmatch(tag))
+                and not annotation
+            ):
+                problems.append(
+                    report(path, number, line, "unmanaged container image version")
+                )
+                reported.add(number)
+                continue
 
         if (
-            VERSION_LITERAL.search(line)
+            (VERSION_LITERAL.search(line) or BARE_INSTALLER_SELECTOR.search(line))
             and (
                 SHELL_VERSION.search(line)
                 or (DOWNLOAD.search(line) and "http" in line)
