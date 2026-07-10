@@ -33,6 +33,16 @@
       "description": "Require review for workflow tool versions updated by regex managers",
       "matchManagers": ["custom.regex"],
       "automerge": false
+    },
+    {
+      "description": "Keep the pinned yq/gomplate SHA-256 checksums in ci.yml in sync with version bumps. Requires the Renovate app admin to allow this command via the global allowedCommands option; until then, the update-readme-md job's checksum verification still fails closed on any mismatch.",
+      "matchManagers": ["custom.regex"],
+      "matchDepNames": ["mikefarah/yq", "hairyhenderson/gomplate"],
+      "postUpgradeTasks": {
+        "commands": ["./.github/scripts/sync-tool-checksums.sh"],
+        "fileFilters": [".github/workflows/ci.yml"],
+        "executionMode": "branch"
+      }
     }
   ]
 }
