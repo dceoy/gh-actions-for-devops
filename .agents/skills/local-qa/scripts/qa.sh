@@ -123,6 +123,7 @@ while IFS= read -r GO_MOD_FILE; do
 done < <(git ls-files -- 'go.mod' '*/go.mod')
 
 if [[ -d '.github/workflows' ]]; then
+  python3 scripts/check-workflow-dependency-versions.py
   zizmor --fix=safe .github/workflows
   N_WORKFLOW_YAML_FILES=$(git ls-files -- '.github/workflows/**.yml' '.github/workflows/**.yaml' | wc -l)
   if [[ "${N_WORKFLOW_YAML_FILES}" -gt 0 ]]; then
