@@ -2,12 +2,37 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": ["config:recommended"],
   "minimumReleaseAge": "7 days",
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "Update tool versions declared in GitHub Actions workflow env blocks",
+      "fileMatch": ["^\\.github/workflows/.+\\.ya?ml$"],
+      "matchStrings": [
+        "[ \\t]*# renovate: datasource=(?<datasource>[a-z-]+) depName=(?<depName>[A-Za-z0-9_./-]+)(?: versioning=(?<versioning>[a-z0-9-]+))?[ \\t]*\\r?\\n[ \\t]*\\S+_VERSION:[ \\t]*['\"]?(?<currentValue>v?[0-9A-Za-z.+_-]+)['\"]?[ \\t]*(?:\\r\\n|\\r|\\n|$)"
+      ],
+      "versioningTemplate": "{{#if versioning}}{{{versioning}}}{{else}}semver-coerced{{/if}}"
+    },
+    {
+      "customType": "regex",
+      "description": "Update annotated reusable workflow input default versions",
+      "fileMatch": ["^\\.github/workflows/.+\\.ya?ml$"],
+      "matchStrings": [
+        "[ \\t]*# renovate: datasource=(?<datasource>[a-z-]+) depName=(?<depName>[A-Za-z0-9_./-]+)(?: versioning=(?<versioning>[a-z0-9-]+))?[ \\t]*\\r?\\n[ \\t]*default:[ \\t]*['\"]?(?<currentValue>v?[0-9A-Za-z.+_-]+)['\"]?[ \\t]*(?:\\r\\n|\\r|\\n|$)"
+      ],
+      "versioningTemplate": "{{#if versioning}}{{{versioning}}}{{else}}semver-coerced{{/if}}"
+    }
+  ],
   "packageRules": [
     {
       "description": "Automatically merge minor and patch-level updates",
       "matchUpdateTypes": ["minor", "patch", "digest"],
       "automerge": true,
       "automergeType": "branch"
+    },
+    {
+      "description": "Require review for workflow tool versions updated by regex managers",
+      "matchManagers": ["custom.regex"],
+      "automerge": false
     }
   ]
 }

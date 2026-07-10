@@ -161,6 +161,13 @@ defaults:
 jobs:
   github-actions-lint-scan:
     runs-on: ${{ inputs.runs-on }}
+    env:
+      # renovate: datasource=github-releases depName=rhysd/actionlint
+      ACTIONLINT_VERSION: v1.7.7
+      # renovate: datasource=github-releases depName=koalaman/shellcheck
+      SHELLCHECK_VERSION: v0.10.0
+      # renovate: datasource=pypi depName=pyflakes versioning=pep440
+      PYFLAKES_VERSION: "3.4.0"
     steps:
       - name: Disable pip cache
         if: '! inputs.enable-cache'
@@ -175,21 +182,29 @@ jobs:
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
         with:
           path: ~/.local/bin
-          key: gha-linters-${{ runner.os }}-${{ runner.arch }}-actionlint-1.7.7-shellcheck-0.10.0-${{ inputs.cache-salt }}
+          key: gha-linters-${{ runner.os }}-${{ runner.arch }}-actionlint-${{ env.ACTIONLINT_VERSION }}-shellcheck-${{ env.SHELLCHECK_VERSION }}-${{ inputs.cache-salt }}
       - name: Install actionlint
+        env:
+          ACTIONLINT_VERSION: ${{ env.ACTIONLINT_VERSION }}
         run: |
+          # shellcheck disable=SC2153
+          [[ "${ACTIONLINT_VERSION}" =~ ^v[0-9]+(\.[0-9]+)*([._+-][A-Za-z0-9]+)*$ ]] || { echo "invalid ACTIONLINT_VERSION"; exit 1; }
           mkdir -p "${HOME}/.local/bin"
           if [[ ! -x "${HOME}/.local/bin/actionlint" ]]; then
             arch=amd64
             [[ "${RUNNER_ARCH}" == "ARM64" ]] && arch=arm64
+            actionlint_version="${ACTIONLINT_VERSION#v}"
             curl --fail --location --silent --show-error \
-              "https://github.com/rhysd/actionlint/releases/download/v1.7.7/actionlint_1.7.7_linux_${arch}.tar.gz" \
+              "https://github.com/rhysd/actionlint/releases/download/${ACTIONLINT_VERSION}/actionlint_${actionlint_version}_linux_${arch}.tar.gz" \
               | tar -xz -C "${HOME}/.local/bin" actionlint
           fi
           echo "${HOME}/.local/bin" >> "${GITHUB_PATH}"
       - name: Install ShellCheck when unavailable
         if: inputs.use-shellcheck
+        env:
+          SHELLCHECK_VERSION: ${{ env.SHELLCHECK_VERSION }}
         run: |
+          [[ "${SHELLCHECK_VERSION}" =~ ^v[0-9]+(\.[0-9]+)*([._+-][A-Za-z0-9]+)*$ ]] || { echo "invalid SHELLCHECK_VERSION"; exit 1; }
           if command -v shellcheck >/dev/null; then
             exit 0
           fi
@@ -197,8 +212,8 @@ jobs:
             arch=x86_64
             [[ "${RUNNER_ARCH}" == "ARM64" ]] && arch=aarch64
             curl --fail --location --silent --show-error \
-              "https://github.com/koalaman/shellcheck/releases/download/v0.10.0/shellcheck-v0.10.0.linux.${arch}.tar.xz" \
-              | tar -xJ --strip-components=1 -C "${RUNNER_TEMP}" "shellcheck-v0.10.0/shellcheck"
+              "https://github.com/koalaman/shellcheck/releases/download/${SHELLCHECK_VERSION}/shellcheck-${SHELLCHECK_VERSION}.linux.${arch}.tar.xz" \
+              | tar -xJ --strip-components=1 -C "${RUNNER_TEMP}" "shellcheck-${SHELLCHECK_VERSION}/shellcheck"
             install -m 0755 "${RUNNER_TEMP}/shellcheck" "${HOME}/.local/bin/shellcheck"
           fi
       - name: Setup Python
@@ -210,11 +225,14 @@ jobs:
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
         with:
           path: ~/.cache/pip
-          key: gha-python-linters-${{ runner.os }}-${{ inputs.python-version }}-pyflakes-3.4.0-${{ inputs.cache-salt }}
+          key: gha-python-linters-${{ runner.os }}-${{ inputs.python-version }}-pyflakes-${{ env.PYFLAKES_VERSION }}-${{ inputs.cache-salt }}
       - name: Install pyflakes
         if: inputs.use-pyflakes
-        run: >
-          pip install 'pyflakes==3.4.0'
+        env:
+          PYFLAKES_VERSION: ${{ env.PYFLAKES_VERSION }}
+        run: |
+          [[ "${PYFLAKES_VERSION}" =~ ^[0-9]+(\.[0-9]+)*([._+-][A-Za-z0-9]+)*$ ]] || { echo "invalid PYFLAKES_VERSION"; exit 1; }
+          pip install "pyflakes==${PYFLAKES_VERSION}"
       - name: Execute actionlint
         env:
           SEARCH_PATH: ${{ inputs.search-path }}

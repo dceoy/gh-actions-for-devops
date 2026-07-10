@@ -42,6 +42,9 @@ defaults:
 jobs:
   lint:
     runs-on: ${{ inputs.runs-on }}
+    env:
+      # renovate: datasource=pypi depName=yamllint versioning=pep440
+      YAMLLINT_VERSION: "1.37.1"
     steps:
       - name: Disable pip cache
         if: '! inputs.enable-cache'
@@ -60,9 +63,13 @@ jobs:
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
         with:
           path: ~/.cache/pip
-          key: yamllint-${{ runner.os }}-${{ inputs.python-version }}-1.37.1-${{ inputs.cache-salt }}
+          key: yamllint-${{ runner.os }}-${{ inputs.python-version }}-${{ env.YAMLLINT_VERSION }}-${{ inputs.cache-salt }}
       - name: Install yamllint
-        run: pip install 'yamllint==1.37.1'
+        env:
+          YAMLLINT_VERSION: ${{ env.YAMLLINT_VERSION }}
+        run: |
+          [[ "${YAMLLINT_VERSION}" =~ ^[0-9]+(\.[0-9]+)*([._+-][A-Za-z0-9]+)*$ ]] || { echo "invalid YAMLLINT_VERSION"; exit 1; }
+          pip install "yamllint==${YAMLLINT_VERSION}"
       - name: Execute yamllint
         env:
           YAMLLINT_CONFIG_DATA: ${{ inputs.yamllint-config-data }}
