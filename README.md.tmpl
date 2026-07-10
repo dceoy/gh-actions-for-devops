@@ -1,100 +1,26 @@
 # gh-actions-for-devops
 
-A comprehensive collection of reusable GitHub Actions workflows for DevOps automation, covering Docker operations, AWS deployments, security scanning, code quality checks, and more.
+Reusable GitHub Actions workflows for CI, delivery, security, and infrastructure automation.
 
 [![CI](https://github.com/dceoy/gh-actions-for-devops/actions/workflows/ci.yml/badge.svg)](https://github.com/dceoy/gh-actions-for-devops/actions/workflows/ci.yml)
 
-## Table of Contents
-
-- [Overview](#overview)
-- [Prerequisites](#prerequisites)
-- [Usage](#usage)
-- [Reusable Workflows](#reusable-workflows)
-- [License](#license)
-
-## Overview
-
-This repository provides production-ready, reusable GitHub Actions workflows that can be called from other repositories to standardize and simplify your CI/CD pipelines. These workflows are designed to be modular, secure, and easy to integrate into your existing projects.
-
-### Key Features
-
-- **Docker Operations**: Build, scan, push, and deploy Docker images
-- **AWS Integration**: Deploy to AWS using Terraform, CodeBuild, CloudFormation, and more
-- **Security Scanning**: Automated security checks for dependencies, containers, and infrastructure
-- **Code Quality**: Linting and formatting for multiple languages and file types
-- **Automation**: Dependabot auto-merge, PR management, and release automation
-
-## Prerequisites
-
-To use these reusable workflows, you'll need:
-
-- GitHub repository with Actions enabled
-- Appropriate secrets configured in your repository (e.g., `AWS_ACCESS_KEY_ID`, `DOCKER_HUB_TOKEN`)
-- Required permissions for the specific workflow you're using
-
 ## Usage
 
-To use a reusable workflow in your repository, create a workflow file (e.g., `.github/workflows/my-workflow.yml`) and reference the desired workflow:
+Call a workflow from a job in your repository:
 
 ```yaml
-name: My Workflow
+name: YAML lint
 on:
-  push:
-    branches: [main]
+  pull_request:
 
 jobs:
-  docker-build-and-push:
-    uses: dceoy/gh-actions-for-devops/.github/workflows/docker-build-and-push.yml@main
-    with:
-      registry: docker.io
-      registry-user: myusername
-      image-name: my-app
-      context: .
-      # Non-sensitive BuildKit secret env/file mappings only (names and paths).
-      secret-envs: GIT_AUTH_TOKEN=GIT_AUTH_TOKEN
-    secrets:
-      DOCKER_TOKEN: ${{"{{"}} secrets.DOCKER_TOKEN {{"}}"}}
-      # Masked BuildKit secret lines such as `GIT_AUTH_TOKEN=...` (breaking change: `with.secrets` input removed).
-      BUILD_SECRETS: ${{"{{"}} secrets.DOCKER_BUILD_SECRETS {{"}}"}}
-
-  aws-parameter-store-update:
-    uses: dceoy/gh-actions-for-devops/.github/workflows/aws-parameter-store-update.yml@main
-    with:
-      aws-iam-role-to-assume: arn:aws:iam::123456789012:role/github-actions
-      aws-region: us-east-1
-    secrets:
-      # Masked parameter values (breaking change: `parameters-from-json` input removed).
-      PARAMETERS_JSON: ${{"{{"}} secrets.SSM_PARAMETERS_JSON {{"}}"}}
+  lint:
+    uses: dceoy/gh-actions-for-devops/.github/workflows/yaml-lint.yml@main
 ```
 
-### Breaking changes (secret handling)
-
-Sensitive values must be passed through the `secrets:` keyword of `workflow_call`, not `with:` inputs. This keeps values masked in logs.
-
-### Dependency caches
-
-The Bats workflow uses `bats-core/bats-action`'s built-in Bats binary cache. The Python, TypeScript, HTML, JSON, YAML, Shell, and GitHub Actions workflows listed below cache dependency or pinned-tool downloads by default. This includes formatting, PR creation, build, deployment, and release workflows because their caches contain downloads only; caches never include the working tree, generated build/release artifacts, deployment output, or credentials.
-
-- Set `enable-cache: false` where offered to avoid restoring or saving caches.
-- Set `cache-dependency-path` to a repository-relative dependency file when the default lockfile or requirements file is elsewhere. Defaults are resolved under `package-path`, so nested projects use keys based on their own `uv.lock`, `poetry.lock`, `requirements-txt`, `package-lock.json`, or `pnpm-lock.yaml`.
-- Change `cache-salt` where offered to force a fresh uv or pinned-tool cache. `actions/setup-python` and `actions/setup-node` caches are busted by changing the dependency-file content or path.
-
-Keys are scoped by runner OS, architecture where relevant, runtime/tool version, package manager, nested package/dependency path, dependency-file content, and optional salt. Cache-configurable workflows are `python-package-lint-and-scan.yml`, `python-package-test.yml`, `python-package-format-and-pr.yml`, `python-pyinstaller.yml`, `python-package-mkdocs-gh-deploy.yml`, `python-package-release-on-pypi-and-github.yml`, `typescript-package-lint-and-scan.yml`, `typescript-package-format-and-pr.yml`, `typescript-package-script.yml`, `html-lint-and-scan.yml`, `json-lint.yml`, `yaml-lint.yml`, `shell-lint.yml`, and `github-actions-lint-and-scan.yml`.
-
-| Workflow | Removed input | Replacement secret |
-| --- | --- | --- |
-| `docker-build-and-push.yml` | `secrets` | `BUILD_SECRETS` |
-| `docker-build-with-multi-targets.yml` | `secrets` | `BUILD_SECRETS` |
-| `docker-save-and-terraform-deploy-to-aws.yml` | `docker-build-secrets` | `BUILD_SECRETS` |
-| `aws-parameter-store-update.yml` | `parameters-from-json` | `PARAMETERS_JSON` |
-
-`secret-envs` and `secret-files` inputs remain for non-sensitive BuildKit secret *names* and file *paths*.
+See each workflow file for its supported inputs, secrets, and permissions.
 
 ## Reusable Workflows
-
-The workflows are organized by category for easier navigation. Each workflow is designed to be called from other repositories using the `workflow_call` trigger.
-
-### All Reusable Workflows
 
 | Workflow File | Description |
 | --- | --- |
@@ -103,6 +29,6 @@ The workflows are organized by category for easier navigation. Each workflow is 
 {{ end }}
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+[MIT License](LICENSE)
 
 Copyright (c) 2024 Daichi Narushima
