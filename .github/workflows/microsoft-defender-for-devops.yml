@@ -7,6 +7,7 @@ on:
         required: false
         type: string
         description: .NET version to use
+        # renovate: datasource=dotnet-version depName=dotnet
         default: 6.0.x
       runs-on:
         required: false
