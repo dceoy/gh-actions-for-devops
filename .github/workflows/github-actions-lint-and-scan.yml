@@ -187,6 +187,7 @@ jobs:
         env:
           ACTIONLINT_VERSION: ${{ env.ACTIONLINT_VERSION }}
         run: |
+          # shellcheck disable=SC2153
           [[ "${ACTIONLINT_VERSION}" =~ ^v[0-9]+(\.[0-9]+)*([._+-][A-Za-z0-9]+)*$ ]] || { echo "invalid ACTIONLINT_VERSION"; exit 1; }
           mkdir -p "${HOME}/.local/bin"
           if [[ ! -x "${HOME}/.local/bin/actionlint" ]]; then
