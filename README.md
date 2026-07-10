@@ -1,12 +1,12 @@
 # gh-actions-for-devops
 
-Reusable GitHub Actions workflows for CI, delivery, security, and infrastructure automation.
+Reusable GitHub Actions workflows for CI/CD, security, infrastructure, and developer automation.
 
 [![CI](https://github.com/dceoy/gh-actions-for-devops/actions/workflows/ci.yml/badge.svg)](https://github.com/dceoy/gh-actions-for-devops/actions/workflows/ci.yml)
 
 ## Usage
 
-Call a workflow from a job in your repository:
+Call a reusable workflow from a job in your repository:
 
 ```yaml
 name: YAML lint
@@ -18,9 +18,11 @@ jobs:
     uses: dceoy/gh-actions-for-devops/.github/workflows/yaml-lint.yml@main
 ```
 
-See each workflow file for its supported inputs, secrets, and permissions.
+For production use, replace `@main` with a release tag or commit SHA. Pass sensitive values through `secrets:`, never `with:`. Cache-enabled workflows document options such as `enable-cache`, `cache-dependency-path`, and `cache-salt` in their workflow files.
 
 ## Reusable Workflows
+
+Each workflow below exposes `workflow_call`; see its file for supported inputs, secrets, permissions, and defaults.
 
 | Workflow File                                                                                                    | Description                                                       |
 | ---------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
