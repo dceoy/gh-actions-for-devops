@@ -35,14 +35,10 @@
       "automerge": false
     },
     {
-      "description": "Keep the pinned yq/gomplate SHA-256 checksums in ci.yml in sync with version bumps. Requires the Renovate app admin to allow this command via the global allowedCommands option; until then, the update-readme-md job's checksum verification still fails closed on any mismatch.",
-      "matchManagers": ["custom.regex"],
-      "matchDepNames": ["mikefarah/yq", "hairyhenderson/gomplate"],
-      "postUpgradeTasks": {
-        "commands": ["./.github/scripts/sync-tool-checksums.sh"],
-        "fileFilters": [".github/workflows/ci.yml"],
-        "executionMode": "branch"
-      }
+      "description": "Dependabot is the sole owner of the yq/gomplate Go tool versions pinned in .github/tools/go.mod; Renovate must not also open PRs for that manifest.",
+      "matchManagers": ["gomod"],
+      "matchFileNames": [".github/tools/**"],
+      "enabled": false
     }
   ]
 }
