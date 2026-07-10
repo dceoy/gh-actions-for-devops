@@ -76,18 +76,65 @@ gomplate_sha256_for() {
 gomplate_sha256_amd64="$(gomplate_sha256_for gomplate_linux-amd64)"
 gomplate_sha256_arm64="$(gomplate_sha256_for gomplate_linux-arm64)"
 
-update_checksum() {
-  local var_name="$1" value="$2"
-  [[ "${value}" =~ ^[0-9a-f]{64}$ ]] || {
-    echo "::error::failed to resolve a valid SHA-256 for ${var_name}" >&2
-    exit 1
-  }
-  sed -E -i "s/^([[:space:]]*${var_name}:[[:space:]]*)[0-9a-f]{64}[[:space:]]*\$/\1${value}/" "${WORKFLOW_FILE}"
+# Matches a `NAME: <value>` assignment whose value is a bare, single-quoted,
+# or double-quoted 64-char lowercase hex digest, optionally followed by an
+# inline `# ...` comment. Capture groups isolate the parts around the digest
+# (prefix, opening quote, closing quote/trailing comment) so a replacement
+# can preserve the surrounding quoting/comment style verbatim.
+checksum_line_pattern() {
+  local var_name="$1"
+  printf '^([[:space:]]*%s:[[:space:]]*)(['"'"'"]?)[0-9a-f]{64}(['"'"'"]?[[:space:]]*(#.*)?)$' "${var_name}"
 }
 
-update_checksum YQ_SHA256_AMD64 "${yq_sha256_amd64}"
-update_checksum YQ_SHA256_ARM64 "${yq_sha256_arm64}"
-update_checksum GOMPLATE_SHA256_AMD64 "${gomplate_sha256_amd64}"
-update_checksum GOMPLATE_SHA256_ARM64 "${gomplate_sha256_arm64}"
+# Same shape as checksum_line_pattern, but captures the digest itself
+# (instead of the surrounding text) so the assigned value can be read back.
+checksum_value_pattern() {
+  local var_name="$1"
+  printf '^[[:space:]]*%s:[[:space:]]*['"'"'"]?([0-9a-f]{64})['"'"'"]?[[:space:]]*(#.*)?$' "${var_name}"
+}
+
+# Rewrites the NAME: assignment in `file` to `value`, requiring that exactly
+# one line currently matches the expected checksum-assignment shape and that
+# the rewritten line reads back as exactly `value` afterward. Fails closed
+# (leaving `file` untouched) on zero matches, duplicate matches, an
+# unresolvable `value`, or a post-write mismatch.
+update_checksum() {
+  local var_name="$1" value="$2" file="$3"
+  [[ "${value}" =~ ^[0-9a-f]{64}$ ]] || {
+    echo "::error::failed to resolve a valid SHA-256 for ${var_name}" >&2
+    return 1
+  }
+
+  local line_pattern
+  line_pattern="$(checksum_line_pattern "${var_name}")"
+
+  local n_matches
+  n_matches="$(grep -c -E "${line_pattern}" "${file}" || true)"
+  if [[ "${n_matches}" -ne 1 ]]; then
+    echo "::error::expected exactly one ${var_name} checksum assignment in ${file}, found ${n_matches}" >&2
+    return 1
+  fi
+
+  sed -E -i "s/${line_pattern}/\\1\\2${value}\\3/" "${file}"
+
+  local value_pattern new_value
+  value_pattern="$(checksum_value_pattern "${var_name}")"
+  new_value="$(sed -E -n "s/${value_pattern}/\\1/p" "${file}")"
+  if [[ "${new_value}" != "${value}" ]]; then
+    echo "::error::failed to verify updated ${var_name} in ${file}: expected ${value}, found '${new_value}'" >&2
+    return 1
+  fi
+}
+
+TMP_WORKFLOW_FILE="$(mktemp "$(dirname "${WORKFLOW_FILE}")/.$(basename "${WORKFLOW_FILE}").XXXXXX")"
+trap 'rm -rf "${WORK_DIR}" "${TMP_WORKFLOW_FILE}"' EXIT
+cp "${WORKFLOW_FILE}" "${TMP_WORKFLOW_FILE}"
+
+update_checksum YQ_SHA256_AMD64 "${yq_sha256_amd64}" "${TMP_WORKFLOW_FILE}"
+update_checksum YQ_SHA256_ARM64 "${yq_sha256_arm64}" "${TMP_WORKFLOW_FILE}"
+update_checksum GOMPLATE_SHA256_AMD64 "${gomplate_sha256_amd64}" "${TMP_WORKFLOW_FILE}"
+update_checksum GOMPLATE_SHA256_ARM64 "${gomplate_sha256_arm64}" "${TMP_WORKFLOW_FILE}"
+
+mv "${TMP_WORKFLOW_FILE}" "${WORKFLOW_FILE}"
 
 echo "Synced checksums in ${WORKFLOW_FILE} for yq ${yq_version} and gomplate ${gomplate_version}"
