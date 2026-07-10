@@ -22,4 +22,4 @@ yq eval-all --output-format=json '
 gomplate \
   --datasource "workflows=file://${WORKFLOWS_JSON}?type=application/json" \
   --file README.md.tmpl --out README.md
-npx -y prettier --write README.md
+prettier --write README.md

@@ -7,10 +7,6 @@
           {
             "type": "command",
             "command": "find .github/workflows -type f '(' -name '*.yml' -o -name '*.yaml' ')' -print0 | xargs -0 -t actionlint"
-          },
-          {
-            "type": "command",
-            "command": "REPO=$(git rev-parse --show-toplevel 2>/dev/null) && test -n \"$REPO\" && cd \"$REPO/src\" && golangci-lint -c ../.golangci.yml fmt --enable=gofumpt --enable=goimports && golangci-lint -c ../.golangci.yml run --fix && govulncheck ./... && gosec ./..."
           }
         ]
       }

@@ -6,7 +6,7 @@ This repository publishes reusable GitHub Actions workflows for DevOps tasks. Wo
 
 ## Build, Test, and Development Commands
 
-- `.github/scripts/update-readme.sh`: regenerate root `README.md` from `README.md.tmpl` and `.github/workflows` (requires `yq`, `gomplate`, and `npx`).
+- `.github/scripts/update-readme.sh`: regenerate root `README.md` from `README.md.tmpl` and `.github/workflows` (requires `yq`, `gomplate`, and `prettier` on `PATH`).
 - `scripts/qa.sh`: run the local QA workflow defined by `.agents/skills/local-qa` after file changes.
 
 ## Coding Style & Naming Conventions
