@@ -9,6 +9,8 @@ from pathlib import Path
 
 SEMVER = r"v?\d+\.\d+(?:\.\d+)?(?:[-+][0-9A-Za-z.-]+)?"
 EXACT_VERSION = re.compile(rf"\b{SEMVER}\b")
+PATCH_WILDCARD_VERSION = r"\d+\.\d+\.[xX*]"
+VERSION_SELECTOR = re.compile(rf"\b(?:{SEMVER}|{PATCH_WILDCARD_VERSION})\b")
 ANNOTATION = re.compile(
     r"^\s*# renovate: datasource=\S+ depName=\S+(?: versioning=\S+)?\s*$"
 )
@@ -20,7 +22,7 @@ URL = re.compile(rf"https?://\S*(?:releases|archive|download)\S*{SEMVER}\b")
 CACHE = re.compile(rf"\b(?:key|restore-keys):.*\b{SEMVER}\b")
 VERSION_VALUE = re.compile(rf"^\s*[A-Z][A-Z0-9_]*_VERSION:\s*['\"]?{SEMVER}['\"]?\s*$")
 RUNTIME_DEFAULT = re.compile(
-    rf"^\s*(?:default|(?:node|python|dotnet|terraform|terragrunt|hugo)-version):\s*['\"]?{SEMVER}['\"]?\s*$"
+    rf"^\s*(?:default|(?:node|python|dotnet|terraform|terragrunt|hugo)-version):\s*['\"]?(?:{SEMVER}|{PATCH_WILDCARD_VERSION})['\"]?\s*$"
 )
 CONTAINER = re.compile(rf"^\s*(?:container|image):\s*\S+:{SEMVER}\b")
 
@@ -39,7 +41,7 @@ def check_file(path: Path) -> list[str]:
     lines = path.read_text(encoding="utf-8").splitlines()
     problems: list[str] = []
     for index, line in enumerate(lines):
-        if not EXACT_VERSION.search(line):
+        if not VERSION_SELECTOR.search(line):
             continue
         if line.lstrip().startswith("uses:") or " uses: " in line:
             continue  # SHA-pinned actions are managed by GitHub Actions managers.

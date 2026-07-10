@@ -6,7 +6,7 @@
     {
       "customType": "regex",
       "description": "Update tool versions declared in GitHub Actions workflow env blocks",
-      "managerFilePatterns": ["/^\\.github/workflows/.+\\.ya?ml$/"],
+      "fileMatch": ["^\\.github/workflows/.+\\.ya?ml$"],
       "matchStrings": [
         "[ \\t]*# renovate: datasource=(?<datasource>[a-z-]+) depName=(?<depName>[A-Za-z0-9_./-]+)(?: versioning=(?<versioning>[a-z0-9-]+))?[ \\t]*\\r?\\n[ \\t]*\\S+_VERSION:[ \\t]*['\"]?(?<currentValue>v?[0-9A-Za-z.+_-]+)['\"]?[ \\t]*(?:\\r\\n|\\r|\\n|$)"
       ],
@@ -15,7 +15,7 @@
     {
       "customType": "regex",
       "description": "Update annotated reusable workflow input default versions",
-      "managerFilePatterns": ["/^\\.github/workflows/.+\\.ya?ml$/"],
+      "fileMatch": ["^\\.github/workflows/.+\\.ya?ml$"],
       "matchStrings": [
         "[ \\t]*# renovate: datasource=(?<datasource>[a-z-]+) depName=(?<depName>[A-Za-z0-9_./-]+)(?: versioning=(?<versioning>[a-z0-9-]+))?[ \\t]*\\r?\\n[ \\t]*default:[ \\t]*['\"]?(?<currentValue>v?[0-9A-Za-z.+_-]+)['\"]?[ \\t]*(?:\\r\\n|\\r|\\n|$)"
       ],

@@ -31,6 +31,7 @@ class CheckWorkflowDependencyVersionsTest(unittest.TestCase):
             "key: tool-1.2.3",
             "TOOL_VERSION: 1.2.3",
             "default: 1.2.3",
+            "default: 6.0.x",
             "container: example/tool:1.2.3",
         )
         for case in cases:
