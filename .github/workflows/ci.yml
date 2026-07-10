@@ -38,6 +38,20 @@ jobs:
     permissions:
       contents: read
     uses: ./.github/workflows/shell-lint.yml
+  bats-test:
+    if: >
+      github.event_name == 'push'
+      || github.event_name == 'pull_request'
+      || (github.event_name == 'workflow_dispatch' && inputs.workflow == 'lint')
+    permissions:
+      contents: read
+    uses: ./.github/workflows/bats-test.yml
+    with:
+      search-path: .
+      test-paths: |
+        .github/scripts/tests/update-readme.bats
+        .github/scripts/tests/sync-tool-checksums.bats
+      setup-run: ./.github/scripts/install-yq-gomplate.sh
   github-actions-lint-and-scan:
     if: >
       github.event_name == 'push'
@@ -90,6 +104,7 @@ jobs:
       && github.event.pull_request.user.login == 'dependabot[bot]'
     needs:
       - shell-lint
+      - bats-test
       - github-actions-lint-and-scan
     permissions:
       contents: write
@@ -144,36 +159,7 @@ jobs:
         with:
           node-version: "24.18.0"
       - name: Install yq and gomplate
-        env:
-          YQ_VERSION: ${{ env.YQ_VERSION }}
-          YQ_SHA256_AMD64: ${{ env.YQ_SHA256_AMD64 }}
-          YQ_SHA256_ARM64: ${{ env.YQ_SHA256_ARM64 }}
-          GOMPLATE_VERSION: ${{ env.GOMPLATE_VERSION }}
-          GOMPLATE_SHA256_AMD64: ${{ env.GOMPLATE_SHA256_AMD64 }}
-          GOMPLATE_SHA256_ARM64: ${{ env.GOMPLATE_SHA256_ARM64 }}
-        run: |
-          [[ "${YQ_VERSION}" =~ ^v[0-9]+(\.[0-9]+)*([._+-][A-Za-z0-9]+)*$ ]] || { echo "invalid YQ_VERSION"; exit 1; }
-          [[ "${GOMPLATE_VERSION}" =~ ^v[0-9]+(\.[0-9]+)*([._+-][A-Za-z0-9]+)*$ ]] || { echo "invalid GOMPLATE_VERSION"; exit 1; }
-          arch=amd64
-          sha_arch=AMD64
-          if [[ "${RUNNER_ARCH}" == 'ARM64' ]]; then
-            arch=arm64
-            sha_arch=ARM64
-          fi
-          yq_sha256_var="YQ_SHA256_${sha_arch}"
-          gomplate_sha256_var="GOMPLATE_SHA256_${sha_arch}"
-          mkdir -p "${HOME}/.local/bin"
-          curl --fail --location --silent --show-error \
-            --output "${RUNNER_TEMP}/yq" \
-            "https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_${arch}"
-          echo "${!yq_sha256_var}  ${RUNNER_TEMP}/yq" | sha256sum --check --strict
-          curl --fail --location --silent --show-error \
-            --output "${RUNNER_TEMP}/gomplate" \
-            "https://github.com/hairyhenderson/gomplate/releases/download/${GOMPLATE_VERSION}/gomplate_linux-${arch}"
-          echo "${!gomplate_sha256_var}  ${RUNNER_TEMP}/gomplate" | sha256sum --check --strict
-          install -m 0755 "${RUNNER_TEMP}/yq" "${HOME}/.local/bin/yq"
-          install -m 0755 "${RUNNER_TEMP}/gomplate" "${HOME}/.local/bin/gomplate"
-          echo "${HOME}/.local/bin" >> "${GITHUB_PATH}"
+        run: ./.github/scripts/install-yq-gomplate.sh
       - name: Install Prettier
         env:
           PRETTIER_VERSION: ${{ env.PRETTIER_VERSION }}

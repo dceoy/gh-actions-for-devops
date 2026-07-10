@@ -14,6 +14,11 @@ on:
         description: Newline-separated Bats test file names or pathspecs passed to git ls-files
         default: |
           *.bats
+      setup-run:
+        required: false
+        type: string
+        description: Shell command to run after checkout, before installing Bats, to provision runtime dependencies the tests require
+        default: ""
       runs-on:
         required: false
         type: string
@@ -34,6 +39,15 @@ jobs:
         with:
           fetch-depth: 1
           persist-credentials: false
+      - name: Run setup command
+        if: inputs.setup-run != ''
+        env:
+          SETUP_RUN: ${{ inputs.setup-run }}
+        run: |
+          setup_script="$(mktemp)"
+          printf '%s\n' "${SETUP_RUN}" > "${setup_script}"
+          chmod +x "${setup_script}"
+          "${setup_script}"
       - name: Setup Bats and Bats libraries
         uses: bats-core/bats-action@77d6fb60505b4d0d1d73e48bd035b55074bbfb43  # 4.0.0
       - name: Run Bats tests
