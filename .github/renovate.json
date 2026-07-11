@@ -1,6 +1,6 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": ["config:recommended"],
+  "extends": ["config:recommended", "github>aquaproj/aqua-renovate-config#2.13.0"],
   "minimumReleaseAge": "7 days",
   "customManagers": [
     {
@@ -30,19 +30,9 @@
       "automergeType": "branch"
     },
     {
-      "description": "Require review for workflow tool versions updated by regex managers",
+      "description": "Require review for workflow tool versions and aqua.yaml packages updated by regex managers, including yq/gomplate versions and the aqua-registry ref pinned in aqua.yaml",
       "matchManagers": ["custom.regex"],
       "automerge": false
-    },
-    {
-      "description": "Keep the pinned yq/gomplate SHA-256 checksums in ci.yml in sync with version bumps. Requires the Renovate app admin to allow this command via the global allowedCommands option; until then, the update-readme-md job's checksum verification still fails closed on any mismatch.",
-      "matchManagers": ["custom.regex"],
-      "matchDepNames": ["mikefarah/yq", "hairyhenderson/gomplate"],
-      "postUpgradeTasks": {
-        "commands": ["./.github/scripts/sync-tool-checksums.sh"],
-        "fileFilters": [".github/workflows/ci.yml"],
-        "executionMode": "branch"
-      }
     }
   ]
 }

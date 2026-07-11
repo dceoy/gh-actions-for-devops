@@ -4,3 +4,6 @@
 # Editor/IDE
 # .idea/
 # .vscode/
+
+# aqua checksum cache (not committed; verified fresh from upstream each run)
+aqua-checksums.json

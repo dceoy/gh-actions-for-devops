@@ -1,0 +1,9 @@
+---
+registries:
+  - type: standard
+    ref: v4.534.0 # renovate: depName=aquaproj/aqua-registry
+packages:
+  - name: mikefarah/yq@v4.53.3
+  - name: hairyhenderson/gomplate@v5.1.0
+checksum:
+  enabled: true
