@@ -1,6 +1,6 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": ["config:recommended"],
+  "extends": ["config:recommended", "github>aquaproj/aqua-renovate-config#2.13.0"],
   "minimumReleaseAge": "7 days",
   "customManagers": [
     {
@@ -30,15 +30,9 @@
       "automergeType": "branch"
     },
     {
-      "description": "Require review for workflow tool versions updated by regex managers",
+      "description": "Require review for workflow tool versions and aqua.yaml packages updated by regex managers, including yq/gomplate versions and the aqua-registry ref pinned in aqua.yaml",
       "matchManagers": ["custom.regex"],
       "automerge": false
-    },
-    {
-      "description": "Dependabot is the sole owner of the yq/gomplate Go tool versions pinned in .github/tools/go.mod; Renovate must not also open PRs for that manifest.",
-      "matchManagers": ["gomod"],
-      "matchFileNames": [".github/tools/**"],
-      "enabled": false
     }
   ]
 }
