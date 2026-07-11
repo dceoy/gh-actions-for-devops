@@ -14,6 +14,16 @@ if ! command -v aqua >/dev/null 2>&1; then
   exit 1
 fi
 
+# aqua's shims resolve packages by searching for aqua.yaml from the caller's
+# current directory upward, so pin AQUA_CONFIG here and (in CI) for later
+# steps too -- otherwise yq/gomplate become "command is not found" as soon as
+# something invokes them from outside this repo tree (e.g. a test that cds
+# into a scratch directory).
+export AQUA_CONFIG="${REPO_ROOT}/aqua.yaml"
+if [[ -n "${GITHUB_ENV:-}" ]]; then
+  echo "AQUA_CONFIG=${AQUA_CONFIG}" >> "${GITHUB_ENV}"
+fi
+
 (cd "${REPO_ROOT}" && aqua install)
 
 for cmd in yq gomplate; do
