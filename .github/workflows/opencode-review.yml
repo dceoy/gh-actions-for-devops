@@ -68,7 +68,7 @@ on:
         description: OpenRouter API key for opencode
       OPENCODE_API_KEY:
         required: false
-        description: API key for opencode (deprecated, use OPENROUTER_API_KEY)
+        description: API key for opencode
       GH_TOKEN:
         required: false
         description: GitHub token for accessing the repository
