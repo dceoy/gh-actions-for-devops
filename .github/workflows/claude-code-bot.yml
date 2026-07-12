@@ -44,7 +44,7 @@ on:
         required: false
         description: GitHub token for accessing the repository
 permissions:
-  contents: read
+  contents: write
   pull-requests: write
   issues: write
   id-token: write
@@ -76,7 +76,7 @@ jobs:
         with:
           fetch-depth: 1
           token: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
-          persist-credentials: false
+          persist-credentials: true
       - name: Deploy agents and commands from claude-code-action
         env:
           CLAUDE_CODE_ACTION_ROOT: ${{ github.workspace }}/../../_actions/anthropics/claude-code-action
