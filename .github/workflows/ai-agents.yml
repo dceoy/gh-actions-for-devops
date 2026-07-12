@@ -64,7 +64,7 @@ jobs:
         && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude'))
       )
     permissions:
-      contents: read
+      contents: write
       pull-requests: write
       issues: write
       id-token: write
