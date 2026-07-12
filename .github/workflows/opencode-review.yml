@@ -63,9 +63,12 @@ on:
         description: Runner to use
         default: ubuntu-latest
     secrets:
+      OPENROUTER_API_KEY:
+        required: false
+        description: OpenRouter API key for opencode
       OPENCODE_API_KEY:
         required: false
-        description: API key for opencode
+        description: API key for opencode (deprecated, use OPENROUTER_API_KEY)
       GH_TOKEN:
         required: false
         description: GitHub token for accessing the repository
@@ -90,7 +93,7 @@ jobs:
       - name: Run OpenCode
         uses: dceoy/opencode-action@bbb641bc7005028edd35dcc3a7ea10d0885c0ba8  # v0.2.5
         env:
-          OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}  # zizmor: ignore[secrets-outside-env] caller-provided secret
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY || secrets.OPENCODE_API_KEY }}  # zizmor: ignore[secrets-outside-env] caller-provided secret
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}  # zizmor: ignore[secrets-outside-env] caller-provided secret
         with:
           model: ${{ inputs.model }}
