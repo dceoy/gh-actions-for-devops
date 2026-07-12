@@ -1,0 +1,117 @@
+---
+name: Static analysis with Joern
+on:
+  workflow_call:
+    inputs:
+      scan-path:
+        required: false
+        type: string
+        description: Source code directory to scan
+        default: .
+      language:
+        required: false
+        type: string
+        description: Source language for joern-scan (auto-detected if not set)
+        default: null
+      joern-scan-options:
+        required: false
+        type: string
+        description: Additional space-separated command-line options for joern-scan
+        default: null
+      fail-on-findings:
+        required: false
+        type: boolean
+        description: Fail the job when joern-scan reports findings
+        default: true
+      java-version:
+        required: false
+        type: string
+        description: Java version to use
+        default: "21"
+      enable-cache:
+        required: false
+        type: boolean
+        description: Cache the pinned Joern download
+        default: true
+      cache-salt:
+        required: false
+        type: string
+        description: Optional value used to bust the Joern cache
+        default: null
+      runs-on:
+        required: false
+        type: string
+        description: Runner to use
+        default: ubuntu-latest
+permissions:
+  contents: read
+defaults:
+  run:
+    shell: bash -euo pipefail {0}
+    working-directory: .
+jobs:
+  joern-scan:
+    runs-on: ${{ inputs.runs-on }}
+    env:
+      # renovate: datasource=github-releases depName=joernio/joern
+      JOERN_VERSION: v4.0.579
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Setup Java
+        uses: actions/setup-java@0f481fcb613427c0f801b606911222b5b6f3083a  # v5.5.0
+        with:
+          distribution: temurin
+          java-version: ${{ inputs.java-version }}
+      - name: Cache Joern
+        if: inputs.enable-cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
+        with:
+          path: ~/.local/share/joern
+          key: joern-${{ runner.os }}-${{ runner.arch }}-${{ env.JOERN_VERSION }}-${{ inputs.cache-salt }}
+      - name: Install Joern and the default query database
+        env:
+          JOERN_VERSION: ${{ env.JOERN_VERSION }}
+        run: |
+          # shellcheck disable=SC2153
+          [[ "${JOERN_VERSION}" =~ ^v[0-9]+(\.[0-9]+)*([._+-][A-Za-z0-9]+)*$ ]] || { echo "invalid JOERN_VERSION"; exit 1; }
+          joern_home="${HOME}/.local/share/joern"
+          if [[ ! -x "${joern_home}/joern-cli/joern-scan" ]]; then
+            curl --fail --location --silent --show-error \
+              "https://github.com/joernio/joern/releases/download/${JOERN_VERSION}/joern-cli.zip" \
+              -o "${RUNNER_TEMP}/joern-cli.zip"
+            mkdir -p "${joern_home}"
+            unzip -qo "${RUNNER_TEMP}/joern-cli.zip" -d "${joern_home}"
+            # joern-scan prepends "v" to the version passed to --dbversion
+            "${joern_home}/joern-cli/joern-scan" --updatedb --dbversion "${JOERN_VERSION#v}"
+          fi
+          echo "${joern_home}/joern-cli" >> "${GITHUB_PATH}"
+      - name: Run joern-scan
+        env:
+          SCAN_PATH: ${{ inputs.scan-path }}
+          SCAN_LANGUAGE: ${{ inputs.language }}
+          JOERN_SCAN_OPTIONS: ${{ inputs.joern-scan-options }}
+          FAIL_ON_FINDINGS: ${{ inputs.fail-on-findings }}
+        run: |
+          [[ -n "${SCAN_PATH}" ]] || { echo '::error::scan-path must not be empty'; exit 1; }
+          args=()
+          if [[ -n "${SCAN_LANGUAGE}" ]]; then
+            args+=(--language "${SCAN_LANGUAGE}")
+          fi
+          if [[ -n "${JOERN_SCAN_OPTIONS}" ]]; then
+            read -r -a extra_args <<< "${JOERN_SCAN_OPTIONS}"
+            args+=("${extra_args[@]}")
+          fi
+          scan_log="${RUNNER_TEMP}/joern-scan.log"
+          joern-scan "${args[@]}" "${SCAN_PATH}" | tee "${scan_log}"
+          n_findings="$(grep -c '^Result: ' "${scan_log}" || true)"
+          if [[ "${n_findings}" -gt 0 ]]; then
+            if [[ "${FAIL_ON_FINDINGS}" == 'true' ]]; then
+              echo "::error::joern-scan reported ${n_findings} findings"
+              exit 1
+            fi
+            echo "::warning::joern-scan reported ${n_findings} findings"
+          fi
