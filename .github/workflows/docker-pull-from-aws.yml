@@ -78,6 +78,11 @@ on:
         type: string
         description: Timeout for the Trivy scan
         default: 5m0s
+      trivy-report-artifact-name:
+        required: false
+        type: string
+        description: Unique base name for Trivy report artifacts; omit to skip report uploads
+        default: null
       runs-on:
         required: false
         type: string
@@ -185,7 +190,7 @@ jobs:
       trivy-exit-code: ${{ inputs.trivy-exit-code }}
       trivy-config: ${{ inputs.trivy-config }}
       trivy-timeout: ${{ inputs.trivy-timeout }}
-      trivy-report-artifact-name: ${{ inputs.image-artifact-name }}-trivy-image-report
+      trivy-report-artifact-name: ${{ inputs.trivy-report-artifact-name }}
       runs-on: ${{ inputs.runs-on }}
     secrets:
       GH_TOKEN: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}

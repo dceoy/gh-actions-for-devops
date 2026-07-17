@@ -53,9 +53,10 @@ on:
         description: Timeout for the Trivy scan
         default: 5m0s
       trivy-report-artifact-name:
-        required: true
+        required: false
         type: string
-        description: Unique base name for Trivy report artifacts
+        description: Unique base name for Trivy report artifacts; omit to skip report uploads
+        default: null
       runs-on:
         required: false
         type: string
@@ -147,7 +148,7 @@ jobs:
           TRIVY_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-db
           TRIVY_JAVA_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-java-db
       - name: Upload complete Trivy report
-        if: always()
+        if: always() && inputs.trivy-report-artifact-name != null
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
           name: ${{ inputs.trivy-report-artifact-name }}-${{ strategy.job-index }}

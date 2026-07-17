@@ -89,9 +89,10 @@ on:
         description: Timeout for the Trivy scan
         default: 5m0s
       trivy-report-artifact-name:
-        required: true
+        required: false
         type: string
-        description: Unique name for the Trivy report artifact
+        description: Unique name for the Trivy report artifact; omit to skip the report upload
+        default: null
       merge-pr:
         required: false
         type: boolean
