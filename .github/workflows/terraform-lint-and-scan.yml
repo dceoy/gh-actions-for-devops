@@ -219,9 +219,17 @@ jobs:
           output: trivy-results.txt
           skip-setup-trivy: true
         env:
+          TRIVY_FORMAT: table
           TRIVY_CHECKS_REPOSITORY: public.ecr.aws/aquasecurity/trivy-checks
           TRIVY_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-db
           TRIVY_JAVA_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-java-db
+      - name: Upload complete Trivy report
+        if: always() && inputs.use-trivy
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: trivy-terraform-report
+          path: trivy-results.txt
+          if-no-files-found: ignore
       - name: Add Trivy results to job summary
         if: always() && inputs.use-trivy
         env:
@@ -237,7 +245,11 @@ jobs:
             echo
             echo '```text'
             if [[ -s trivy-results.txt ]]; then
-              cat trivy-results.txt
+              head -c 900000 trivy-results.txt
+              if [[ $(wc -c < trivy-results.txt) -gt 900000 ]]; then
+                echo
+                echo "[Report truncated; download the complete report artifact.]"
+              fi
             else
               echo "Trivy did not generate a report."
             fi
