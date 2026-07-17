@@ -158,6 +158,7 @@ jobs:
         if: always()
         env:
           IMAGE_REF: ${{ matrix.image-ref }}
+          TRIVY_REPORT_ARTIFACT_NAME: ${{ inputs.trivy-report-artifact-name }}
         run: |
           {
             echo "## Trivy image scan"
@@ -172,7 +173,11 @@ jobs:
               head -c 900000 trivy-results.txt
               if [[ $(wc -c < trivy-results.txt) -gt 900000 ]]; then
                 echo
-                echo "[Report truncated; download the complete report artifact.]"
+                if [[ -n "${TRIVY_REPORT_ARTIFACT_NAME}" ]]; then
+                  echo "[Report truncated; download the complete report artifact.]"
+                else
+                  echo "[Report truncated; set trivy-report-artifact-name to upload the complete report.]"
+                fi
               fi
             else
               echo "Trivy did not generate a report."
