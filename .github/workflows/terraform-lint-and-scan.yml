@@ -63,6 +63,11 @@ on:
         type: string
         description: Timeout for the Trivy scan
         default: 5m0s
+      trivy-report-artifact-name:
+        required: false
+        type: string
+        description: Unique name for the Trivy report artifact; omit to skip the report upload
+        default: null
       use-checkov:
         required: false
         type: boolean
@@ -182,16 +187,16 @@ jobs:
             | sort -u \
             | xargs -I{} -t bash -c \
               'cd {} && terraform init -backend=false && terraform validate'
-      - name: Run Trivy vulnerability scanner in IaC mode
+      - name: Run Trivy in GitHub SBOM mode and submit results to Dependency Graph
         if: inputs.use-trivy
-        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25  # 0.36.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25  # v0.36.0
         with:
           scan-type: filesystem
           scan-ref: ${{ inputs.search-path }}
           scanners: ${{ inputs.trivy-scanners }}
           severity: ${{ inputs.trivy-severity }}
           ignore-unfixed: ${{ inputs.trivy-ignore-unfixed }}
-          exit-code: ${{ inputs.trivy-exit-code }}
+          exit-code: 0
           trivy-config: ${{ inputs.trivy-config }}
           timeout: ${{ inputs.trivy-timeout }}
           format: github
@@ -201,6 +206,70 @@ jobs:
           TRIVY_CHECKS_REPOSITORY: public.ecr.aws/aquasecurity/trivy-checks
           TRIVY_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-db
           TRIVY_JAVA_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-java-db
+      - name: Run Trivy and generate a readable report
+        if: inputs.use-trivy
+        id: trivy-report
+        continue-on-error: true
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25  # v0.36.0
+        with:
+          scan-type: filesystem
+          scan-ref: ${{ inputs.search-path }}
+          scanners: ${{ inputs.trivy-scanners }}
+          severity: ${{ inputs.trivy-severity }}
+          ignore-unfixed: ${{ inputs.trivy-ignore-unfixed }}
+          exit-code: ${{ inputs.trivy-exit-code }}
+          trivy-config: ${{ inputs.trivy-config }}
+          timeout: ${{ inputs.trivy-timeout }}
+          format: table
+          output: trivy-results.txt
+          skip-setup-trivy: true
+        env:
+          TRIVY_FORMAT: table
+          TRIVY_CHECKS_REPOSITORY: public.ecr.aws/aquasecurity/trivy-checks
+          TRIVY_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-db
+          TRIVY_JAVA_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-java-db
+      - name: Upload complete Trivy report
+        if: always() && inputs.use-trivy && inputs.trivy-report-artifact-name != null
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: ${{ inputs.trivy-report-artifact-name }}
+          path: trivy-results.txt
+          if-no-files-found: ignore
+      - name: Add Trivy results to job summary
+        if: always() && inputs.use-trivy
+        env:
+          TRIVY_SCAN_REF: ${{ inputs.search-path }}
+          TRIVY_REPORT_ARTIFACT_NAME: ${{ inputs.trivy-report-artifact-name }}
+        run: |
+          {
+            echo "## Trivy Terraform scan"
+            echo
+            echo "**Target:** \`${TRIVY_SCAN_REF}\`"
+            echo
+            echo "<details open>"
+            echo "<summary>Scan results</summary>"
+            echo
+            echo '```text'
+            if [[ -s trivy-results.txt ]]; then
+              head -c 900000 trivy-results.txt
+              if [[ $(wc -c < trivy-results.txt) -gt 900000 ]]; then
+                echo
+                if [[ -n "${TRIVY_REPORT_ARTIFACT_NAME}" ]]; then
+                  echo "[Report truncated; download the complete report artifact.]"
+                else
+                  echo "[Report truncated; set trivy-report-artifact-name to upload the complete report.]"
+                fi
+              fi
+            else
+              echo "Trivy did not generate a report."
+            fi
+            echo '```'
+            echo
+            echo "</details>"
+          } >> "${GITHUB_STEP_SUMMARY}"
+      - name: Enforce Trivy scan result
+        if: inputs.use-trivy && steps.trivy-report.outcome == 'failure'
+        run: exit 1
       - name: Run Checkov
         if: inputs.use-checkov
         uses: bridgecrewio/checkov-action@7b972723c44fb3d256283fac96fae5d7c1894bb7  # v12.3114.0
