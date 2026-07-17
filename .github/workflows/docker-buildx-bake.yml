@@ -182,6 +182,7 @@ jobs:
       trivy-exit-code: ${{ inputs.trivy-filesystem-exit-code }}
       trivy-config: ${{ inputs.trivy-config }}
       trivy-timeout: ${{ inputs.trivy-timeout }}
+      trivy-report-artifact-name: ${{ inputs.image-artifact-name }}-trivy-filesystem-report
       runs-on: ${{ inputs.runs-on }}
     secrets:
       GH_TOKEN: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
@@ -304,6 +305,7 @@ jobs:
       trivy-exit-code: ${{ inputs.trivy-image-exit-code }}
       trivy-config: ${{ inputs.trivy-config }}
       trivy-timeout: ${{ inputs.trivy-timeout }}
+      trivy-report-artifact-name: ${{ inputs.image-artifact-name }}-trivy-image-report
       runs-on: ${{ inputs.runs-on }}
     secrets:
       GH_TOKEN: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}

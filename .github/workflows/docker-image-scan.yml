@@ -52,6 +52,10 @@ on:
         type: string
         description: Timeout for the Trivy scan
         default: 5m0s
+      trivy-report-artifact-name:
+        required: true
+        type: string
+        description: Unique base name for Trivy report artifacts
       runs-on:
         required: false
         type: string
@@ -146,7 +150,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
-          name: trivy-image-report-${{ strategy.job-index }}
+          name: ${{ inputs.trivy-report-artifact-name }}-${{ strategy.job-index }}
           path: trivy-results.txt
           if-no-files-found: ignore
       - name: Add Trivy results to job summary

@@ -63,6 +63,10 @@ on:
         type: string
         description: Timeout for the Trivy scan
         default: 5m0s
+      trivy-report-artifact-name:
+        required: true
+        type: string
+        description: Unique name for the Trivy report artifact
       use-checkov:
         required: false
         type: boolean
@@ -227,7 +231,7 @@ jobs:
         if: always() && inputs.use-trivy
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
-          name: trivy-terraform-report
+          name: ${{ inputs.trivy-report-artifact-name }}
           path: trivy-results.txt
           if-no-files-found: ignore
       - name: Add Trivy results to job summary
