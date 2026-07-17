@@ -103,7 +103,27 @@ jobs:
           registry: ${{ inputs.registry }}
           username: ${{ inputs.registry-user }}
           password: ${{ secrets.DOCKER_TOKEN }}  # zizmor: ignore[secrets-outside-env] caller-provided secret
-      - name: Run Trivy vulnerability scanner
+      - name: Run Trivy in GitHub SBOM mode and submit results to Dependency Graph
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25  # 0.36.0
+        with:
+          scan-type: image
+          image-ref: ${{ matrix.image-ref }}
+          scanners: ${{ inputs.trivy-scanners }}
+          severity: ${{ inputs.trivy-severity }}
+          ignore-unfixed: ${{ inputs.trivy-ignore-unfixed }}
+          exit-code: 0
+          trivy-config: ${{ inputs.trivy-config }}
+          timeout: ${{ inputs.trivy-timeout }}
+          format: github
+          output: dependency-results.${{ strategy.job-index }}.sbom.json
+          github-pat: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}  # zizmor: ignore[secrets-outside-env] caller-provided secret
+        env:
+          TRIVY_CHECKS_REPOSITORY: public.ecr.aws/aquasecurity/trivy-checks
+          TRIVY_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-db
+          TRIVY_JAVA_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-java-db
+      - name: Run Trivy and generate a readable report
+        id: trivy-report
+        continue-on-error: true
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25  # 0.36.0
         with:
           scan-type: image
@@ -114,10 +134,36 @@ jobs:
           exit-code: ${{ inputs.trivy-exit-code }}
           trivy-config: ${{ inputs.trivy-config }}
           timeout: ${{ inputs.trivy-timeout }}
-          format: github
-          output: dependency-results.${{ strategy.job-index }}.sbom.json
-          github-pat: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}  # zizmor: ignore[secrets-outside-env] caller-provided secret
+          format: table
+          output: trivy-results.txt
+          skip-setup-trivy: true
         env:
           TRIVY_CHECKS_REPOSITORY: public.ecr.aws/aquasecurity/trivy-checks
           TRIVY_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-db
           TRIVY_JAVA_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-java-db
+      - name: Add Trivy results to job summary
+        if: always()
+        env:
+          IMAGE_REF: ${{ matrix.image-ref }}
+        run: |
+          {
+            echo "## Trivy image scan"
+            echo
+            echo "**Image:** \`${IMAGE_REF}\`"
+            echo
+            echo "<details open>"
+            echo "<summary>Scan results</summary>"
+            echo
+            echo '```text'
+            if [[ -s trivy-results.txt ]]; then
+              cat trivy-results.txt
+            else
+              echo "Trivy did not generate a report."
+            fi
+            echo '```'
+            echo
+            echo "</details>"
+          } >> "${GITHUB_STEP_SUMMARY}"
+      - name: Enforce Trivy scan result
+        if: steps.trivy-report.outcome == 'failure'
+        run: exit 1
