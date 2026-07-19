@@ -89,6 +89,8 @@ on:
         description: GitHub token
 permissions:
   contents: read
+env:
+  UV_MALWARE_CHECK: "1"
 defaults:
   run:
     shell: bash -euo pipefail {0}
