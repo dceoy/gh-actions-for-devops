@@ -57,6 +57,8 @@ defaults:
 jobs:
   test:
     runs-on: ${{ inputs.runs-on }}
+    env:
+      UV_MALWARE_CHECK: "1"
     steps:
       - name: Disable pip cache
         if: '! inputs.enable-cache'
