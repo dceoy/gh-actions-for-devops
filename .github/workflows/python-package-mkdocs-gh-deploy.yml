@@ -111,8 +111,6 @@ on:
         default: ubuntu-latest
 permissions:
   contents: write
-env:
-  UV_MALWARE_CHECK: "1"
 defaults:
   run:
     shell: bash -euo pipefail {0}
@@ -121,6 +119,7 @@ jobs:
   build-and-deploy:
     runs-on: ${{ inputs.runs-on }}
     env:
+      UV_MALWARE_CHECK: "1"
       MKDOCS_SITE_DIR: ${{ inputs.package-path }}/site
     steps:
       - name: Disable pip cache
