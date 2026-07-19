@@ -46,7 +46,7 @@ on:
       mkdocs-theme:
         required: false
         type: string
-        description: Theme to use for MkDocs (mkdocs or readthedocs)
+        description: Theme to use for MkDocs build (mkdocs or readthedocs)
         default: mkdocs
       runs-on:
         required: false
@@ -102,7 +102,7 @@ on:
       mkdocs-theme:
         required: false
         type: string
-        description: Theme to use for MkDocs (mkdocs or readthedocs)
+        description: Theme to use for MkDocs build (mkdocs or readthedocs)
         default: mkdocs
       runs-on:
         required: false
