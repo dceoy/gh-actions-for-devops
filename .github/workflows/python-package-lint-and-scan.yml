@@ -80,8 +80,6 @@ on:
         default: ubuntu-slim
 permissions:
   contents: read
-env:
-  UV_MALWARE_CHECK: "1"
 defaults:
   run:
     shell: bash -euo pipefail {0}
@@ -89,6 +87,8 @@ defaults:
 jobs:
   lint-and-scan:
     runs-on: ${{ inputs.runs-on }}
+    env:
+      UV_MALWARE_CHECK: "1"
     steps:
       - name: Disable pip cache
         if: '! inputs.enable-cache'
