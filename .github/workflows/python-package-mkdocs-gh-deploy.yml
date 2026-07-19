@@ -111,6 +111,8 @@ on:
         default: ubuntu-latest
 permissions:
   contents: write
+env:
+  UV_MALWARE_CHECK: "1"
 defaults:
   run:
     shell: bash -euo pipefail {0}
