@@ -64,8 +64,6 @@ on:
         default: windows-latest
 permissions:
   contents: read
-env:
-  UV_MALWARE_CHECK: "1"
 defaults:
   run:
     shell: bash -euo pipefail {0}
@@ -73,6 +71,8 @@ defaults:
 jobs:
   bundle:
     runs-on: ${{ inputs.runs-on }}
+    env:
+      UV_MALWARE_CHECK: "1"
     steps:
       - name: Disable pip cache
         if: '! inputs.enable-cache'
