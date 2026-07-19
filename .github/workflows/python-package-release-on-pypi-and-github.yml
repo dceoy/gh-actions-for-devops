@@ -97,8 +97,6 @@ jobs:
   build:
     name: Build the Python 🐍 distribution 📦
     runs-on: ${{ inputs.runs-on }}
-    env:
-      UV_MALWARE_CHECK: "1"
     outputs:
       project-name: ${{ steps.read-project-name.outputs.project_name }}
     steps:
