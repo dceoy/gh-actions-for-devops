@@ -116,6 +116,8 @@ jobs:
     timeout-minutes: ${{ inputs.timeout-minutes }}
     env:
       TF_IN_AUTOMATION: "1"
+      TF_INPUT: "0"
+      TG_NON_INTERACTIVE: "true"
     steps:
       - name: Download the image tarball artifact
         if: inputs.apply && (! inputs.destroy) && inputs.use-docker && inputs.docker-image-artifact-name != null
@@ -137,6 +139,7 @@ jobs:
           persist-credentials: false
       - name: Configure Terraform plugin cache directory
         run: |
+          mkdir -p "${RUNNER_TEMP}/terraform-plugin-cache"
           echo "TF_PLUGIN_CACHE_DIR=${RUNNER_TEMP}/terraform-plugin-cache" >> "${GITHUB_ENV}"
       - name: Cache Terraform providers
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
