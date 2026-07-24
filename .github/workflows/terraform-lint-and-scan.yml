@@ -285,4 +285,4 @@ jobs:
           output_format: ${{ inputs.checkov-output-format }}
           output_file_path: ${{ inputs.checkov-output-file-path }}
           soft_fail: ${{ inputs.checkov-soft-fail }}
-          api-key: ${{ secrets.BC_API_KEY }}  # zizmor: ignore[secrets-outside-env]
+          api-key: ${{ secrets.BC_API_KEY }}  # zizmor: ignore[secrets-outside-env] caller-provided secret
