@@ -71,6 +71,9 @@ on:
       OPENCODE_API_KEY:
         required: false
         description: API key for opencode
+      SAKURA_AI_ENGINE_API_KEY:
+        required: false
+        description: API key for Sakura AI Engine
       GH_TOKEN:
         required: false
         description: GitHub token for accessing the repository
