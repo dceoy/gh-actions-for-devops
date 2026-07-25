@@ -21,7 +21,7 @@ For README generator changes, run `.github/scripts/update-readme.sh` and review 
 
 ## Commit & Pull Request Guidelines
 
-Recent history uses short imperative subjects such as `Harden reusable workflows against injection and unmasked secrets` and Dependabot subjects such as `Bump actions/checkout from 6.0.2 to 6.0.3`. Keep commits focused and describe user-visible workflow or documentation effects. PRs should include a concise summary, mention affected workflow files, link related issues when applicable, and note local checks run. Include screenshots only for documentation rendering changes where visual layout matters.
+Keep commits focused and describe user-visible workflow or documentation effects. PRs should include a concise summary, mention affected workflow files, link related issues when applicable, and note local checks run. Include screenshots only for documentation rendering changes where visual layout matters.
 
 ## Security & Configuration Tips
 
