@@ -88,9 +88,9 @@ jobs:
       actions: read
     uses: ./.github/workflows/opencode-review.yml
     with:
-      model: openrouter/openrouter/free
+      model: sakura/preview/Kimi-K2.6
     secrets:
-      OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+      SAKURA_AI_ENGINE_API_KEY: ${{ secrets.SAKURA_AI_ENGINE_API_KEY }}
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   opencode-bot:
     if: >
@@ -118,7 +118,7 @@ jobs:
       actions: read
     uses: ./.github/workflows/opencode-bot.yml
     with:
-      model: openrouter/openrouter/free
+      model: sakura/preview/Kimi-K2.6
     secrets:
-      OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+      SAKURA_AI_ENGINE_API_KEY: ${{ secrets.SAKURA_AI_ENGINE_API_KEY }}
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
