@@ -2,7 +2,7 @@
 
 ## Project Structure & Module Organization
 
-This repository publishes reusable GitHub Actions workflows for DevOps tasks. Workflow definitions live in `.github/workflows/`; the `workflows` symlink points there for convenience. The generated public documentation is `README.md`, and its source template is `README.md.tmpl` (a `gomplate` template). The README generator is the shell script `.github/scripts/update-readme.sh`, which extracts reusable workflow metadata with `yq`, renders the template with `gomplate`, and formats the output with Prettier. Local automation and agent instructions are under `.agents/`, including `.agents/skills/local-qa`. OpenCode review subagents and the `/review-pr` command live under `.opencode/` (auto-discovered by OpenCode), converted from Anthropic's `pr-review-toolkit` plugin.
+This repository publishes reusable GitHub Actions workflows for DevOps tasks. Workflow definitions live in `.github/workflows/`; the `workflows` symlink points there for convenience. The generated public documentation is `README.md`, and its source template is `README.md.tmpl` (a `gomplate` template). The README generator is the shell script `.github/scripts/update-readme.sh`, which extracts reusable workflow metadata with `yq`, renders the template with `gomplate`, and formats the output with Prettier. Local automation and agent instructions are under `.agents/`, including `.agents/skills/local-qa`. Pull request review tooling is configured in `.github/workflows/claude-code-review.yml` and `.github/workflows/opencode-review.yml`; Claude uses the `pr-review-toolkit` plugin, while OpenCode uses the toolkit bundled with `opencode-action`.
 
 ## Build, Test, and Development Commands
 

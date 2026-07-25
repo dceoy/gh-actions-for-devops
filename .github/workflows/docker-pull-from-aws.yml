@@ -163,10 +163,6 @@ jobs:
             fi
           } | sort -u -o "${IMAGE_URI_LIST_TXT}"
           xargs -L1 -t docker pull < "${IMAGE_URI_LIST_TXT}"
-      - name: Output the image references
-        id: output-image-refs
-        run: |
-          jq -rRs 'split("\n")[:-1] | "image_refs_json=\(.)"' < "${IMAGE_URI_LIST_TXT}"
       - name: Tag the Docker images
         if: inputs.tag-source-to-target-json != null
         run: |
@@ -176,6 +172,11 @@ jobs:
               done
           jq -r 'values[]' <<< "${TAG_SOURCE_TO_TARGET_JSON}" >> "${IMAGE_URI_LIST_TXT}"
           sort -u -o "${IMAGE_URI_LIST_TXT}" "${IMAGE_URI_LIST_TXT}"
+      - name: Output the image references
+        id: output-image-refs
+        run: |
+          jq -rRs 'split("\n")[:-1] | "image_refs_json=\(.)"' < "${IMAGE_URI_LIST_TXT}" \
+            | tee -a "${GITHUB_OUTPUT}"
       - name: Save the Docker images to an image tarball
         run: |
           xargs -t docker save -o "${IMAGE_TAR}" < "${IMAGE_URI_LIST_TXT}"
