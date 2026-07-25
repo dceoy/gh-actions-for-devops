@@ -47,15 +47,15 @@ on:
         type: string
         description: Base URL for OIDC token exchange API
         default: null
-      version:
+      opencode-version:
         required: false
         type: string
         description: OpenCode version to install (e.g., v1.2.3)
         default: latest
-      enable-toolkit:
+      use-bundled-toolkit:
         required: false
         type: boolean
-        description: Install the action's bundled .opencode/ agents, commands, and skills into global config before running
+        description: Use the action's bundled .opencode/ agents, commands, skills, and supporting configuration
         default: true
       runs-on:
         required: false
@@ -94,7 +94,7 @@ jobs:
           token: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}  # zizmor: ignore[secrets-outside-env] caller-provided secret
           persist-credentials: false
       - name: Run OpenCode
-        uses: dceoy/opencode-action@419cdd50ed88bd77dd429ebb683e8d18b03ac89a  # v0.4.0
+        uses: dceoy/opencode-action@76b2e06b3356590c8143e4765fec2459ba6199fd  # v0.5.0
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}  # zizmor: ignore[secrets-outside-env] caller-provided secret
           OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}  # zizmor: ignore[secrets-outside-env] caller-provided secret
@@ -108,5 +108,5 @@ jobs:
           mentions: ${{ inputs.mentions }}
           variant: ${{ inputs.variant }}
           oidc-base-url: ${{ inputs.oidc-base-url }}
-          version: ${{ inputs.version }}
-          enable-toolkit: ${{ inputs.enable-toolkit }}
+          opencode-version: ${{ inputs.opencode-version }}
+          use-bundled-toolkit: ${{ inputs.use-bundled-toolkit }}
