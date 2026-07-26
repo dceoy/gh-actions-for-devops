@@ -258,7 +258,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302  # v6.2.0
         with:
-          images: ${{ inputs.registry }}/${{ inputs.image-name }}
+          images: ${{ inputs.registry && format('{0}/{1}', inputs.registry, inputs.image-name) || inputs.image-name }}
           tags: ${{ inputs.docker-metadata-action-tags }}
       - name: Login to the Docker registry
         if: inputs.registry != null
@@ -303,7 +303,7 @@ jobs:
           while IFS= read -r tag; do
             [[ -n "${tag}" ]] || continue
             cosign verify \
-              --certificate-identity-regexp "https://github.com/${GITHUB_REPOSITORY}/.github/workflows/.+@refs/.+" \
+              --certificate-identity-regexp "https://github.com/dceoy/gh-actions-for-devops/\\.github/workflows/docker-build-and-push\\.yml@(refs/.+|[0-9a-f]{40})" \
               --certificate-oidc-issuer https://token.actions.githubusercontent.com \
               "${tag}@${DIGEST}"
           done <<< "${TAGS}"

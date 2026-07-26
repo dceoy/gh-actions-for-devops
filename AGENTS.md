@@ -2,7 +2,7 @@
 
 ## Project Structure & Module Organization
 
-This repository publishes reusable GitHub Actions workflows for DevOps tasks. Workflow definitions live in `.github/workflows/`; the `workflows` symlink points there for convenience. The generated public documentation is `README.md`, and its source template is `README.md.tmpl` (a `gomplate` template). The README generator is the shell script `.github/scripts/update-readme.sh`, which extracts reusable workflow metadata with `yq`, renders the template with `gomplate`, and formats the output with Prettier. Local automation and agent instructions are under `.agents/`, including `.agents/skills/local-qa`. OpenCode review subagents and the `/review-pr` command live under `.opencode/` (auto-discovered by OpenCode), converted from Anthropic's `pr-review-toolkit` plugin.
+This repository publishes reusable GitHub Actions workflows for DevOps tasks. The `workflows` symlink points to `.github/workflows/` for convenience. The generated public documentation is `README.md`, and its source template is `README.md.tmpl` (a `gomplate` template). The README generator is the shell script `.github/scripts/update-readme.sh`, which extracts reusable workflow metadata with `yq`, renders the template with `gomplate`, and formats the output with Prettier. Local automation and agent instructions are under `.agents/`, including `.agents/skills/local-qa`.
 
 ## Build, Test, and Development Commands
 
@@ -21,7 +21,7 @@ For README generator changes, run `.github/scripts/update-readme.sh` and review 
 
 ## Commit & Pull Request Guidelines
 
-Recent history uses short imperative subjects such as `Harden reusable workflows against injection and unmasked secrets` and Dependabot subjects such as `Bump actions/checkout from 6.0.2 to 6.0.3`. Keep commits focused and describe user-visible workflow or documentation effects. PRs should include a concise summary, mention affected workflow files, link related issues when applicable, and note local checks run. Include screenshots only for documentation rendering changes where visual layout matters.
+Keep commits focused and describe user-visible workflow or documentation effects. PRs should include a concise summary, mention affected workflow files, link related issues when applicable, and note local checks run. Include screenshots only for documentation rendering changes where visual layout matters.
 
 ## Security & Configuration Tips
 
