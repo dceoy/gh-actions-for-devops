@@ -162,10 +162,11 @@ jobs:
           # ("python"/"ruby" are the real names). "ghidra" has no extension heuristic
           # upstream either (it targets arbitrary compiled binaries), so it's allowed as
           # a language value but left out of source-presence validation below.
-          # Manifest/lockfiles (package.json, go.mod, go.sum, cargo.toml, ...) are
-          # deliberately excluded: a directory holding only one of these can still
-          # build an empty CPG, so they must not count as proof that real source
-          # exists.
+          # Manifest/lockfiles (package.json, go.mod, go.sum, cargo.toml, cargo.lock,
+          # gopkg.*, .csproj, ...) are deliberately excluded: a directory holding only
+          # one of these can still build an empty CPG, so they must not count as proof
+          # that real source exists for that frontend, whether the frontend was passed
+          # in explicitly or chosen by the auto-detection below.
           declare -A LANGUAGE_PATTERNS=(
             [c]='*.c *.cc *.cpp *.cxx *.cp *.h *.hpp *.hh *.hxx *.h++ *.tcc'
             [cpp]='*.c *.cc *.cpp *.cxx *.cp *.h *.hpp *.hh *.hxx *.h++ *.tcc'
@@ -179,70 +180,91 @@ jobs:
             [ruby]='*.rb'
             [swiftsrc]='*.swift'
             [golang]='*.go'
-            [csharp]='*.cs *.csproj'
-            [csharpsrc]='*.cs *.csproj'
+            [csharp]='*.cs'
+            [csharpsrc]='*.cs'
             [llvm]='*.bc *.ll'
             [rust]='*.rs'
             [abap]='*.abap'
           )
 
-          # File-name patterns Joern's own auto-detection heuristic recognizes
-          # (guessLanguageForRegularFile in console/cpgcreation/package.scala at the
-          # pinned JOERN_VERSION), minus the manifest/lockfiles excluded above for the
-          # same false-clean reason. This is intentionally narrower than
-          # LANGUAGE_PATTERNS above -- e.g. it has no .cjs/.mjs/.vue/.ejs or
-          # .cxx/.hxx/.tcc entries -- so auto-detection here must not pass on a file
-          # Joern's real detector would not recognize, which would fall back to the C
-          # frontend and build an empty CPG.
-          AUTO_DETECT_PATTERNS='*.jar *.war *.ear *.apk *.csproj *.cs *.go *.js *.ts *.jsx *.tsx *.java *.class *.kt *.php *.py *.rb *.swift *.bc *.ll *.c *.cc *.cpp *.h *.hpp *.hh *.rs *.abap'
+          # Builds the `find -iname` alternation args for the space-separated glob
+          # patterns in $1 into the name_args array. Parses into an array first:
+          # unquoted `for pattern in $1` would let the shell pathname-expand a
+          # pattern like "*.py" against files in the current directory instead of
+          # treating it as a literal glob for find.
+          build_name_args() {
+            local -a patterns=()
+            local pattern
+            read -r -a patterns <<< "$1"
+            name_args=()
+            for pattern in "${patterns[@]}"; do
+              name_args+=(-o -iname "${pattern}")
+            done
+          }
 
           # Checks whether scan-path contains a file matching any of the space-separated
           # glob patterns in $1.
           has_source_match() {
-            local -a patterns=()
             local -a name_args=()
-            local pattern
-            # Parse into an array first: unquoted `for pattern in $1` would let the
-            # shell pathname-expand a pattern like "*.py" against files in the
-            # current directory instead of treating it as a literal glob for find.
-            read -r -a patterns <<< "$1"
-            for pattern in "${patterns[@]}"; do
-              name_args+=(-o -iname "${pattern}")
-            done
+            build_name_args "$1"
             [[ -n "$(find "${SCAN_PATH}" -type f \( "${name_args[@]:1}" \) -print -quit)" ]]
+          }
+
+          # Counts files under scan-path matching any of the space-separated glob
+          # patterns in $1.
+          count_source_match() {
+            local -a name_args=()
+            build_name_args "$1"
+            find "${SCAN_PATH}" -type f \( "${name_args[@]:1}" \) -print 2>/dev/null | wc -l
           }
 
           # --overwrite forces a fresh CPG for every run; joern-scan otherwise reuses
           # any existing workspace project keyed by the checkout path, which on a
           # persistent self-hosted runner would silently re-analyze a stale CPG.
           args=(--overwrite)
-          if [[ -n "${SCAN_LANGUAGE}" ]]; then
-            lang_key="${SCAN_LANGUAGE,,}"
-            # joern-scan interpolates --language, unescaped, into a generated Scala
-            # script as `importCode.$language(...)`. Rejecting anything outside this
-            # allow-list (a fixed set of frontend names) -- and forwarding only the
-            # matched key below, never the raw input -- keeps an unrecognized or
-            # crafted value from reaching that script.
-            if [[ "${lang_key}" != "ghidra" && -z "${LANGUAGE_PATTERNS[${lang_key}]:-}" ]]; then
-              echo "::error::language '${SCAN_LANGUAGE}' is not a recognized joern-scan frontend"
-              exit 1
-            fi
-            args+=(--language "${lang_key}")
-            lang_patterns="${LANGUAGE_PATTERNS[${lang_key}]:-}"
-            # Joern accepts an explicit --language without checking that scan-path
-            # actually contains matching source, so an unrelated or empty scan-path
-            # can still build an empty CPG and report a false-clean scan.
-            if [[ -n "${lang_patterns}" ]] && ! has_source_match "${lang_patterns}"; then
-              echo "::error::no source files matched by the '${SCAN_LANGUAGE}' frontend were found under scan-path"
-              exit 1
-            fi
-          else
-            # Joern silently falls back to the C frontend when auto-detection finds no
-            # match, producing an empty CPG and a false-clean scan.
-            if ! has_source_match "${AUTO_DETECT_PATTERNS}"; then
+          if [[ -z "${SCAN_LANGUAGE}" ]]; then
+            # Joern's own auto-detection counts *all* recognized files (including
+            # manifests like package.json/.csproj) and can select a frontend with no
+            # real source behind it, silently building an empty CPG. Instead of
+            # relying on that, pick the frontend with the most real-source matches
+            # ourselves and pass it explicitly via --language below, so the frontend
+            # this workflow selects always has verified source to analyze. One
+            # canonical key per alias group (cpp/jssrc/csharpsrc share patterns with
+            # c/javascript/csharp) avoids counting the same files twice.
+            best_lang=""
+            best_count=0
+            for candidate in c java jvm javascript kotlin php python ruby swiftsrc golang csharp llvm rust abap; do
+              count="$(count_source_match "${LANGUAGE_PATTERNS[${candidate}]}")"
+              if [[ "${count}" -gt "${best_count}" ]]; then
+                best_lang="${candidate}"
+                best_count="${count}"
+              fi
+            done
+            if [[ -z "${best_lang}" ]]; then
               echo '::error::no source files matched by a known Joern frontend were found under scan-path; set the language input explicitly or verify scan-path'
               exit 1
             fi
+            SCAN_LANGUAGE="${best_lang}"
+          fi
+
+          lang_key="${SCAN_LANGUAGE,,}"
+          # joern-scan interpolates --language, unescaped, into a generated Scala
+          # script as `importCode.$language(...)`. Rejecting anything outside this
+          # allow-list (a fixed set of frontend names) -- and forwarding only the
+          # matched key below, never the raw input -- keeps an unrecognized or
+          # crafted value from reaching that script.
+          if [[ "${lang_key}" != "ghidra" && -z "${LANGUAGE_PATTERNS[${lang_key}]:-}" ]]; then
+            echo "::error::language '${SCAN_LANGUAGE}' is not a recognized joern-scan frontend"
+            exit 1
+          fi
+          args+=(--language "${lang_key}")
+          lang_patterns="${LANGUAGE_PATTERNS[${lang_key}]:-}"
+          # Joern accepts an explicit --language without checking that scan-path
+          # actually contains matching source, so an unrelated or empty scan-path
+          # can still build an empty CPG and report a false-clean scan.
+          if [[ -n "${lang_patterns}" ]] && ! has_source_match "${lang_patterns}"; then
+            echo "::error::no source files matched by the '${SCAN_LANGUAGE}' frontend were found under scan-path"
+            exit 1
           fi
 
           if [[ -n "${JOERN_SCAN_OPTIONS}" ]]; then
