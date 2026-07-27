@@ -57,7 +57,7 @@ jobs:
       JOERN_VERSION: v4.0.579
     steps:
       - name: Checkout repository
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           fetch-depth: 1
           persist-credentials: false
@@ -81,9 +81,11 @@ jobs:
           joern_home="${HOME}/.local/share/joern"
           if [[ ! -x "${joern_home}/joern-cli/joern-scan" ]]; then
             curl --fail --location --silent --show-error \
+              --connect-timeout 30 --speed-limit 51200 --speed-time 60 \
               "https://github.com/joernio/joern/releases/download/${JOERN_VERSION}/joern-cli.zip" \
               -o "${RUNNER_TEMP}/joern-cli.zip"
             mkdir -p "${joern_home}"
+            rm -rf "${joern_home}/joern-cli"
             unzip -qo "${RUNNER_TEMP}/joern-cli.zip" -d "${joern_home}"
             # joern-scan prepends "v" to the version passed to --dbversion
             "${joern_home}/joern-cli/joern-scan" --updatedb --dbversion "${JOERN_VERSION#v}"
@@ -106,7 +108,7 @@ jobs:
             args+=("${extra_args[@]}")
           fi
           scan_log="${RUNNER_TEMP}/joern-scan.log"
-          joern-scan "${args[@]}" "${SCAN_PATH}" | tee "${scan_log}"
+          joern-scan "${args[@]}" -- "${SCAN_PATH}" | tee "${scan_log}"
           n_findings="$(grep -c '^Result: ' "${scan_log}" || true)"
           if [[ "${n_findings}" -gt 0 ]]; then
             if [[ "${FAIL_ON_FINDINGS}" == 'true' ]]; then
