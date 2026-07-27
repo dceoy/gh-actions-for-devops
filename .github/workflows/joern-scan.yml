@@ -18,7 +18,7 @@ on:
         type: string
         description: >-
           Additional space-separated command-line options for joern-scan.
-          Limited to --names, --tags, --depth, --overwrite, and --store.
+          Limited to --names, --tags, --depth, and --store.
         default: null
       fail-on-findings:
         required: false
@@ -167,7 +167,10 @@ jobs:
             [[ -n "$(find "${SCAN_PATH}" -type f \( "${name_args[@]:1}" \) -print -quit)" ]]
           }
 
-          args=()
+          # --overwrite forces a fresh CPG for every run; joern-scan otherwise reuses
+          # any existing workspace project keyed by the checkout path, which on a
+          # persistent self-hosted runner would silently re-analyze a stale CPG.
+          args=(--overwrite)
           if [[ -n "${SCAN_LANGUAGE}" ]]; then
             args+=(--language "${SCAN_LANGUAGE}")
             lang_key="${SCAN_LANGUAGE,,}"
@@ -205,10 +208,10 @@ jobs:
                 --names | --tags | --depth)
                   expect_value=1
                   ;;
-                --overwrite | --store)
+                --store)
                   ;;
                 *)
-                  echo "::error::joern-scan-options contains an unsupported option '${extra_arg}'; only --names, --tags, --depth, --overwrite, and --store are allowed"
+                  echo "::error::joern-scan-options contains an unsupported option '${extra_arg}'; only --names, --tags, --depth, and --store are allowed"
                   exit 1
                   ;;
               esac
