@@ -92,6 +92,14 @@ jobs:
     with:
       language: >
         ["actions"]
+  joern-scan:
+    if: >
+      github.event_name == 'push'
+      || github.event_name == 'pull_request'
+      || (github.event_name == 'workflow_dispatch' && inputs.workflow == 'analyze')
+    permissions:
+      contents: read
+    uses: ./.github/workflows/joern-scan.yml
   github-release:
     if: >
       github.event_name == 'workflow_dispatch' && inputs.workflow == 'release'
