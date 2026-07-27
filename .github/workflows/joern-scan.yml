@@ -84,7 +84,11 @@ jobs:
           # Version-qualified so a stale install from a different JOERN_VERSION on a
           # persistent runner can never satisfy this check after a cache miss.
           joern_home="${HOME}/.local/share/joern/${JOERN_VERSION}"
-          if [[ ! -x "${joern_home}/joern-cli/joern-scan" ]]; then
+          # Only the CLI extraction and query-database update together make a usable
+          # install; a marker written after both succeed keeps a partial install
+          # (e.g. a failed --updatedb) from being treated as complete on the next run.
+          install_marker="${joern_home}/.install-complete"
+          if [[ ! -f "${install_marker}" ]]; then
             curl --fail --location --silent --show-error \
               --connect-timeout 30 --speed-limit 51200 --speed-time 60 \
               "https://github.com/joernio/joern/releases/download/${JOERN_VERSION}/joern-cli.zip" \
@@ -94,6 +98,7 @@ jobs:
             unzip -qo "${RUNNER_TEMP}/joern-cli.zip" -d "${joern_home}"
             # joern-scan prepends "v" to the version passed to --dbversion
             "${joern_home}/joern-cli/joern-scan" --updatedb --dbversion "${JOERN_VERSION#v}"
+            touch "${install_marker}"
           fi
           echo "${joern_home}/joern-cli" >> "${GITHUB_PATH}"
       - name: Save Joern cache
@@ -129,13 +134,14 @@ jobs:
 
           # File-name patterns per Joern frontend, keyed by the frontend names joern-scan's
           # --language flag actually accepts, i.e. the `importCode.<name>` accessors in
-          # joernio/joern's console/cpgcreation/ImportCode.scala. These differ from the
-          # internal `Languages.*` detection identifiers used only during auto-detection:
-          # the Java source frontend is invoked as `java` (not `javasrc`), JVM bytecode as
-          # `jvm` (not `java`), and there are no `newc`, `pythonsrc`, or `rubysrc` frontends
+          # joernio/joern's console/cpgcreation/ImportCode.scala (also this workflow's
+          # allow-list for the language input; see the validation below). These differ
+          # from the internal `Languages.*` identifiers used by auto-detection: the Java
+          # source frontend is invoked as `java` (not `javasrc`), JVM bytecode as `jvm`
+          # (not `java`), and there are no `newc`, `pythonsrc`, or `rubysrc` frontends
           # ("python"/"ruby" are the real names). "ghidra" has no extension heuristic
-          # upstream either (it targets arbitrary compiled binaries), so it is intentionally
-          # left unvalidated here, same as an unrecognized language value.
+          # upstream either (it targets arbitrary compiled binaries), so it's allowed as
+          # a language value but left out of source-presence validation below.
           declare -A LANGUAGE_PATTERNS=(
             [c]='*.c *.cc *.cpp *.cxx *.cp *.h *.hpp *.hh *.hxx *.h++ *.tcc'
             [cpp]='*.c *.cc *.cpp *.cxx *.cp *.h *.hpp *.hh *.hxx *.h++ *.tcc'
@@ -156,12 +162,25 @@ jobs:
             [abap]='*.abap'
           )
 
+          # File-name patterns Joern's own auto-detection heuristic recognizes
+          # (guessLanguageForRegularFile in console/cpgcreation/package.scala at the
+          # pinned JOERN_VERSION). This is intentionally narrower than LANGUAGE_PATTERNS
+          # above -- e.g. it has no .cjs/.mjs/.vue/.ejs or .cxx/.hxx/.tcc entries -- so
+          # auto-detection here must not pass on a file Joern's real detector would not
+          # recognize, which would fall back to the C frontend and build an empty CPG.
+          AUTO_DETECT_PATTERNS='*.jar *.war *.ear *.apk *.csproj *.cs *.go gopkg.lock gopkg.toml go.mod go.sum *.js *.ts *.jsx *.tsx package.json *.java *.class *.kt *.php *.py *.rb *.swift *.bc *.ll *.c *.cc *.cpp *.h *.hpp *.hh *.rs cargo.toml cargo.lock *.abap'
+
           # Checks whether scan-path contains a file matching any of the space-separated
           # glob patterns in $1.
           has_source_match() {
+            local -a patterns=()
             local -a name_args=()
             local pattern
-            for pattern in $1; do
+            # Parse into an array first: unquoted `for pattern in $1` would let the
+            # shell pathname-expand a pattern like "*.py" against files in the
+            # current directory instead of treating it as a literal glob for find.
+            read -r -a patterns <<< "$1"
+            for pattern in "${patterns[@]}"; do
               name_args+=(-o -iname "${pattern}")
             done
             [[ -n "$(find "${SCAN_PATH}" -type f \( "${name_args[@]:1}" \) -print -quit)" ]]
@@ -172,8 +191,17 @@ jobs:
           # persistent self-hosted runner would silently re-analyze a stale CPG.
           args=(--overwrite)
           if [[ -n "${SCAN_LANGUAGE}" ]]; then
-            args+=(--language "${SCAN_LANGUAGE}")
             lang_key="${SCAN_LANGUAGE,,}"
+            # joern-scan interpolates --language, unescaped, into a generated Scala
+            # script as `importCode.$language(...)`. Rejecting anything outside this
+            # allow-list (a fixed set of frontend names) -- and forwarding only the
+            # matched key below, never the raw input -- keeps an unrecognized or
+            # crafted value from reaching that script.
+            if [[ "${lang_key}" != "ghidra" && -z "${LANGUAGE_PATTERNS[${lang_key}]:-}" ]]; then
+              echo "::error::language '${SCAN_LANGUAGE}' is not a recognized joern-scan frontend"
+              exit 1
+            fi
+            args+=(--language "${lang_key}")
             lang_patterns="${LANGUAGE_PATTERNS[${lang_key}]:-}"
             # Joern accepts an explicit --language without checking that scan-path
             # actually contains matching source, so an unrelated or empty scan-path
@@ -185,7 +213,7 @@ jobs:
           else
             # Joern silently falls back to the C frontend when auto-detection finds no
             # match, producing an empty CPG and a false-clean scan.
-            if ! has_source_match "${LANGUAGE_PATTERNS[*]}"; then
+            if ! has_source_match "${AUTO_DETECT_PATTERNS}"; then
               echo '::error::no source files matched by a known Joern frontend were found under scan-path; set the language input explicitly or verify scan-path'
               exit 1
             fi
@@ -199,14 +227,26 @@ jobs:
             # joern-scan exit 0 without analyzing scan-path at all, which the findings
             # check below cannot detect.
             expect_value=0
+            expect_flag=""
             for extra_arg in "${extra_args[@]}"; do
               if [[ "${expect_value}" -eq 1 ]]; then
+                # joern-scan quotes --names/--tags values as-is into the same
+                # generated Scala script as --language (`Array("$value", ...)`), so a
+                # quote or backslash in a value would break out of that string
+                # literal. Restrict to the characters a comma-separated list of query
+                # names/tags actually needs.
+                if [[ "${expect_flag}" == "--depth" ]]; then
+                  [[ "${extra_arg}" =~ ^[0-9]+$ ]] || { echo "::error::joern-scan-options --depth value must be a non-negative integer"; exit 1; }
+                else
+                  [[ "${extra_arg}" =~ ^[A-Za-z0-9_.,-]+$ ]] || { echo "::error::joern-scan-options ${expect_flag} value contains unsupported characters"; exit 1; }
+                fi
                 expect_value=0
                 continue
               fi
               case "${extra_arg}" in
                 --names | --tags | --depth)
                   expect_value=1
+                  expect_flag="${extra_arg}"
                   ;;
                 --store)
                   ;;
