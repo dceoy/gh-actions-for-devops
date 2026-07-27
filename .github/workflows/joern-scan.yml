@@ -111,23 +111,26 @@ jobs:
         run: |
           [[ -n "${SCAN_PATH}" ]] || { echo '::error::scan-path must not be empty'; exit 1; }
 
-          # File-name patterns per Joern frontend, mirroring guessLanguageForRegularFile in
-          # joernio/joern's console/cpgcreation/package.scala. Keyed by the same identifiers
-          # accepted by joern-scan's --language flag. "ghidra" has no extension heuristic
+          # File-name patterns per Joern frontend, keyed by the frontend names joern-scan's
+          # --language flag actually accepts, i.e. the `importCode.<name>` accessors in
+          # joernio/joern's console/cpgcreation/ImportCode.scala. These differ from the
+          # internal `Languages.*` detection identifiers used only during auto-detection:
+          # the Java source frontend is invoked as `java` (not `javasrc`), JVM bytecode as
+          # `jvm` (not `java`), and there are no `newc`, `pythonsrc`, or `rubysrc` frontends
+          # ("python"/"ruby" are the real names). "ghidra" has no extension heuristic
           # upstream either (it targets arbitrary compiled binaries), so it is intentionally
           # left unvalidated here, same as an unrecognized language value.
           declare -A LANGUAGE_PATTERNS=(
             [c]='*.c *.cc *.cpp *.h *.hpp *.hh'
-            [newc]='*.c *.cc *.cpp *.h *.hpp *.hh'
-            [java]='*.jar *.war *.ear *.apk *.class'
-            [javasrc]='*.java'
+            [cpp]='*.c *.cc *.cpp *.h *.hpp *.hh'
+            [java]='*.java'
+            [jvm]='*.jar *.war *.ear *.apk *.class'
             [jssrc]='*.js *.ts *.jsx *.tsx package.json'
             [javascript]='*.js *.ts *.jsx *.tsx package.json'
             [kotlin]='*.kt'
             [php]='*.php'
-            [pythonsrc]='*.py'
             [python]='*.py'
-            [rubysrc]='*.rb'
+            [ruby]='*.rb'
             [swiftsrc]='*.swift'
             [golang]='*.go gopkg.lock gopkg.toml go.mod go.sum'
             [csharp]='*.cs *.csproj'
