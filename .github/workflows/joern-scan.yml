@@ -111,6 +111,22 @@ jobs:
         run: |
           [[ -n "${SCAN_PATH}" ]] || { echo '::error::scan-path must not be empty'; exit 1; }
 
+          # Canonicalize to an absolute path so scan-path can never be parsed as a
+          # `find`/joern-scan option (e.g. a caller-supplied "-delete"), and confirm
+          # it stays inside the checkout before it reaches `find` or joern-scan.
+          # GITHUB_WORKSPACE is resolved too since it may reach the workspace root
+          # through a symlink on self-hosted runners.
+          workspace_abs="$(realpath -e -- "${GITHUB_WORKSPACE}")"
+          scan_path_abs="$(realpath -e -- "${SCAN_PATH}")" || { echo '::error::scan-path does not exist'; exit 1; }
+          case "${scan_path_abs}" in
+            "${workspace_abs}" | "${workspace_abs}"/*) ;;
+            *)
+              echo '::error::scan-path must resolve to a location inside the workspace'
+              exit 1
+              ;;
+          esac
+          SCAN_PATH="${scan_path_abs}"
+
           # File-name patterns per Joern frontend, keyed by the frontend names joern-scan's
           # --language flag actually accepts, i.e. the `importCode.<name>` accessors in
           # joernio/joern's console/cpgcreation/ImportCode.scala. These differ from the
@@ -121,12 +137,12 @@ jobs:
           # upstream either (it targets arbitrary compiled binaries), so it is intentionally
           # left unvalidated here, same as an unrecognized language value.
           declare -A LANGUAGE_PATTERNS=(
-            [c]='*.c *.cc *.cpp *.h *.hpp *.hh'
-            [cpp]='*.c *.cc *.cpp *.h *.hpp *.hh'
+            [c]='*.c *.cc *.cpp *.cxx *.cp *.h *.hpp *.hh *.hxx *.h++ *.tcc'
+            [cpp]='*.c *.cc *.cpp *.cxx *.cp *.h *.hpp *.hh *.hxx *.h++ *.tcc'
             [java]='*.java'
             [jvm]='*.jar *.war *.ear *.apk *.class'
-            [jssrc]='*.js *.ts *.jsx *.tsx package.json'
-            [javascript]='*.js *.ts *.jsx *.tsx package.json'
+            [jssrc]='*.js *.ts *.jsx *.tsx *.cjs *.mjs *.vue *.ejs package.json'
+            [javascript]='*.js *.ts *.jsx *.tsx *.cjs *.mjs *.vue *.ejs package.json'
             [kotlin]='*.kt'
             [php]='*.php'
             [python]='*.py'
