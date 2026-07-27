@@ -16,7 +16,9 @@ on:
       joern-scan-options:
         required: false
         type: string
-        description: Additional space-separated command-line options for joern-scan
+        description: >-
+          Additional space-separated command-line options for joern-scan.
+          Limited to --names, --tags, --depth, --overwrite, and --store.
         default: null
       fail-on-findings:
         required: false
@@ -108,34 +110,97 @@ jobs:
           FAIL_ON_FINDINGS: ${{ inputs.fail-on-findings }}
         run: |
           [[ -n "${SCAN_PATH}" ]] || { echo '::error::scan-path must not be empty'; exit 1; }
+
+          # File-name patterns per Joern frontend, mirroring guessLanguageForRegularFile in
+          # joernio/joern's console/cpgcreation/package.scala. Keyed by the same identifiers
+          # accepted by joern-scan's --language flag. "ghidra" has no extension heuristic
+          # upstream either (it targets arbitrary compiled binaries), so it is intentionally
+          # left unvalidated here, same as an unrecognized language value.
+          declare -A LANGUAGE_PATTERNS=(
+            [c]='*.c *.cc *.cpp *.h *.hpp *.hh'
+            [newc]='*.c *.cc *.cpp *.h *.hpp *.hh'
+            [java]='*.jar *.war *.ear *.apk *.class'
+            [javasrc]='*.java'
+            [jssrc]='*.js *.ts *.jsx *.tsx package.json'
+            [javascript]='*.js *.ts *.jsx *.tsx package.json'
+            [kotlin]='*.kt'
+            [php]='*.php'
+            [pythonsrc]='*.py'
+            [python]='*.py'
+            [rubysrc]='*.rb'
+            [swiftsrc]='*.swift'
+            [golang]='*.go gopkg.lock gopkg.toml go.mod go.sum'
+            [csharp]='*.cs *.csproj'
+            [csharpsrc]='*.cs *.csproj'
+            [llvm]='*.bc *.ll'
+            [rust]='*.rs cargo.toml cargo.lock'
+            [abap]='*.abap'
+          )
+
+          # Checks whether scan-path contains a file matching any of the space-separated
+          # glob patterns in $1.
+          has_source_match() {
+            local -a name_args=()
+            local pattern
+            for pattern in $1; do
+              name_args+=(-o -iname "${pattern}")
+            done
+            [[ -n "$(find "${SCAN_PATH}" -type f \( "${name_args[@]:1}" \) -print -quit)" ]]
+          }
+
           args=()
           if [[ -n "${SCAN_LANGUAGE}" ]]; then
             args+=(--language "${SCAN_LANGUAGE}")
+            lang_key="${SCAN_LANGUAGE,,}"
+            lang_patterns="${LANGUAGE_PATTERNS[${lang_key}]:-}"
+            # Joern accepts an explicit --language without checking that scan-path
+            # actually contains matching source, so an unrelated or empty scan-path
+            # can still build an empty CPG and report a false-clean scan.
+            if [[ -n "${lang_patterns}" ]] && ! has_source_match "${lang_patterns}"; then
+              echo "::error::no source files matched by the '${SCAN_LANGUAGE}' frontend were found under scan-path"
+              exit 1
+            fi
           else
             # Joern silently falls back to the C frontend when auto-detection finds no
-            # match, producing an empty CPG and a false-clean scan. This mirrors
-            # guessLanguageForRegularFile in joernio/joern's console/cpgcreation/package.scala
-            # to reject scan paths with no file Joern can actually recognize.
-            if [[ -z "$(find "${SCAN_PATH}" -type f \( \
-                -iname '*.jar' -o -iname '*.war' -o -iname '*.ear' -o -iname '*.apk' \
-                -o -iname '*.java' -o -iname '*.class' -o -iname '*.kt' \
-                -o -iname '*.php' -o -iname '*.py' -o -iname '*.rb' -o -iname '*.swift' \
-                -o -iname '*.cs' -o -iname '*.csproj' \
-                -o -iname '*.go' -o -iname 'gopkg.lock' -o -iname 'gopkg.toml' -o -iname 'go.mod' -o -iname 'go.sum' \
-                -o -iname '*.bc' -o -iname '*.ll' \
-                -o -iname '*.js' -o -iname '*.ts' -o -iname '*.jsx' -o -iname '*.tsx' -o -iname 'package.json' \
-                -o -iname '*.c' -o -iname '*.cc' -o -iname '*.cpp' -o -iname '*.h' -o -iname '*.hpp' -o -iname '*.hh' \
-                -o -iname '*.rs' -o -iname 'cargo.toml' -o -iname 'cargo.lock' \
-                -o -iname '*.abap' \
-              \) -print -quit)" ]]; then
+            # match, producing an empty CPG and a false-clean scan.
+            if ! has_source_match "${LANGUAGE_PATTERNS[*]}"; then
               echo '::error::no source files matched by a known Joern frontend were found under scan-path; set the language input explicitly or verify scan-path'
               exit 1
             fi
           fi
+
           if [[ -n "${JOERN_SCAN_OPTIONS}" ]]; then
             read -r -a extra_args <<< "${JOERN_SCAN_OPTIONS}"
+            # Allow-list only scan-tuning flags. Anything else -- non-scan modes such as
+            # --dump/--list-query-names/--list-languages/--updatedb, --language (has its
+            # own input), --frontend-args, --help, or a bare positional path -- can make
+            # joern-scan exit 0 without analyzing scan-path at all, which the findings
+            # check below cannot detect.
+            expect_value=0
+            for extra_arg in "${extra_args[@]}"; do
+              if [[ "${expect_value}" -eq 1 ]]; then
+                expect_value=0
+                continue
+              fi
+              case "${extra_arg}" in
+                --names | --tags | --depth)
+                  expect_value=1
+                  ;;
+                --overwrite | --store)
+                  ;;
+                *)
+                  echo "::error::joern-scan-options contains an unsupported option '${extra_arg}'; only --names, --tags, --depth, --overwrite, and --store are allowed"
+                  exit 1
+                  ;;
+              esac
+            done
+            if [[ "${expect_value}" -eq 1 ]]; then
+              echo '::error::joern-scan-options ends with an option that requires a value'
+              exit 1
+            fi
             args+=("${extra_args[@]}")
           fi
+
           scan_log="${RUNNER_TEMP}/joern-scan.log"
           joern-scan "${args[@]}" -- "${SCAN_PATH}" 2>&1 | tee "${scan_log}"
           # "Error executing query" is logged via logger.warn (may carry a
@@ -143,6 +208,13 @@ jobs:
           # line start.
           if grep -q -E 'Error executing query|No queries matched current filter selection' "${scan_log}"; then
             echo '::error::joern-scan did not complete a full analysis (see log for query execution errors)'
+            exit 1
+          fi
+          # joern-scan only prints this line after a scan runs to completion
+          # (JoernScan.runScanPlugin's final println); a bypassed or aborted run
+          # leaves it out even with no error and zero findings.
+          if ! grep -q -F 'to explore interactively' "${scan_log}"; then
+            echo '::error::joern-scan did not report a completed scan (no completion message found in output)'
             exit 1
           fi
           n_findings="$(grep -c '^Result: ' "${scan_log}" || true)"
