@@ -66,11 +66,12 @@ jobs:
         with:
           distribution: temurin
           java-version: ${{ inputs.java-version }}
-      - name: Cache Joern
+      - name: Restore Joern cache
         if: inputs.enable-cache
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
+        id: joern-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
         with:
-          path: ~/.local/share/joern
+          path: ~/.local/share/joern/${{ env.JOERN_VERSION }}
           key: joern-${{ runner.os }}-${{ runner.arch }}-${{ env.JOERN_VERSION }}-${{ inputs.cache-salt }}
       - name: Install Joern and the default query database
         env:
@@ -78,7 +79,9 @@ jobs:
         run: |
           # shellcheck disable=SC2153
           [[ "${JOERN_VERSION}" =~ ^v[0-9]+(\.[0-9]+)*([._+-][A-Za-z0-9]+)*$ ]] || { echo "invalid JOERN_VERSION"; exit 1; }
-          joern_home="${HOME}/.local/share/joern"
+          # Version-qualified so a stale install from a different JOERN_VERSION on a
+          # persistent runner can never satisfy this check after a cache miss.
+          joern_home="${HOME}/.local/share/joern/${JOERN_VERSION}"
           if [[ ! -x "${joern_home}/joern-cli/joern-scan" ]]; then
             curl --fail --location --silent --show-error \
               --connect-timeout 30 --speed-limit 51200 --speed-time 60 \
@@ -91,6 +94,12 @@ jobs:
             "${joern_home}/joern-cli/joern-scan" --updatedb --dbversion "${JOERN_VERSION#v}"
           fi
           echo "${joern_home}/joern-cli" >> "${GITHUB_PATH}"
+      - name: Save Joern cache
+        if: inputs.enable-cache && steps.joern-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
+        with:
+          path: ~/.local/share/joern/${{ env.JOERN_VERSION }}
+          key: ${{ steps.joern-cache.outputs.cache-primary-key }}
       - name: Run joern-scan
         env:
           SCAN_PATH: ${{ inputs.scan-path }}
@@ -102,13 +111,40 @@ jobs:
           args=()
           if [[ -n "${SCAN_LANGUAGE}" ]]; then
             args+=(--language "${SCAN_LANGUAGE}")
+          else
+            # Joern silently falls back to the C frontend when auto-detection finds no
+            # match, producing an empty CPG and a false-clean scan. This mirrors
+            # guessLanguageForRegularFile in joernio/joern's console/cpgcreation/package.scala
+            # to reject scan paths with no file Joern can actually recognize.
+            if [[ -z "$(find "${SCAN_PATH}" -type f \( \
+                -iname '*.jar' -o -iname '*.war' -o -iname '*.ear' -o -iname '*.apk' \
+                -o -iname '*.java' -o -iname '*.class' -o -iname '*.kt' \
+                -o -iname '*.php' -o -iname '*.py' -o -iname '*.rb' -o -iname '*.swift' \
+                -o -iname '*.cs' -o -iname '*.csproj' \
+                -o -iname '*.go' -o -iname 'gopkg.lock' -o -iname 'gopkg.toml' -o -iname 'go.mod' -o -iname 'go.sum' \
+                -o -iname '*.bc' -o -iname '*.ll' \
+                -o -iname '*.js' -o -iname '*.ts' -o -iname '*.jsx' -o -iname '*.tsx' -o -iname 'package.json' \
+                -o -iname '*.c' -o -iname '*.cc' -o -iname '*.cpp' -o -iname '*.h' -o -iname '*.hpp' -o -iname '*.hh' \
+                -o -iname '*.rs' -o -iname 'cargo.toml' -o -iname 'cargo.lock' \
+                -o -iname '*.abap' \
+              \) -print -quit)" ]]; then
+              echo '::error::no source files matched by a known Joern frontend were found under scan-path; set the language input explicitly or verify scan-path'
+              exit 1
+            fi
           fi
           if [[ -n "${JOERN_SCAN_OPTIONS}" ]]; then
             read -r -a extra_args <<< "${JOERN_SCAN_OPTIONS}"
             args+=("${extra_args[@]}")
           fi
           scan_log="${RUNNER_TEMP}/joern-scan.log"
-          joern-scan "${args[@]}" -- "${SCAN_PATH}" | tee "${scan_log}"
+          joern-scan "${args[@]}" -- "${SCAN_PATH}" 2>&1 | tee "${scan_log}"
+          # "Error executing query" is logged via logger.warn (may carry a
+          # timestamp/level prefix); match as a substring rather than anchoring to
+          # line start.
+          if grep -q -E 'Error executing query|No queries matched current filter selection' "${scan_log}"; then
+            echo '::error::joern-scan did not complete a full analysis (see log for query execution errors)'
+            exit 1
+          fi
           n_findings="$(grep -c '^Result: ' "${scan_log}" || true)"
           if [[ "${n_findings}" -gt 0 ]]; then
             if [[ "${FAIL_ON_FINDINGS}" == 'true' ]]; then
