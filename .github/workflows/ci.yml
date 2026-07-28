@@ -23,6 +23,9 @@ on:
           - update
         description: Choose the workflow to run
         default: lint
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ inputs.workflow || github.event.pull_request.number || github.ref }}-${{ github.event_name == 'workflow_dispatch' && github.run_id || '' }}
+  cancel-in-progress: ${{ github.event_name != 'workflow_dispatch' }}
 permissions:
   contents: read
 defaults:

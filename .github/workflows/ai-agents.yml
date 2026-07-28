@@ -34,6 +34,9 @@ jobs:
       && (! github.event.pull_request.draft)
       && (! startsWith(github.head_ref, 'dependabot/'))
       && (! startsWith(github.head_ref, 'renovate/'))
+    concurrency:
+      group: ${{ github.workflow }}-claude-code-review-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
     permissions:
       contents: read
       pull-requests: write
@@ -63,6 +66,9 @@ jobs:
         && contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.issue.author_association)
         && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude'))
       )
+    concurrency:
+      group: ${{ github.workflow }}-claude-code-bot-${{ github.event.pull_request.number || github.event.issue.number || github.run_id }}
+      cancel-in-progress: true
     permissions:
       contents: write
       pull-requests: write
@@ -80,6 +86,9 @@ jobs:
       && (! github.event.pull_request.draft)
       && (! startsWith(github.head_ref, 'dependabot/'))
       && (! startsWith(github.head_ref, 'renovate/'))
+    concurrency:
+      group: ${{ github.workflow }}-opencode-review-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
     permissions:
       contents: read
       pull-requests: write
@@ -110,6 +119,9 @@ jobs:
           || (contains(github.event.issue.body, '/opencode') || contains(github.event.issue.title, '/opencode'))
         )
       )
+    concurrency:
+      group: ${{ github.workflow }}-opencode-bot-${{ github.event.pull_request.number || github.event.issue.number || github.run_id }}
+      cancel-in-progress: true
     permissions:
       contents: read
       pull-requests: write
