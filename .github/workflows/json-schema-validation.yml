@@ -26,8 +26,8 @@ on:
       pnpm-version:
         required: false
         type: string
-        description: Version of pnpm to use for JSON linting
-        default: latest
+        description: Optional pnpm version override for JSON linting
+        default: ""
       lint-before-validation:
         required: false
         type: boolean
