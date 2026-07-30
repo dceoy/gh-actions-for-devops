@@ -6,7 +6,7 @@ on:
       working-directory:
         required: false
         type: string
-        description: Relative path to the Go module or workspace
+        description: Relative path to the Go module or go.work workspace
         default: .
       go-version:
         required: false
@@ -16,7 +16,7 @@ on:
       test-package-pattern:
         required: false
         type: string
-        description: Package pattern passed to go vet and go test
+        description: Package pattern passed to go vet and go test; ./... expands to all workspace modules
         default: ./...
       race-enabled:
         required: false
@@ -38,6 +38,11 @@ on:
         type: boolean
         description: Upload the generated coverage profile
         default: false
+      coverage-artifact-name:
+        required: false
+        type: string
+        description: Coverage artifact name; set a unique value for each workflow invocation
+        default: go-coverage
       coverage-retention-days:
         required: false
         type: number
@@ -51,7 +56,7 @@ on:
       build-package-pattern:
         required: false
         type: string
-        description: Package pattern passed to go build
+        description: Package pattern passed to go build; ./... expands to all workspace modules
         default: ./...
       runs-on:
         required: false
@@ -85,6 +90,7 @@ jobs:
           GO_TEST_PACKAGE_PATTERN: ${{ inputs.test-package-pattern }}
           GO_BUILD_PACKAGE_PATTERN: ${{ inputs.build-package-pattern }}
           GO_COVERAGE_PROFILE: ${{ inputs.coverage-profile }}
+          GO_COVERAGE_ARTIFACT_NAME: ${{ inputs.coverage-artifact-name }}
           GO_COVERAGE_RETENTION_DAYS: ${{ inputs.coverage-retention-days }}
         run: |
           validate_relative_path() {
@@ -111,6 +117,10 @@ jobs:
           validate_relative_path "coverage-profile" "${GO_COVERAGE_PROFILE}"
           validate_package_pattern "test-package-pattern" "${GO_TEST_PACKAGE_PATTERN}"
           validate_package_pattern "build-package-pattern" "${GO_BUILD_PACKAGE_PATTERN}"
+          if [[ -z "${GO_COVERAGE_ARTIFACT_NAME}" || ! "${GO_COVERAGE_ARTIFACT_NAME}" =~ ^[A-Za-z0-9._-]+$ ]]; then
+            echo "::error::coverage-artifact-name must contain only letters, digits, periods, underscores, and hyphens"
+            exit 1
+          fi
           if [[ ! "${GO_COVERAGE_RETENTION_DAYS}" =~ ^[0-9]+$ ]] \
             || ((GO_COVERAGE_RETENTION_DAYS < 1 || GO_COVERAGE_RETENTION_DAYS > 90)); then
             echo "::error::coverage-retention-days must be an integer from 1 through 90"
@@ -142,7 +152,15 @@ jobs:
         env:
           GO_TEST_PACKAGE_PATTERN: ${{ inputs.test-package-pattern }}
         run: |
-          go vet "${GO_TEST_PACKAGE_PATTERN}"
+          package_patterns=("${GO_TEST_PACKAGE_PATTERN}")
+          if [[ "${GO_TEST_PACKAGE_PATTERN}" == "./..." && -f go.work ]]; then
+            package_patterns=()
+            while IFS= read -r package_pattern; do
+              [[ -n "${package_pattern}" ]] && package_patterns+=("${package_pattern}")
+            done < <(go list -m -f '{{if .Main}}{{.Dir}}/...{{end}}')
+            [[ ${#package_patterns[@]} -gt 0 ]] || { echo "::error::go.work contains no modules"; exit 1; }
+          fi
+          go vet "${package_patterns[@]}"
       - name: Run tests
         working-directory: ${{ inputs.working-directory }}
         env:
@@ -151,6 +169,14 @@ jobs:
           GO_TEST_COVERAGE: ${{ inputs.coverage-enabled }}
           GO_COVERAGE_PROFILE: ${{ inputs.coverage-profile }}
         run: |
+          package_patterns=("${GO_TEST_PACKAGE_PATTERN}")
+          if [[ "${GO_TEST_PACKAGE_PATTERN}" == "./..." && -f go.work ]]; then
+            package_patterns=()
+            while IFS= read -r package_pattern; do
+              [[ -n "${package_pattern}" ]] && package_patterns+=("${package_pattern}")
+            done < <(go list -m -f '{{if .Main}}{{.Dir}}/...{{end}}')
+            [[ ${#package_patterns[@]} -gt 0 ]] || { echo "::error::go.work contains no modules"; exit 1; }
+          fi
           test_args=(test)
           if [[ "${GO_TEST_RACE}" == "true" ]]; then
             test_args+=(-race)
@@ -159,13 +185,13 @@ jobs:
             mkdir -p "$(dirname -- "${GO_COVERAGE_PROFILE}")"
             test_args+=("-coverprofile=${GO_COVERAGE_PROFILE}" -covermode=atomic)
           fi
-          test_args+=("${GO_TEST_PACKAGE_PATTERN}")
+          test_args+=("${package_patterns[@]}")
           go "${test_args[@]}"
       - name: Upload coverage profile
         if: inputs.coverage-enabled && inputs.upload-coverage
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
-          name: go-coverage
+          name: ${{ inputs.coverage-artifact-name }}
           path: ${{ inputs.working-directory }}/${{ inputs.coverage-profile }}
           if-no-files-found: error
           retention-days: ${{ inputs.coverage-retention-days }}
@@ -175,4 +201,12 @@ jobs:
         env:
           GO_BUILD_PACKAGE_PATTERN: ${{ inputs.build-package-pattern }}
         run: |
-          go build "${GO_BUILD_PACKAGE_PATTERN}"
+          package_patterns=("${GO_BUILD_PACKAGE_PATTERN}")
+          if [[ "${GO_BUILD_PACKAGE_PATTERN}" == "./..." && -f go.work ]]; then
+            package_patterns=()
+            while IFS= read -r package_pattern; do
+              [[ -n "${package_pattern}" ]] && package_patterns+=("${package_pattern}")
+            done < <(go list -m -f '{{if .Main}}{{.Dir}}/...{{end}}')
+            [[ ${#package_patterns[@]} -gt 0 ]] || { echo "::error::go.work contains no modules"; exit 1; }
+          fi
+          go build "${package_patterns[@]}"

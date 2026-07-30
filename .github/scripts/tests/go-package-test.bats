@@ -124,6 +124,7 @@ EOF
     GO_TEST_PACKAGE_PATTERN=./... \
     GO_BUILD_PACKAGE_PATTERN=./... \
     GO_COVERAGE_PROFILE=reports/coverage.out \
+    GO_COVERAGE_ARTIFACT_NAME=go-coverage \
     GO_COVERAGE_RETENTION_DAYS=7
   [ "${status}" -eq 0 ]
 
@@ -142,6 +143,41 @@ EOF
   [ -f "${project}/reports/coverage.out" ]
 }
 
+@test "default package patterns cover every module in a Go workspace" {
+  workspace="${TEST_TEMP}/workspace"
+  module_a="${workspace}/module-a"
+  module_b="${workspace}/module-b"
+  prepare_fixture success "${module_a}"
+  prepare_fixture success "${module_b}"
+  go -C "${module_a}" mod edit -module=example.com/module-a
+  go -C "${module_b}" mod edit -module=example.com/module-b
+  go -C "${workspace}" work init ./module-a ./module-b
+
+  run_step "Run go vet" "${workspace}" GO_TEST_PACKAGE_PATTERN=./...
+  [ "${status}" -eq 0 ]
+
+  run_step "Run tests" "${workspace}" \
+    GO_TEST_PACKAGE_PATTERN=./... \
+    GO_TEST_RACE=false \
+    GO_TEST_COVERAGE=false \
+    GO_COVERAGE_PROFILE=coverage.out
+  [ "${status}" -eq 0 ]
+
+  run_step "Verify build" "${workspace}" GO_BUILD_PACKAGE_PATTERN=./...
+  [ "${status}" -eq 0 ]
+}
+
+@test "coverage artifacts can be named uniquely per workflow invocation" {
+  run yq -r '.on.workflow_call.inputs."coverage-artifact-name".default' "${WORKFLOW}"
+  [ "${status}" -eq 0 ]
+  [ "${output}" = "go-coverage" ]
+
+  run yq -r '.jobs.test.steps[] | select(.name == "Upload coverage profile") | .with.name' "${WORKFLOW}"
+  [ "${status}" -eq 0 ]
+  # shellcheck disable=SC2016
+  [ "${output}" = '${{ inputs.coverage-artifact-name }}' ]
+}
+
 @test "flag-like and parent-directory package patterns are rejected" {
   repository="${TEST_TEMP}/repository"
   prepare_fixture success "${repository}"
@@ -151,8 +187,25 @@ EOF
     GO_TEST_PACKAGE_PATTERN=-x \
     GO_BUILD_PACKAGE_PATTERN=../... \
     GO_COVERAGE_PROFILE=coverage.out \
+    GO_COVERAGE_ARTIFACT_NAME=go-coverage \
     GO_COVERAGE_RETENTION_DAYS=7
 
   [ "${status}" -ne 0 ]
   [[ "${output}" == *"test-package-pattern"* ]]
+}
+
+@test "unsafe coverage artifact names are rejected" {
+  repository="${TEST_TEMP}/repository"
+  prepare_fixture success "${repository}"
+
+  run_step "Validate inputs" "${repository}" \
+    GO_WORKING_DIRECTORY=. \
+    GO_TEST_PACKAGE_PATTERN=./... \
+    GO_BUILD_PACKAGE_PATTERN=./... \
+    GO_COVERAGE_PROFILE=coverage.out \
+    'GO_COVERAGE_ARTIFACT_NAME=coverage/name' \
+    GO_COVERAGE_RETENTION_DAYS=7
+
+  [ "${status}" -ne 0 ]
+  [[ "${output}" == *"coverage-artifact-name"* ]]
 }
