@@ -167,6 +167,36 @@ EOF
   [ "${status}" -eq 0 ]
 }
 
+@test "go workspace cache configuration covers nested module lockfiles" {
+  workspace="${TEST_TEMP}/workspace"
+  module_a="${workspace}/module-a"
+  module_b="${workspace}/module-b"
+  prepare_fixture success "${module_a}"
+  prepare_fixture success "${module_b}"
+  go -C "${module_a}" mod edit -module=example.com/module-a
+  go -C "${module_b}" mod edit -module=example.com/module-b
+  go -C "${workspace}" work init ./module-a ./module-b
+  : > "${module_a}/go.sum"
+  : > "${module_b}/go.sum"
+
+  mapfile -t patterns < <(
+    yq -r '.jobs.test.steps[] | select(.name == "Set up Go") | .with."cache-dependency-path"' "${WORKFLOW}" \
+      | sed "s#\${{ inputs.working-directory }}#${workspace}#g"
+  )
+
+  shopt -s globstar nullglob
+  matches=()
+  for pattern in "${patterns[@]}"; do
+    for match in ${pattern}; do
+      matches+=("${match}")
+    done
+  done
+  shopt -u globstar nullglob
+
+  [[ " ${matches[*]} " == *" ${module_a}/go.sum "* ]]
+  [[ " ${matches[*]} " == *" ${module_b}/go.sum "* ]]
+}
+
 @test "coverage artifacts can be named uniquely per workflow invocation" {
   run yq -r '.on.workflow_call.inputs."coverage-artifact-name".default' "${WORKFLOW}"
   [ "${status}" -eq 0 ]

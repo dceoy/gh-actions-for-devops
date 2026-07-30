@@ -84,7 +84,7 @@ permissions:
   id-token: write
   pages: write
 concurrency:
-  group: pages
+  group: hugo-pages
   cancel-in-progress: false
 defaults:
   run:
@@ -92,6 +92,8 @@ defaults:
     working-directory: .
 jobs:
   build:
+    permissions:
+      contents: read
     runs-on: ${{ inputs.runs-on }}
     steps:
       - name: Checkout repository

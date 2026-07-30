@@ -134,9 +134,9 @@ jobs:
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e  # v7.0.0
         with:
           go-version: ${{ inputs.go-version }}
-          cache: ${{ hashFiles(format('{0}/go.sum', inputs.working-directory), format('{0}/go.work.sum', inputs.working-directory)) != '' }}
+          cache: ${{ hashFiles(format('{0}/**/go.sum', inputs.working-directory), format('{0}/go.work.sum', inputs.working-directory)) != '' }}
           cache-dependency-path: |
-            ${{ inputs.working-directory }}/go.sum
+            ${{ inputs.working-directory }}/**/go.sum
             ${{ inputs.working-directory }}/go.work.sum
       - name: Verify formatting
         working-directory: ${{ inputs.working-directory }}
