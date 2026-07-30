@@ -1,0 +1,3 @@
+module example.com/formatfailure
+
+go 1.22

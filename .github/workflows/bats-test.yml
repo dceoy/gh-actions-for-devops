@@ -27,8 +27,8 @@ on:
       pnpm-version:
         required: false
         type: string
-        description: Version of pnpm to use
-        default: latest
+        description: Optional pnpm version override
+        default: ""
       enable-cache:
         required: false
         type: boolean
@@ -78,6 +78,7 @@ jobs:
         uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271  # v6.0.9
         with:
           version: ${{ inputs.pnpm-version }}
+          package_json_file: package.json
       - name: Get pnpm details
         id: setup-pnpm
         run: |

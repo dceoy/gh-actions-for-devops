@@ -1,0 +1,5 @@
+package testfailure
+
+func Enabled() bool {
+	return false
+}

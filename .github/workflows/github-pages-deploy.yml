@@ -1,0 +1,86 @@
+---
+name: Deploy an artifact to GitHub Pages
+on:
+  workflow_call:
+    inputs:
+      artifact-name:
+        required: false
+        type: string
+        description: Name of the previously uploaded GitHub Pages artifact
+        default: github-pages
+      environment:
+        required: false
+        type: string
+        description: GitHub Pages deployment environment
+        default: github-pages
+      deployment-attempts:
+        required: false
+        type: number
+        description: Number of deployment attempts, from 1 through 3
+        default: 3
+      runs-on:
+        required: false
+        type: string
+        description: GitHub Actions runner to use
+        default: ubuntu-latest
+      timeout-minutes:
+        required: false
+        type: number
+        description: Maximum duration of the deployment job
+        default: 15
+    outputs:
+      page-url:
+        description: URL of the deployed GitHub Pages site
+        value: ${{ jobs.deploy.outputs.page-url }}
+permissions:
+  id-token: write
+  pages: write
+concurrency:
+  group: pages
+  cancel-in-progress: false
+defaults:
+  run:
+    shell: bash -euo pipefail {0}
+    working-directory: .
+jobs:
+  deploy:
+    runs-on: ${{ inputs.runs-on }}
+    timeout-minutes: ${{ inputs.timeout-minutes }}
+    environment:
+      name: ${{ inputs.environment }}
+      url: ${{ steps.deploy3.outputs.page_url || steps.deploy2.outputs.page_url || steps.deploy1.outputs.page_url }}
+    outputs:
+      page-url: ${{ steps.deploy3.outputs.page_url || steps.deploy2.outputs.page_url || steps.deploy1.outputs.page_url }}
+    steps:
+      - name: Validate deployment inputs
+        env:
+          ARTIFACT_NAME: ${{ inputs.artifact-name }}
+          DEPLOYMENT_ATTEMPTS: ${{ inputs.deployment-attempts }}
+        run: |
+          if [[ ! "${ARTIFACT_NAME}" =~ ^[A-Za-z0-9._-]+$ ]]; then
+            echo "::error::artifact-name must contain only letters, numbers, periods, underscores, and hyphens"
+            exit 1
+          fi
+          if [[ ! "${DEPLOYMENT_ATTEMPTS}" =~ ^[1-3]$ ]]; then
+            echo "::error::deployment-attempts must be an integer from 1 through 3"
+            exit 1
+          fi
+      - name: Deploy to GitHub Pages
+        id: deploy1
+        continue-on-error: ${{ inputs.deployment-attempts > 1 }}
+        uses: actions/deploy-pages@cd2ce8fcbc39b97be8ca5fce6e763baed58fa128  # v5.0.0
+        with:
+          artifact_name: ${{ inputs.artifact-name }}
+      - name: Retry GitHub Pages deployment
+        id: deploy2
+        if: inputs.deployment-attempts >= 2 && steps.deploy1.outcome == 'failure'
+        continue-on-error: ${{ inputs.deployment-attempts > 2 }}
+        uses: actions/deploy-pages@cd2ce8fcbc39b97be8ca5fce6e763baed58fa128  # v5.0.0
+        with:
+          artifact_name: ${{ inputs.artifact-name }}
+      - name: Retry GitHub Pages deployment once more
+        id: deploy3
+        if: inputs.deployment-attempts == 3 && steps.deploy2.outcome == 'failure'
+        uses: actions/deploy-pages@cd2ce8fcbc39b97be8ca5fce6e763baed58fa128  # v5.0.0
+        with:
+          artifact_name: ${{ inputs.artifact-name }}

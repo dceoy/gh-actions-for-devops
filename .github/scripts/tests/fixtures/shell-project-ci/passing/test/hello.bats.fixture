@@ -1,0 +1,8 @@
+#!/usr/bin/env bats
+
+@test "prints a greeting" {
+  run bash "./lib/hello world.sh" "shell project"
+
+  [ "${status}" -eq 0 ]
+  [ "${output}" = "hello shell project" ]
+}

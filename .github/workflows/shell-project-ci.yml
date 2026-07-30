@@ -1,0 +1,225 @@
+---
+name: Run shell project CI
+on:
+  workflow_call:
+    inputs:
+      search-path:
+        required: false
+        type: string
+        description: Relative path containing the shell project
+        default: .
+      shell-file-names:
+        required: false
+        type: string
+        description: Newline-separated shell file pathspecs passed to git ls-files
+        default: |
+          *.sh
+          *.bash
+          *.bats
+      shfmt-file-names:
+        required: false
+        type: string
+        description: Newline-separated shfmt file pathspecs passed to git ls-files
+        default: |
+          *.sh
+          *.bash
+          *.bats
+      shfmt-indent:
+        required: false
+        type: number
+        description: Number of spaces used for indentation, with 0 selecting tabs
+        default: 2
+      shfmt-binary-next-line:
+        required: false
+        type: boolean
+        description: Place binary operators at the start of the next line
+        default: true
+      shfmt-case-indent:
+        required: false
+        type: boolean
+        description: Indent case statement bodies
+        default: true
+      shfmt-space-redirects:
+        required: false
+        type: boolean
+        description: Add a space after redirect operators
+        default: true
+      bats-test-paths:
+        required: false
+        type: string
+        description: Newline-separated Bats test pathspecs passed to git ls-files
+        default: |
+          *.bats
+      bats-version:
+        required: false
+        type: string
+        description: Bats version to install
+        # renovate: datasource=github-releases depName=bats-core/bats-core
+        default: "1.13.0"
+      install-bats-libraries:
+        required: false
+        type: boolean
+        description: Install bats-support, bats-assert, bats-detik, and bats-file
+        default: false
+      runs-on:
+        required: false
+        type: string
+        description: GitHub Actions runner to use
+        default: ubuntu-slim
+      timeout-minutes:
+        required: false
+        type: number
+        description: Maximum duration of the CI job
+        default: 15
+permissions:
+  contents: read
+defaults:
+  run:
+    shell: bash -euo pipefail {0}
+    working-directory: .
+jobs:
+  test:
+    runs-on: ${{ inputs.runs-on }}
+    timeout-minutes: ${{ inputs.timeout-minutes }}
+    env:
+      # renovate: datasource=github-releases depName=koalaman/shellcheck
+      SHELLCHECK_VERSION: v0.10.0
+      # renovate: datasource=github-releases depName=mvdan/sh
+      SHFMT_VERSION: v3.12.0
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Validate inputs
+        env:
+          SEARCH_PATH: ${{ inputs.search-path }}
+          SHFMT_INDENT: ${{ inputs.shfmt-indent }}
+          BATS_VERSION: ${{ inputs.bats-version }}
+        run: |
+          if [[ -z "${SEARCH_PATH}" || "${SEARCH_PATH}" == /* || "${SEARCH_PATH}" == ".." || "${SEARCH_PATH}" == ../* || "${SEARCH_PATH}" == */../* || "${SEARCH_PATH}" == */.. || "${SEARCH_PATH}" == *$'\n'* ]]; then
+            echo "::error::search-path must be a relative path without parent-directory components or newlines"
+            exit 1
+          fi
+          if [[ ! -d "${SEARCH_PATH}" ]]; then
+            echo "::error::search-path does not exist: ${SEARCH_PATH}"
+            exit 1
+          fi
+          if [[ ! "${SHFMT_INDENT}" =~ ^[0-8]$ ]]; then
+            echo "::error::shfmt-indent must be an integer from 0 through 8"
+            exit 1
+          fi
+          if [[ ! "${BATS_VERSION}" =~ ^[0-9]+(\.[0-9]+){1,2}$ ]]; then
+            echo "::error::bats-version must be a numeric release version"
+            exit 1
+          fi
+      - name: Install ShellCheck when unavailable
+        env:
+          SHELLCHECK_VERSION: ${{ env.SHELLCHECK_VERSION }}
+        run: |
+          [[ "${SHELLCHECK_VERSION}" =~ ^v[0-9]+(\.[0-9]+)*$ ]] || { echo "::error::invalid SHELLCHECK_VERSION"; exit 1; }
+          if command -v shellcheck >/dev/null; then
+            exit 0
+          fi
+          [[ "${RUNNER_OS}" == "Linux" ]] || { echo "::error::automatic ShellCheck installation requires Linux"; exit 1; }
+          arch=x86_64
+          [[ "${RUNNER_ARCH}" == "ARM64" ]] && arch=aarch64
+          mkdir -p "${HOME}/.local/bin"
+          curl --fail --location --silent --show-error \
+            "https://github.com/koalaman/shellcheck/releases/download/${SHELLCHECK_VERSION}/shellcheck-${SHELLCHECK_VERSION}.linux.${arch}.tar.xz" \
+            | tar -xJ --strip-components=1 -C "${RUNNER_TEMP}" "shellcheck-${SHELLCHECK_VERSION}/shellcheck"
+          install -m 0755 "${RUNNER_TEMP}/shellcheck" "${HOME}/.local/bin/shellcheck"
+          echo "${HOME}/.local/bin" >> "${GITHUB_PATH}"
+      - name: Install shfmt when unavailable
+        env:
+          SHFMT_VERSION: ${{ env.SHFMT_VERSION }}
+        run: |
+          [[ "${SHFMT_VERSION}" =~ ^v[0-9]+(\.[0-9]+)*$ ]] || { echo "::error::invalid SHFMT_VERSION"; exit 1; }
+          if command -v shfmt >/dev/null; then
+            exit 0
+          fi
+          [[ "${RUNNER_OS}" == "Linux" ]] || { echo "::error::automatic shfmt installation requires Linux"; exit 1; }
+          arch=amd64
+          [[ "${RUNNER_ARCH}" == "ARM64" ]] && arch=arm64
+          asset="shfmt_${SHFMT_VERSION}_linux_${arch}"
+          mkdir -p "${HOME}/.local/bin"
+          curl --fail --location --silent --show-error \
+            --output "${RUNNER_TEMP}/${asset}" \
+            "https://github.com/mvdan/sh/releases/download/${SHFMT_VERSION}/${asset}"
+          curl --fail --location --silent --show-error \
+            "https://github.com/mvdan/sh/releases/download/${SHFMT_VERSION}/sha256sums.txt" \
+            | grep -F "  ${asset}" \
+            | (cd "${RUNNER_TEMP}" && sha256sum --check --strict -)
+          install -m 0755 "${RUNNER_TEMP}/${asset}" "${HOME}/.local/bin/shfmt"
+          echo "${HOME}/.local/bin" >> "${GITHUB_PATH}"
+      - name: Run ShellCheck
+        working-directory: ${{ inputs.search-path }}
+        env:
+          FILE_NAMES: ${{ inputs.shell-file-names }}
+        run: |
+          echo "::group::ShellCheck"
+          pathspecs=()
+          while IFS= read -r pathspec; do
+            [[ -n "${pathspec}" ]] && pathspecs+=("${pathspec}")
+          done <<< "${FILE_NAMES}"
+          [[ ${#pathspecs[@]} -gt 0 ]] || { echo "::error::shell-file-names produced no pathspecs"; exit 1; }
+          files=()
+          while IFS= read -r -d '' file; do
+            files+=("./${file}")
+          done < <(git ls-files -z -- "${pathspecs[@]}")
+          [[ ${#files[@]} -gt 0 ]] || { echo "::error::ShellCheck selected no tracked files"; exit 1; }
+          shellcheck --external-sources -- "${files[@]}"
+          echo "::endgroup::"
+      - name: Check formatting with shfmt
+        working-directory: ${{ inputs.search-path }}
+        env:
+          FILE_NAMES: ${{ inputs.shfmt-file-names }}
+          SHFMT_INDENT: ${{ inputs.shfmt-indent }}
+          SHFMT_BINARY_NEXT_LINE: ${{ inputs.shfmt-binary-next-line }}
+          SHFMT_CASE_INDENT: ${{ inputs.shfmt-case-indent }}
+          SHFMT_SPACE_REDIRECTS: ${{ inputs.shfmt-space-redirects }}
+        run: |
+          echo "::group::shfmt"
+          pathspecs=()
+          while IFS= read -r pathspec; do
+            [[ -n "${pathspec}" ]] && pathspecs+=("${pathspec}")
+          done <<< "${FILE_NAMES}"
+          [[ ${#pathspecs[@]} -gt 0 ]] || { echo "::error::shfmt-file-names produced no pathspecs"; exit 1; }
+          files=()
+          while IFS= read -r -d '' file; do
+            files+=("./${file}")
+          done < <(git ls-files -z -- "${pathspecs[@]}")
+          [[ ${#files[@]} -gt 0 ]] || { echo "::error::shfmt selected no tracked files"; exit 1; }
+          shfmt_args=(-d -i "${SHFMT_INDENT}")
+          [[ "${SHFMT_BINARY_NEXT_LINE}" == "true" ]] && shfmt_args+=(-bn)
+          [[ "${SHFMT_CASE_INDENT}" == "true" ]] && shfmt_args+=(-ci)
+          [[ "${SHFMT_SPACE_REDIRECTS}" == "true" ]] && shfmt_args+=(-sr)
+          shfmt "${shfmt_args[@]}" "${files[@]}"
+          echo "::endgroup::"
+      - name: Set up Bats
+        uses: bats-core/bats-action@77d6fb60505b4d0d1d73e48bd035b55074bbfb43  # 4.0.0
+        with:
+          bats-version: ${{ inputs.bats-version }}
+          support-install: ${{ inputs.install-bats-libraries }}
+          assert-install: ${{ inputs.install-bats-libraries }}
+          detik-install: ${{ inputs.install-bats-libraries }}
+          file-install: ${{ inputs.install-bats-libraries }}
+      - name: Run Bats tests
+        working-directory: ${{ inputs.search-path }}
+        env:
+          TEST_PATHS: ${{ inputs.bats-test-paths }}
+        run: |
+          echo "::group::Bats"
+          pathspecs=()
+          while IFS= read -r pathspec; do
+            [[ -n "${pathspec}" ]] && pathspecs+=("${pathspec}")
+          done <<< "${TEST_PATHS}"
+          [[ ${#pathspecs[@]} -gt 0 ]] || { echo "::error::bats-test-paths produced no pathspecs"; exit 1; }
+          files=()
+          while IFS= read -r -d '' file; do
+            files+=("./${file}")
+          done < <(git ls-files -z -- "${pathspecs[@]}")
+          [[ ${#files[@]} -gt 0 ]] || { echo "::error::Bats selected no tracked test files"; exit 1; }
+          bats "${files[@]}"
+          echo "::endgroup::"

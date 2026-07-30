@@ -20,6 +20,100 @@ jobs:
 
 For production use, replace `@main` with a release tag or commit SHA. Pass sensitive values through `secrets:`, never `with:`. Cache-enabled workflows document options such as `enable-cache`, `cache-dependency-path`, and `cache-salt` in their workflow files.
 
+### GitHub Pages
+
+For a conventional Hugo site, call the combined build and deployment workflow:
+
+```yaml
+jobs:
+  deploy:
+    permissions:
+      contents: read
+      id-token: write
+      pages: write
+    uses: dceoy/gh-actions-for-devops/.github/workflows/hugo-deploy-to-gh-pages.yml@main
+```
+
+For a custom build, upload a Pages artifact in one job and reuse only the deployment contract:
+
+```yaml
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: ./scripts/build-site.sh
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: public
+
+  deploy:
+    needs: build
+    permissions:
+      id-token: write
+      pages: write
+    uses: dceoy/gh-actions-for-devops/.github/workflows/github-pages-deploy.yml@main
+```
+
+### Go quality checks
+
+Keep generic correctness checks separate from linting and vulnerability analysis, and retain repository-specific validation in a local job:
+
+```yaml
+jobs:
+  lint-and-scan:
+    permissions:
+      contents: read
+      security-events: write
+    uses: dceoy/gh-actions-for-devops/.github/workflows/go-package-lint-and-scan.yml@main
+
+  test:
+    permissions:
+      contents: read
+    uses: dceoy/gh-actions-for-devops/.github/workflows/go-package-test.yml@main
+    with:
+      race-enabled: true
+      coverage-enabled: true
+      upload-coverage: true
+
+  validate-config:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: go run ./cmd/example validate ./config.yml
+```
+
+### Shell project CI
+
+Replace a small shell project’s combined `make check` job with one reusable workflow:
+
+```yaml
+jobs:
+  check:
+    permissions:
+      contents: read
+    uses: dceoy/gh-actions-for-devops/.github/workflows/shell-project-ci.yml@main
+    with:
+      shell-file-names: |
+        bin/*.sh
+        lib/*.bash
+        test/*.bats
+      shfmt-file-names: |
+        bin/*.sh
+        lib/*.bash
+        test/*.bats
+      bats-test-paths: test/*.bats
+      shfmt-indent: 2
+```
+
 ## Reusable Workflows
 
 Each workflow below exposes `workflow_call`; see its file for supported inputs, secrets, permissions, and defaults.
@@ -45,9 +139,11 @@ Each workflow below exposes `workflow_call`; see its file for supported inputs, 
 | [github-actions-lint-and-scan.yml](.github/workflows/github-actions-lint-and-scan.yml)                           | Lint and security scan for GitHub Actions workflows and actions   |
 | [github-codeql-analysis.yml](.github/workflows/github-codeql-analysis.yml)                                       | GitHub CodeQL Analysis                                            |
 | [github-major-version-tag.yml](.github/workflows/github-major-version-tag.yml)                                   | Major version tag on GitHub                                       |
+| [github-pages-deploy.yml](.github/workflows/github-pages-deploy.yml)                                             | Deploy an artifact to GitHub Pages                                |
 | [github-pr-branch-aggregation.yml](.github/workflows/github-pr-branch-aggregation.yml)                           | Aggregation of open pull request branches                         |
 | [github-release.yml](.github/workflows/github-release.yml)                                                       | Release on GitHub                                                 |
 | [go-package-lint-and-scan.yml](.github/workflows/go-package-lint-and-scan.yml)                                   | Lint and security scan for Go                                     |
+| [go-package-test.yml](.github/workflows/go-package-test.yml)                                                     | Test a Go package                                                 |
 | [html-lint-and-scan.yml](.github/workflows/html-lint-and-scan.yml)                                               | Lint and scan for HTML/CSS                                        |
 | [hugo-deploy-to-gh-pages.yml](.github/workflows/hugo-deploy-to-gh-pages.yml)                                     | Build and deployment of Hugo site to GitHub Pages                 |
 | [joern-scan.yml](.github/workflows/joern-scan.yml)                                                               | Static analysis with Joern                                        |
@@ -67,6 +163,7 @@ Each workflow below exposes `workflow_call`; see its file for supported inputs, 
 | [r-package-format-and-pr.yml](.github/workflows/r-package-format-and-pr.yml)                                     | Formatting for R                                                  |
 | [r-package-lint.yml](.github/workflows/r-package-lint.yml)                                                       | Lint for R                                                        |
 | [shell-lint.yml](.github/workflows/shell-lint.yml)                                                               | Lint for Shell                                                    |
+| [shell-project-ci.yml](.github/workflows/shell-project-ci.yml)                                                   | Run shell project CI                                              |
 | [speckit-init.yml](.github/workflows/speckit-init.yml)                                                           | Spec Kit initialization                                           |
 | [terraform-deploy-to-aws.yml](.github/workflows/terraform-deploy-to-aws.yml)                                     | Deployment of AWS resources using Terraform                       |
 | [terraform-format-and-pr.yml](.github/workflows/terraform-format-and-pr.yml)                                     | Formatting for Terraform                                          |

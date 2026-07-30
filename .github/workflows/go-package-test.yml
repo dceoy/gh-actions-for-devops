@@ -1,0 +1,178 @@
+---
+name: Test a Go package
+on:
+  workflow_call:
+    inputs:
+      working-directory:
+        required: false
+        type: string
+        description: Relative path to the Go module or workspace
+        default: .
+      go-version:
+        required: false
+        type: string
+        description: Go version to use
+        default: stable
+      test-package-pattern:
+        required: false
+        type: string
+        description: Package pattern passed to go vet and go test
+        default: ./...
+      race-enabled:
+        required: false
+        type: boolean
+        description: Enable the race detector during tests
+        default: true
+      coverage-enabled:
+        required: false
+        type: boolean
+        description: Generate a coverage profile during tests
+        default: true
+      coverage-profile:
+        required: false
+        type: string
+        description: Relative path for the generated coverage profile
+        default: coverage.out
+      upload-coverage:
+        required: false
+        type: boolean
+        description: Upload the generated coverage profile
+        default: false
+      coverage-retention-days:
+        required: false
+        type: number
+        description: Number of days to retain the coverage artifact
+        default: 7
+      build-enabled:
+        required: false
+        type: boolean
+        description: Run go build after tests
+        default: true
+      build-package-pattern:
+        required: false
+        type: string
+        description: Package pattern passed to go build
+        default: ./...
+      runs-on:
+        required: false
+        type: string
+        description: GitHub Actions runner to use
+        default: ubuntu-latest
+      timeout-minutes:
+        required: false
+        type: number
+        description: Maximum duration of the test job
+        default: 30
+permissions:
+  contents: read
+defaults:
+  run:
+    shell: bash -euo pipefail {0}
+    working-directory: .
+jobs:
+  test:
+    runs-on: ${{ inputs.runs-on }}
+    timeout-minutes: ${{ inputs.timeout-minutes }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Validate inputs
+        env:
+          GO_WORKING_DIRECTORY: ${{ inputs.working-directory }}
+          GO_TEST_PACKAGE_PATTERN: ${{ inputs.test-package-pattern }}
+          GO_BUILD_PACKAGE_PATTERN: ${{ inputs.build-package-pattern }}
+          GO_COVERAGE_PROFILE: ${{ inputs.coverage-profile }}
+          GO_COVERAGE_RETENTION_DAYS: ${{ inputs.coverage-retention-days }}
+        run: |
+          validate_relative_path() {
+            local name="$1"
+            local value="$2"
+            if [[ -z "${value}" || "${value}" == /* || "${value}" == ".." || "${value}" == ../* || "${value}" == */../* || "${value}" == */.. ]]; then
+              echo "::error::${name} must be a relative path without parent-directory components"
+              exit 1
+            fi
+            if [[ ! "${value}" =~ ^[A-Za-z0-9._/-]+$ ]]; then
+              echo "::error::${name} contains unsupported characters"
+              exit 1
+            fi
+          }
+          validate_package_pattern() {
+            local name="$1"
+            local value="$2"
+            if [[ -z "${value}" || ! "${value}" =~ ^[A-Za-z0-9._~+][A-Za-z0-9._~+/-]*$ || "${value}" == ".." || "${value}" == ../* || "${value}" == */../* || "${value}" == */.. ]]; then
+              echo "::error::${name} must be one non-empty Go package pattern"
+              exit 1
+            fi
+          }
+          validate_relative_path "working-directory" "${GO_WORKING_DIRECTORY}"
+          validate_relative_path "coverage-profile" "${GO_COVERAGE_PROFILE}"
+          validate_package_pattern "test-package-pattern" "${GO_TEST_PACKAGE_PATTERN}"
+          validate_package_pattern "build-package-pattern" "${GO_BUILD_PACKAGE_PATTERN}"
+          if [[ ! "${GO_COVERAGE_RETENTION_DAYS}" =~ ^[0-9]+$ ]] \
+            || ((GO_COVERAGE_RETENTION_DAYS < 1 || GO_COVERAGE_RETENTION_DAYS > 90)); then
+            echo "::error::coverage-retention-days must be an integer from 1 through 90"
+            exit 1
+          fi
+          if [[ ! -d "${GO_WORKING_DIRECTORY}" ]]; then
+            echo "::error::working-directory does not exist: ${GO_WORKING_DIRECTORY}"
+            exit 1
+          fi
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e  # v7.0.0
+        with:
+          go-version: ${{ inputs.go-version }}
+          cache: ${{ hashFiles(format('{0}/go.sum', inputs.working-directory), format('{0}/go.work.sum', inputs.working-directory)) != '' }}
+          cache-dependency-path: |
+            ${{ inputs.working-directory }}/go.sum
+            ${{ inputs.working-directory }}/go.work.sum
+      - name: Verify formatting
+        working-directory: ${{ inputs.working-directory }}
+        run: |
+          unformatted_files="$(gofmt -l .)"
+          if [[ -n "${unformatted_files}" ]]; then
+            echo "::error::the following Go files are not formatted:"
+            printf '%s\n' "${unformatted_files}"
+            exit 1
+          fi
+      - name: Run go vet
+        working-directory: ${{ inputs.working-directory }}
+        env:
+          GO_TEST_PACKAGE_PATTERN: ${{ inputs.test-package-pattern }}
+        run: |
+          go vet "${GO_TEST_PACKAGE_PATTERN}"
+      - name: Run tests
+        working-directory: ${{ inputs.working-directory }}
+        env:
+          GO_TEST_PACKAGE_PATTERN: ${{ inputs.test-package-pattern }}
+          GO_TEST_RACE: ${{ inputs.race-enabled }}
+          GO_TEST_COVERAGE: ${{ inputs.coverage-enabled }}
+          GO_COVERAGE_PROFILE: ${{ inputs.coverage-profile }}
+        run: |
+          test_args=(test)
+          if [[ "${GO_TEST_RACE}" == "true" ]]; then
+            test_args+=(-race)
+          fi
+          if [[ "${GO_TEST_COVERAGE}" == "true" ]]; then
+            mkdir -p "$(dirname -- "${GO_COVERAGE_PROFILE}")"
+            test_args+=("-coverprofile=${GO_COVERAGE_PROFILE}" -covermode=atomic)
+          fi
+          test_args+=("${GO_TEST_PACKAGE_PATTERN}")
+          go "${test_args[@]}"
+      - name: Upload coverage profile
+        if: inputs.coverage-enabled && inputs.upload-coverage
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: go-coverage
+          path: ${{ inputs.working-directory }}/${{ inputs.coverage-profile }}
+          if-no-files-found: error
+          retention-days: ${{ inputs.coverage-retention-days }}
+      - name: Verify build
+        if: inputs.build-enabled
+        working-directory: ${{ inputs.working-directory }}
+        env:
+          GO_BUILD_PACKAGE_PATTERN: ${{ inputs.build-package-pattern }}
+        run: |
+          go build "${GO_BUILD_PACKAGE_PATTERN}"
