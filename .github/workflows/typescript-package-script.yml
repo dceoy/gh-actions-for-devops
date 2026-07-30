@@ -64,9 +64,11 @@ jobs:
         working-directory: ${{ inputs.package-path }}
         run: |
           has_pnpm_version_source() {
-            local manifest
-            manifest="$(tr -d '\n\r' < package.json 2>/dev/null || true)"
-            grep -qE '"packageManager"[[:space:]]*:[[:space:]]*"pnpm@[^"]+"|"devEngines"[[:space:]]*:[[:space:]]*\{[^}]*"packageManager"[[:space:]]*:[[:space:]]*\{[^}]*("name"[[:space:]]*:[[:space:]]*"pnpm"[^}]*"version"[[:space:]]*:[[:space:]]*"[^"]+"|"version"[[:space:]]*:[[:space:]]*"[^"]+"[^}]*"name"[[:space:]]*:[[:space:]]*"pnpm")' <<< "${manifest}"
+            jq -e '
+              def is_pnpm_manager: (type == "object") and (.name == "pnpm") and ((.version // "") != "");
+              ((.packageManager // "") as $pm | if ($pm | type) == "string" then ($pm | test("^pnpm@.+")) else false end)
+              or ((.devEngines.packageManager // null) | if type == "object" then is_pnpm_manager else false end)
+            ' package.json > /dev/null 2>&1
           }
           {
             if [[ ! -f package.json ]]; then

@@ -5,6 +5,7 @@ bats_require_minimum_version 1.5.0
 setup() {
   REPO_ROOT="$(cd "${BATS_TEST_DIRNAME}/../../.." && pwd)"
   WORKFLOWS="${REPO_ROOT}/.github/workflows"
+  FIXTURES="${REPO_ROOT}/.github/fixtures/pnpm"
 }
 
 pnpm_setup_value() {
@@ -12,6 +13,22 @@ pnpm_setup_value() {
   yq -r \
     ".jobs.*.steps[] | select(.uses | test(\"^pnpm/action-setup@\")) | .with.${key}" \
     "${workflow}"
+}
+
+has_pnpm_version_source_in_fixture() {
+  local workflow="$1" fixture_dir="$2"
+  local fn
+  fn="$(
+    yq -r '.jobs.*.steps[] | select(.run != null and (.run | test("has_pnpm_version_source"))) | .run' \
+      "${workflow}" \
+      | awk '/^has_pnpm_version_source\(\) \{$/{flag=1} flag{print} flag && /^}$/{exit}'
+  )"
+  [ -n "${fn}" ] || return 1
+  (
+    cd "${fixture_dir}" || exit 1
+    eval "${fn}"
+    has_pnpm_version_source
+  )
 }
 
 @test "pnpm version defaults to package.json in every exposed input" {
@@ -61,5 +78,25 @@ pnpm_setup_value() {
     [ "${output}" = "\${{ format('{0}/package.json', inputs.package-path) }}" ]
     count=$((count + 1))
   done < <(grep -rl --include='*.yml' 'pnpm/action-setup@' "${WORKFLOWS}")
+  [ "${count}" -gt 0 ]
+}
+
+@test "pnpm version detector finds devEngines.packageManager behind a preceding nested property" {
+  local count=0
+  while IFS= read -r workflow; do
+    run has_pnpm_version_source_in_fixture "${workflow}" "${FIXTURES}/devengines-nested-property-precedes"
+    [ "${status}" -eq 0 ]
+    count=$((count + 1))
+  done < <(grep -rl --include='*.yml' 'has_pnpm_version_source() {' "${WORKFLOWS}")
+  [ "${count}" -gt 0 ]
+}
+
+@test "pnpm version detector reports no source when the manifest has none" {
+  local count=0
+  while IFS= read -r workflow; do
+    run has_pnpm_version_source_in_fixture "${workflow}" "${FIXTURES}/no-version-source"
+    [ "${status}" -ne 0 ]
+    count=$((count + 1))
+  done < <(grep -rl --include='*.yml' 'has_pnpm_version_source() {' "${WORKFLOWS}")
   [ "${count}" -gt 0 ]
 }
