@@ -10,8 +10,8 @@ set -euo pipefail
 REPO_ROOT="$(git rev-parse --show-toplevel)"
 
 if ! command -v aqua >/dev/null 2>&1; then
-  echo "::error::aqua is not installed; install it via aquaproj/aqua-installer before running this script" >&2
-  exit 1
+	echo "::error::aqua is not installed; install it via aquaproj/aqua-installer before running this script" >&2
+	exit 1
 fi
 
 # aqua's shims resolve packages by searching for aqua.yaml from the caller's
@@ -21,14 +21,14 @@ fi
 # into a scratch directory).
 export AQUA_CONFIG="${REPO_ROOT}/aqua.yaml"
 if [[ -n "${GITHUB_ENV:-}" ]]; then
-  echo "AQUA_CONFIG=${AQUA_CONFIG}" >> "${GITHUB_ENV}"
+	echo "AQUA_CONFIG=${AQUA_CONFIG}" >>"${GITHUB_ENV}"
 fi
 
 (cd "${REPO_ROOT}" && aqua install)
 
 for cmd in yq gomplate; do
-  if ! command -v "${cmd}" >/dev/null 2>&1; then
-    echo "::error::${cmd} is not available on PATH after aqua install" >&2
-    exit 1
-  fi
+	if ! command -v "${cmd}" >/dev/null 2>&1; then
+		echo "::error::${cmd} is not available on PATH after aqua install" >&2
+		exit 1
+	fi
 done
