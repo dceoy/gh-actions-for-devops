@@ -53,9 +53,8 @@ jobs:
         with:
           version: latest
       - name: Setup pnpm
-        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271  # v6.0.9
-        with:
-          version: latest
+        run: | # zizmor: ignore[adhoc-packages] installs the pnpm package manager
+          npm install --global pnpm
       - name: Setup Bats and Bats libraries
         uses: bats-core/bats-action@77d6fb60505b4d0d1d73e48bd035b55074bbfb43  # 4.0.0
       - name: Run Bats tests
