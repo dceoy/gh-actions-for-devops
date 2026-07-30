@@ -59,8 +59,15 @@ jobs:
           fetch-depth: 1
           persist-credentials: false
       - name: Detect the package manager
+        env:
+          PNPM_VERSION: ${{ inputs.pnpm-version }}
         working-directory: ${{ inputs.package-path }}
         run: |
+          has_pnpm_version_source() {
+            local manifest
+            manifest="$(tr -d '\n\r' < package.json 2>/dev/null || true)"
+            grep -qE '"packageManager"[[:space:]]*:[[:space:]]*"pnpm@[^"]+"|"devEngines"[[:space:]]*:[[:space:]]*\{[^}]*"packageManager"[[:space:]]*:[[:space:]]*\{[^}]*("name"[[:space:]]*:[[:space:]]*"pnpm"[^}]*"version"[[:space:]]*:[[:space:]]*"[^"]+"|"version"[[:space:]]*:[[:space:]]*"[^"]+"[^}]*"name"[[:space:]]*:[[:space:]]*"pnpm")' <<< "${manifest}"
+          }
           {
             if [[ ! -f package.json ]]; then
               echo 'package.json not found in the specified path.' >&2
@@ -71,6 +78,9 @@ jobs:
             elif [[ -f pnpm-lock.yaml ]]; then
               echo 'PACKAGE_LOCK_FILE=pnpm-lock.yaml'
               echo 'PACKAGE_MANAGER=pnpm'
+              if [[ -z "${PNPM_VERSION}" ]] && ! has_pnpm_version_source; then
+                echo 'PNPM_VERSION=latest'
+              fi
             elif [[ -f yarn.lock ]]; then
               echo 'yarn.lock is not supported. Use package-lock.json or pnpm-lock.yaml.' >&2
               exit 1
@@ -95,7 +105,7 @@ jobs:
         if: env.PACKAGE_MANAGER == 'pnpm'
         uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271  # v6.0.9
         with:
-          version: ${{ inputs.pnpm-version }}
+          version: ${{ inputs.pnpm-version || env.PNPM_VERSION }}
           package_json_file: ${{ format('{0}/package.json', inputs.package-path) }}
       - name: Get pnpm store path
         id: pnpm-cache
