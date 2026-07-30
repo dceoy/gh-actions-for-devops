@@ -23,6 +23,11 @@ on:
         type: string
         description: Node.js version to use
         default: latest
+      pnpm-version:
+        required: false
+        type: string
+        description: Version of pnpm to use for JSON linting
+        default: latest
       lint-before-validation:
         required: false
         type: boolean
@@ -46,6 +51,7 @@ jobs:
     with:
       search-path: ${{ inputs.search-path }}
       node-version: ${{ inputs.node-version }}
+      pnpm-version: ${{ inputs.pnpm-version }}
   validation:
     if: (! (failure() || cancelled()))
     needs:

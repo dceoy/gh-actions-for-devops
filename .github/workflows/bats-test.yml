@@ -19,6 +19,26 @@ on:
         type: string
         description: Shell command to run after checkout, before installing Bats, to provision runtime dependencies the tests require
         default: ""
+      uv-version:
+        required: false
+        type: string
+        description: Version of uv to use
+        default: latest
+      pnpm-version:
+        required: false
+        type: string
+        description: Version of pnpm to use
+        default: latest
+      enable-cache:
+        required: false
+        type: boolean
+        description: Cache uv and pnpm downloads and Bats libraries
+        default: true
+      cache-salt:
+        required: false
+        type: string
+        description: Optional value used to bust uv and pnpm caches
+        default: null
       runs-on:
         required: false
         type: string
@@ -48,8 +68,37 @@ jobs:
           printf '%s\n' "${SETUP_RUN}" > "${setup_script}"
           chmod +x "${setup_script}"
           "${setup_script}"
+      - name: Set up uv
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9  # v9.0.0
+        with:
+          version: ${{ inputs.uv-version }}
+          enable-cache: ${{ inputs.enable-cache }}
+          cache-suffix: ${{ inputs.cache-salt }}
+      - name: Setup pnpm
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271  # v6.0.9
+        with:
+          version: ${{ inputs.pnpm-version }}
+      - name: Get pnpm details
+        id: setup-pnpm
+        run: |
+          echo "pnpm-version=$(pnpm --version)" >> "${GITHUB_OUTPUT}"
+          echo "store-path=$(pnpm store path --silent)" >> "${GITHUB_OUTPUT}"
+      - name: Cache pnpm store
+        if: inputs.enable-cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
+        with:
+          path: ${{ steps.setup-pnpm.outputs.store-path }}
+          key: pnpm-${{ runner.os }}-${{ runner.arch }}-${{ steps.setup-pnpm.outputs.pnpm-version }}-${{ hashFiles('**/pnpm-lock.yaml') }}-${{ inputs.cache-salt }}
+          restore-keys: |
+            pnpm-${{ runner.os }}-${{ runner.arch }}-${{ steps.setup-pnpm.outputs.pnpm-version }}-
+            pnpm-${{ runner.os }}-${{ runner.arch }}-
       - name: Setup Bats and Bats libraries
         uses: bats-core/bats-action@77d6fb60505b4d0d1d73e48bd035b55074bbfb43  # 4.0.0
+        with:
+          support-path: ${{ inputs.enable-cache && format('{0}/.cache/bats-support', github.workspace) || '' }}
+          assert-path: ${{ inputs.enable-cache && format('{0}/.cache/bats-assert', github.workspace) || '' }}
+          detik-path: ${{ inputs.enable-cache && format('{0}/.cache/bats-detik', github.workspace) || '' }}
+          file-path: ${{ inputs.enable-cache && format('{0}/.cache/bats-file', github.workspace) || '' }}
       - name: Run Bats tests
         working-directory: ${{ inputs.search-path }}
         env:
