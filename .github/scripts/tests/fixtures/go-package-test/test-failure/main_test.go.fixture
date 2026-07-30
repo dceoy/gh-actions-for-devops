@@ -1,0 +1,9 @@
+package testfailure
+
+import "testing"
+
+func TestEnabled(t *testing.T) {
+	if !Enabled() {
+		t.Fatal("expected Enabled to return true")
+	}
+}

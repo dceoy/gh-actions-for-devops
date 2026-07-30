@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+
+unused="lint failure"
+echo "broken"
