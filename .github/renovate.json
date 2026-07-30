@@ -20,6 +20,16 @@
         "[ \\t]*# renovate: datasource=(?<datasource>[a-z-]+) depName=(?<depName>[A-Za-z0-9_./-]+)(?: versioning=(?<versioning>[a-z0-9-]+))?[ \\t]*\\r?\\n[ \\t]*default:[ \\t]*['\"]?(?<currentValue>v?[0-9A-Za-z.+_-]+)['\"]?[ \\t]*(?:\\r\\n|\\r|\\n|$)"
       ],
       "versioningTemplate": "{{#if versioning}}{{{versioning}}}{{else}}semver-coerced{{/if}}"
+    },
+    {
+      "customType": "regex",
+      "description": "Update SHA-pinned GitHub Actions in README examples",
+      "managerFilePatterns": ["/^README\\.md(?:\\.tmpl)?$/"],
+      "matchStrings": [
+        "uses:[ \\t]+(?<depName>[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)@(?<currentDigest>[a-f0-9]{40})[ \\t]+#[ \\t]+(?<currentValue>v[0-9]+(?:\\.[0-9]+){0,2})"
+      ],
+      "datasourceTemplate": "github-tags",
+      "versioningTemplate": "semver-coerced"
     }
   ],
   "packageRules": [

@@ -24,6 +24,7 @@ prepare_fixture() {
     mkdir -p "$(dirname "${output_path}")"
     cp "${fixture}" "${output_path}"
   done < <(find "${FIXTURES}/${fixture_name}" -type f -name '*.fixture' -print0)
+  go -C "${destination}" mod init "example.com/${fixture_name}"
 }
 
 extract_step() {

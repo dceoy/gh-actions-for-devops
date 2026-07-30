@@ -4,7 +4,7 @@ bats_require_minimum_version 1.5.0
 
 setup() {
   REPO_ROOT="$(git -C "${BATS_TEST_DIRNAME}" rev-parse --show-toplevel)"
-  FIXTURES="${BATS_TEST_DIRNAME}/fixtures/pnpm"
+  FIXTURES="${REPO_ROOT}/.github/fixtures/pnpm"
   WORKFLOWS=(
     bats-test.yml
     html-lint-and-scan.yml
@@ -19,7 +19,7 @@ pnpm_step_value() {
   local workflow="$1"
   local key="$2"
 
-  yq -r ".jobs.*.steps[] | select(.uses == \"pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271\") | .with.\"${key}\"" \
+  yq -r ".jobs.*.steps[] | select(.uses | test(\"^pnpm/action-setup@\")) | .with.\"${key}\"" \
     "${REPO_ROOT}/.github/workflows/${workflow}"
 }
 
@@ -36,8 +36,10 @@ pnpm_step_value() {
 }
 
 @test "root and nested workflows resolve package.json relative to the repository root" {
-  [ "$(yq -r .packageManager "${FIXTURES}/root/package.json")" = "pnpm@11.16.0" ]
-  [ "$(yq -r .packageManager "${FIXTURES}/nested/apps/site/package.json")" = "pnpm@11.16.0" ]
+  root_package_manager="$(yq -r .packageManager "${FIXTURES}/root/package.json")"
+  nested_package_manager="$(yq -r .packageManager "${FIXTURES}/nested/apps/site/package.json")"
+  [[ "${root_package_manager}" =~ ^pnpm@[0-9]+\.[0-9]+\.[0-9]+$ ]]
+  [ "${nested_package_manager}" = "${root_package_manager}" ]
 
   [ "$(pnpm_step_value bats-test.yml package_json_file)" = "package.json" ]
   for workflow in \
