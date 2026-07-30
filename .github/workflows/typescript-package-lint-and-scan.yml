@@ -13,6 +13,11 @@ on:
         type: string
         description: Node.js version to use
         default: latest
+      pnpm-version:
+        required: false
+        type: string
+        description: Version of pnpm to use
+        default: latest
       enable-cache:
         required: false
         type: boolean
@@ -125,8 +130,14 @@ jobs:
           node-version: ${{ inputs.node-version }}
       - name: Setup pnpm
         if: env.PACKAGE_MANAGER == 'pnpm'
+        env:
+          PNPM_VERSION: ${{ inputs.pnpm-version }}
         run: | # zizmor: ignore[adhoc-packages] installs the pnpm package manager
-          npm install --global pnpm
+          if [[ "${PNPM_VERSION}" != "latest" && ! "${PNPM_VERSION}" =~ ^[0-9]+(\.[0-9]+){0,2}([._+-][A-Za-z0-9.-]+)?$ ]]; then
+            echo "invalid pnpm-version: ${PNPM_VERSION}" >&2
+            exit 1
+          fi
+          npm install --global "pnpm@${PNPM_VERSION}"
       - name: Get pnpm store path
         id: pnpm-cache
         if: inputs.enable-cache && env.PACKAGE_MANAGER == 'pnpm'

@@ -18,6 +18,11 @@ on:
         type: string
         description: Node.js version to use
         default: latest
+      pnpm-version:
+        required: false
+        type: string
+        description: Version of pnpm to use
+        default: latest
       enable-cache:
         required: false
         type: boolean
@@ -73,7 +78,7 @@ jobs:
         if: inputs.enable-cache && env.PACKAGE_MANAGER == 'pnpm'
         uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271  # v6.0.9
         with:
-          version: latest
+          version: ${{ inputs.pnpm-version }}
       - name: Setup Node.js with package-manager cache
         if: inputs.enable-cache && env.PACKAGE_MANAGER != ''
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7.0.0
