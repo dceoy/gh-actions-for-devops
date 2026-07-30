@@ -19,6 +19,16 @@ on:
         type: string
         description: Shell command to run after checkout, before installing Bats, to provision runtime dependencies the tests require
         default: ""
+      uv-version:
+        required: false
+        type: string
+        description: Version of uv to use
+        default: latest
+      pnpm-version:
+        required: false
+        type: string
+        description: Version of pnpm to use
+        default: latest
       runs-on:
         required: false
         type: string
@@ -51,10 +61,16 @@ jobs:
       - name: Set up uv
         uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9  # v9.0.0
         with:
-          version: latest
+          version: ${{ inputs.uv-version }}
       - name: Setup pnpm
+        env:
+          PNPM_VERSION: ${{ inputs.pnpm-version }}
         run: | # zizmor: ignore[adhoc-packages] installs the pnpm package manager
-          npm install --global pnpm
+          if [[ "${PNPM_VERSION}" != "latest" && ! "${PNPM_VERSION}" =~ ^[0-9]+(\.[0-9]+){0,2}([._+-][A-Za-z0-9.-]+)?$ ]]; then
+            echo "invalid pnpm-version: ${PNPM_VERSION}" >&2
+            exit 1
+          fi
+          npm install --global "pnpm@${PNPM_VERSION}"
       - name: Setup Bats and Bats libraries
         uses: bats-core/bats-action@77d6fb60505b4d0d1d73e48bd035b55074bbfb43  # 4.0.0
       - name: Run Bats tests
