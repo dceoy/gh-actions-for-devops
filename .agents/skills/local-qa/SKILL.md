@@ -13,6 +13,7 @@ Run the local QA script `scripts/qa.sh` in this skill.
 - Execute the script exactly as shown above when this skill is triggered.
 - Capture and summarize key output (success/failure, major warnings, and any files modified).
 - If the script fails due to missing tooling (`command not found`, missing executable, or equivalent), install the missing tool(s) and rerun `./scripts/qa.sh`.
+- If the install command uses `uv`, `npm`, or `pnpm`, source `scripts/supply-chain-cooldown.sh` in the same shell command as the install, for example `source scripts/supply-chain-cooldown.sh && npm install -g <tool>`; sourcing it in an earlier, separate command does not carry the cooldown into the install.
 - Install tools using this order of preference:
   1. Use the project's package manager when applicable (`uv`/`poetry` for Python, package manager scripts/dependencies for Node.js).
   2. Use a system package manager (`brew` on macOS, `apt` on Debian/Ubuntu) when project-local install is not applicable.

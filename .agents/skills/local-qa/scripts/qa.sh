@@ -5,6 +5,10 @@ set -euox pipefail
 REPO_ROOT="$(git rev-parse --show-toplevel)"
 cd "${REPO_ROOT}"
 
+# Supply-chain cooldown: avoid resolving/installing packages published within the last N days.
+# shellcheck source=.agents/skills/local-qa/scripts/supply-chain-cooldown.sh
+source "${REPO_ROOT}/.agents/skills/local-qa/scripts/supply-chain-cooldown.sh"
+
 PYTHON_LINE_LENGTH=88
 RUFF_LINT_EXTEND_SELECT='F,E,W,C90,I,N,D,UP,S,B,A,COM,C4,PT,Q,SIM,ARG,ERA,PD,PLC,PLE,PLW,TRY,FLY,NPY,PERF,FURB,RUF'
 RUFF_LINT_IGNORE='D100,D103,D203,D213,S101,B008,A002,A004,COM812,PLC2701,TRY003'
