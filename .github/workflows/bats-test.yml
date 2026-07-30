@@ -74,10 +74,24 @@ jobs:
           version: ${{ inputs.uv-version }}
           enable-cache: ${{ inputs.enable-cache }}
           cache-suffix: ${{ inputs.cache-salt }}
+      - name: Resolve pnpm version
+        env:
+          PNPM_VERSION: ${{ inputs.pnpm-version }}
+        run: |
+          has_pnpm_version_source() {
+            jq -e '
+              def is_pnpm_manager: (type == "object") and (.name == "pnpm") and ((.version // "") != "");
+              ((.packageManager // "") as $pm | if ($pm | type) == "string" then ($pm | test("^pnpm@.+")) else false end)
+              or ((.devEngines.packageManager // null) | if type == "object" then is_pnpm_manager else false end)
+            ' package.json > /dev/null 2>&1
+          }
+          if [[ -z "${PNPM_VERSION}" ]] && ! has_pnpm_version_source; then
+            echo 'PNPM_VERSION=latest' >> "${GITHUB_ENV}"
+          fi
       - name: Setup pnpm
         uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271  # v6.0.9
         with:
-          version: ${{ inputs.pnpm-version }}
+          version: ${{ inputs.pnpm-version || env.PNPM_VERSION }}
           package_json_file: package.json
       - name: Get pnpm details
         id: setup-pnpm

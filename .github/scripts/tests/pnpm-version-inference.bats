@@ -31,7 +31,7 @@ pnpm_step_value() {
     )"
     [ -z "${default_version}" ]
     # shellcheck disable=SC2016
-    [ "$(pnpm_step_value "${workflow}" version)" = '${{ inputs.pnpm-version }}' ]
+    [ "$(pnpm_step_value "${workflow}" version)" = '${{ inputs.pnpm-version || env.PNPM_VERSION }}' ]
   done
 }
 

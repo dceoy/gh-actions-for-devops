@@ -62,14 +62,26 @@ jobs:
           fetch-depth: 1
           persist-credentials: false
       - name: Detect the package manager
+        env:
+          PNPM_VERSION: ${{ inputs.pnpm-version }}
         working-directory: ${{ inputs.package-path }}
         run: |
+          has_pnpm_version_source() {
+            jq -e '
+              def is_pnpm_manager: (type == "object") and (.name == "pnpm") and ((.version // "") != "");
+              ((.packageManager // "") as $pm | if ($pm | type) == "string" then ($pm | test("^pnpm@.+")) else false end)
+              or ((.devEngines.packageManager // null) | if type == "object" then is_pnpm_manager else false end)
+            ' package.json > /dev/null 2>&1
+          }
           if [[ -f package-lock.json ]]; then
             echo 'PACKAGE_MANAGER=npm' >> "${GITHUB_ENV}"
             echo 'PACKAGE_LOCK_FILE=package-lock.json' >> "${GITHUB_ENV}"
           elif [[ -f pnpm-lock.yaml ]]; then
             echo 'PACKAGE_MANAGER=pnpm' >> "${GITHUB_ENV}"
             echo 'PACKAGE_LOCK_FILE=pnpm-lock.yaml' >> "${GITHUB_ENV}"
+            if [[ -z "${PNPM_VERSION}" ]] && ! has_pnpm_version_source; then
+              echo 'PNPM_VERSION=latest' >> "${GITHUB_ENV}"
+            fi
           elif [[ -f yarn.lock ]]; then
             echo 'yarn.lock is not supported. Use package-lock.json or pnpm-lock.yaml.' >&2
             exit 1
@@ -78,7 +90,7 @@ jobs:
         if: inputs.enable-cache && env.PACKAGE_MANAGER == 'pnpm'
         uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271  # v6.0.9
         with:
-          version: ${{ inputs.pnpm-version }}
+          version: ${{ inputs.pnpm-version || env.PNPM_VERSION }}
           package_json_file: ${{ format('{0}/package.json', inputs.package-path) }}
       - name: Setup Node.js with package-manager cache
         if: inputs.enable-cache && env.PACKAGE_MANAGER != ''
