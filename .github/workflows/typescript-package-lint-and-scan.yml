@@ -130,14 +130,9 @@ jobs:
           node-version: ${{ inputs.node-version }}
       - name: Setup pnpm
         if: env.PACKAGE_MANAGER == 'pnpm'
-        env:
-          PNPM_VERSION: ${{ inputs.pnpm-version }}
-        run: | # zizmor: ignore[adhoc-packages] installs the pnpm package manager
-          if [[ "${PNPM_VERSION}" != "latest" && ! "${PNPM_VERSION}" =~ ^[0-9]+(\.[0-9]+){0,2}([._+-][A-Za-z0-9.-]+)?$ ]]; then
-            echo "invalid pnpm-version: ${PNPM_VERSION}" >&2
-            exit 1
-          fi
-          npm install --global "pnpm@${PNPM_VERSION}"
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271  # v6.0.9
+        with:
+          version: ${{ inputs.pnpm-version }}
       - name: Get pnpm store path
         id: pnpm-cache
         if: inputs.enable-cache && env.PACKAGE_MANAGER == 'pnpm'
