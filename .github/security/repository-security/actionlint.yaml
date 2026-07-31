@@ -1,4 +1,6 @@
 ---
+# Organization-owned runner labels and accepted diagnostics belong here so a
+# target repository cannot change the policy through its own configuration.
 self-hosted-runner:
   labels:
     - ubuntu-slim

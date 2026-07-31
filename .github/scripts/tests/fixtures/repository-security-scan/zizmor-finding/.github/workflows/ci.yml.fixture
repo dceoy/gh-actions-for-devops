@@ -1,0 +1,11 @@
+---
+name: Zizmor finding
+on:
+  pull_request_target:  # zizmor-finding
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo finding

@@ -1,0 +1,42 @@
+---
+name: Repository security
+on:
+  workflow_call:
+  pull_request:
+  merge_group:
+permissions:
+  contents: read
+jobs:
+  scan:
+    name: scan
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    env:
+      # Aqua resolves shims by searching for aqua.yaml from the process's
+      # working directory. The scanners run inside the untrusted checkout, so
+      # force every shim to use the trusted workflow revision instead.
+      AQUA_CONFIG: ${{ github.workspace }}/_trusted/aqua.yaml
+    steps:
+      - name: Check out trusted scanner implementation
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          repository: ${{ job.workflow_repository }}
+          # A pull request against this source repository must use its base
+          # revision as the scanner. Reusable and ruleset runs use the exact
+          # repository and SHA of the workflow that defines this job, not the
+          # caller workflow identity from the github context.
+          ref: ${{ job.workflow_repository == github.repository && github.event_name == 'pull_request' && github.event.pull_request.base.sha || job.workflow_sha }}
+          path: _trusted
+          persist-credentials: false
+      - name: Check out untrusted target revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          # A merge queue must scan its synthetic head commit. Reusable calls
+          # from other events fall back to the exact triggering commit.
+          ref: ${{ github.event_name == 'merge_group' && github.event.merge_group.head_sha || github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          path: _target
+          persist-credentials: false
+      - name: Run trusted repository security pipeline
+        uses: ./_trusted/.github/actions/repository-security-scan

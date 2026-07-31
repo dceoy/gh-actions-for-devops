@@ -105,6 +105,28 @@ jobs:
       command: .agents/skills/local-qa/scripts/qa.sh
 ```
 
+### Repository security gate
+
+Use the centrally owned, read-only pull-request security policy without exposing scanner settings to the caller:
+
+```yaml
+name: Repository security
+on:
+  pull_request:
+  merge_group:
+
+permissions:
+  contents: read
+
+jobs:
+  security:
+    uses: dceoy/gha-for-devops/.github/workflows/repository-security-scan.yml@<commit-sha>
+```
+
+The reusable workflow runs zizmor, actionlint with embedded ShellCheck, standalone ShellCheck, Checkov, and separate Trivy vulnerability and secret gates. Every scanner runs before the aggregate result is enforced, and complete evidence is retained in the `repository-security-reports` artifact.
+
+For organization-wide enforcement, configure `.github/workflows/repository-security-scan.yml` at a reviewed full commit SHA as a ruleset required workflow for `pull_request` and `merge_group`. Require the stable `Repository security / scan` check. Target repositories need no secrets or write permissions, and fork and Dependabot pull requests use the same read-only path.
+
 ### Generated file update pull requests
 
 Run the `create-generated-update-pr` composite action as a step after your own generation and validation steps, in the same job and workspace, to open or refresh a pull request for the resulting changes. It requires `contents: write` and `pull-requests: write`, and reads `GH_TOKEN` from the step environment rather than an action input; the action runs `gh auth setup-git` internally, so `actions/checkout` does not need `persist-credentials: true`:
@@ -182,6 +204,7 @@ Each workflow below exposes `workflow_call`; see its file for supported inputs, 
 | [python-pyinstaller.yml](.github/workflows/python-pyinstaller.yml)                                               | Build using PyInstaller                                           |
 | [r-package-format-and-pr.yml](.github/workflows/r-package-format-and-pr.yml)                                     | Formatting for R                                                  |
 | [r-package-lint.yml](.github/workflows/r-package-lint.yml)                                                       | Lint for R                                                        |
+| [repository-security-scan.yml](.github/workflows/repository-security-scan.yml)                                   | Repository security                                               |
 | [shell-lint.yml](.github/workflows/shell-lint.yml)                                                               | Lint for Shell                                                    |
 | [shell-project-ci.yml](.github/workflows/shell-project-ci.yml)                                                   | Run shell project CI                                              |
 | [speckit-init.yml](.github/workflows/speckit-init.yml)                                                           | Spec Kit initialization                                           |

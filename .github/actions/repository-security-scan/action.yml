@@ -1,0 +1,59 @@
+---
+name: Trusted repository security scanner pipeline
+description: Run centrally configured security gates against an untrusted repository checkout
+runs:
+  using: composite
+  steps:
+    - name: Install checksum-verified scanners
+      uses: aquaproj/aqua-installer@96a9bc20066c5bf5e275b41019cfc165b25f4e2e  # v4.0.5
+      with:
+        aqua_version: v2.62.1
+        working_directory: _trusted
+    - name: Prepare evidence directory
+      if: always()
+      shell: bash
+      run: '"$GITHUB_ACTION_PATH/scan.sh" prepare'
+    - name: Remove tracked symlinks from the target checkout
+      if: always()
+      shell: bash
+      run: '"$GITHUB_ACTION_PATH/scan.sh" preflight'
+    - name: Run zizmor gate
+      if: always()
+      shell: bash
+      run: '"$GITHUB_ACTION_PATH/scan.sh" zizmor'
+    - name: Run actionlint and embedded ShellCheck gate
+      if: always()
+      shell: bash
+      run: '"$GITHUB_ACTION_PATH/scan.sh" actionlint'
+    - name: Run standalone ShellCheck gate
+      if: always()
+      shell: bash
+      run: '"$GITHUB_ACTION_PATH/scan.sh" shellcheck'
+    - name: Run Checkov infrastructure-as-code gate
+      if: always()
+      shell: bash
+      run: '"$GITHUB_ACTION_PATH/scan.sh" checkov'
+    - name: Run Trivy vulnerability gate
+      if: always()
+      shell: bash
+      run: '"$GITHUB_ACTION_PATH/scan.sh" trivy-vulnerability'
+    - name: Run Trivy secret gate
+      if: always()
+      shell: bash
+      run: '"$GITHUB_ACTION_PATH/scan.sh" trivy-secret'
+    - name: Publish bounded scanner summary
+      if: always()
+      shell: bash
+      run: '"$GITHUB_ACTION_PATH/scan.sh" summary'
+    - name: Retain complete scanner evidence
+      if: always()
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+      with:
+        name: repository-security-reports
+        path: security-results
+        if-no-files-found: error
+        retention-days: 14
+    - name: Enforce aggregate scanner result
+      if: always()
+      shell: bash
+      run: '"$GITHUB_ACTION_PATH/scan.sh" enforce'
