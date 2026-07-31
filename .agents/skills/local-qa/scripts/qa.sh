@@ -129,7 +129,9 @@ while IFS= read -r GO_MOD_FILE; do
 done < <(git ls-files -- 'go.mod' '*/go.mod')
 
 if [[ -d '.github/workflows' ]]; then
-  zizmor --fix=safe .github/workflows
+  ZIZMOR_PATHS=('.github/workflows')
+  [[ -d '.github/actions' ]] && ZIZMOR_PATHS+=('.github/actions')
+  zizmor --fix=safe "${ZIZMOR_PATHS[@]}"
   N_WORKFLOW_YAML_FILES=$(git ls-files -- '.github/workflows/**.yml' '.github/workflows/**.yaml' | wc -l)
   if [[ "${N_WORKFLOW_YAML_FILES}" -gt 0 ]]; then
     git ls-files -z -- '.github/workflows/*.yml' '.github/workflows/*.yaml' \

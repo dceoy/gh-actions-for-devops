@@ -24,15 +24,13 @@ prepare_fixture() {
     mkdir -p "$(dirname "${output_path}")"
     cp "${fixture}" "${output_path}"
   done < <(find "${FIXTURES}/${fixture_name}" -type f -name '*.fixture' -print0)
-  git -C "${destination}" init -q
-  git -C "${destination}" add .
 }
 
 extract_step() {
   local step_name="$1"
   local output_script="$2"
 
-  yq -r ".jobs.test.steps[] | select(.name == \"${step_name}\") | .run" "${WORKFLOW}" > "${output_script}"
+  yq -r ".jobs.ci.steps[] | select(.name == \"${step_name}\") | .run" "${WORKFLOW}" > "${output_script}"
 }
 
 run_step() {
@@ -46,63 +44,90 @@ run_step() {
   run env "$@" bash -c 'cd "$1" && exec bash -euo pipefail "$2"' _ "${working_directory}" "${step_script}"
 }
 
-@test "all checks pass with tracked paths containing spaces" {
+@test "validation passes with a valid command, search-path, and bats-version" {
   project="${TEST_TEMP}/passing project"
   prepare_fixture passing "${project}"
 
-  run_step "Run ShellCheck" "${project}" $'FILE_NAMES=lib/*.sh\ntest/*.bats'
-  [ "${status}" -eq 0 ]
-
-  run_step "Check formatting with shfmt" "${project}" \
-    $'FILE_NAMES=lib/*.sh\ntest/*.bats' \
-    SHFMT_INDENT=2 \
-    SHFMT_BINARY_NEXT_LINE=true \
-    SHFMT_CASE_INDENT=true \
-    SHFMT_SPACE_REDIRECTS=true
-  [ "${status}" -eq 0 ]
-
-  run_step "Run Bats tests" "${project}" 'TEST_PATHS=test/*.bats'
+  run_step "Validate inputs" "${project}" \
+    'QA_COMMAND=./scripts/qa.sh' \
+    SEARCH_PATH=. \
+    BATS_VERSION=1.13.0
   [ "${status}" -eq 0 ]
 }
 
-@test "a ShellCheck violation fails the workflow script" {
-  project="${TEST_TEMP}/lint-failure"
-  prepare_fixture lint-failure "${project}"
-
-  run_step "Run ShellCheck" "${project}" 'FILE_NAMES=*.sh'
-
-  [ "${status}" -ne 0 ]
-}
-
-@test "a shfmt violation fails the workflow script" {
-  project="${TEST_TEMP}/format-failure"
-  prepare_fixture format-failure "${project}"
-
-  run_step "Check formatting with shfmt" "${project}" \
-    'FILE_NAMES=*.sh' \
-    SHFMT_INDENT=2 \
-    SHFMT_BINARY_NEXT_LINE=true \
-    SHFMT_CASE_INDENT=true \
-    SHFMT_SPACE_REDIRECTS=true
-
-  [ "${status}" -ne 0 ]
-}
-
-@test "a failed Bats test fails the workflow script" {
-  project="${TEST_TEMP}/bats-failure"
-  prepare_fixture bats-failure "${project}"
-
-  run_step "Run Bats tests" "${project}" 'TEST_PATHS=test/*.bats'
-
-  [ "${status}" -ne 0 ]
-}
-
-@test "an empty tracked-file selection fails explicitly" {
-  project="${TEST_TEMP}/empty-selection"
+@test "an empty command fails validation" {
+  project="${TEST_TEMP}/empty-command"
   prepare_fixture passing "${project}"
 
-  run_step "Run ShellCheck" "${project}" 'FILE_NAMES=missing/*.sh'
+  run_step "Validate inputs" "${project}" \
+    'QA_COMMAND=' \
+    SEARCH_PATH=. \
+    BATS_VERSION=1.13.0
 
   [ "${status}" -ne 0 ]
-  [[ "${output}" == *"selected no tracked files"* ]]
+  [[ "${output}" == *"command must not be empty"* ]]
+}
+
+@test "an invalid search-path fails validation" {
+  project="${TEST_TEMP}/invalid-search-path"
+  prepare_fixture passing "${project}"
+
+  run_step "Validate inputs" "${project}" \
+    'QA_COMMAND=./scripts/qa.sh' \
+    'SEARCH_PATH=../escape' \
+    BATS_VERSION=1.13.0
+
+  [ "${status}" -ne 0 ]
+  [[ "${output}" == *"search-path must be a relative path"* ]]
+}
+
+@test "a non-numeric bats-version fails validation" {
+  project="${TEST_TEMP}/invalid-bats-version"
+  prepare_fixture passing "${project}"
+
+  run_step "Validate inputs" "${project}" \
+    'QA_COMMAND=./scripts/qa.sh' \
+    SEARCH_PATH=. \
+    'BATS_VERSION=latest'
+
+  [ "${status}" -ne 0 ]
+  [[ "${output}" == *"bats-version must be a numeric release version"* ]]
+}
+
+@test "the caller-provided QA command runs successfully" {
+  project="${TEST_TEMP}/passing project"
+  prepare_fixture passing "${project}"
+
+  run_step "Run the caller-provided QA command" "${project}" 'QA_COMMAND=echo qa-ok'
+
+  [ "${status}" -eq 0 ]
+  [[ "${output}" == *"qa-ok"* ]]
+}
+
+@test "a failing caller-provided QA command fails the workflow script" {
+  project="${TEST_TEMP}/passing project"
+  prepare_fixture passing "${project}"
+
+  run_step "Run the caller-provided QA command" "${project}" 'QA_COMMAND=exit 1'
+
+  [ "${status}" -ne 0 ]
+}
+
+@test "a multi-line caller-provided QA command aborts on the first failing line" {
+  project="${TEST_TEMP}/passing project"
+  prepare_fixture passing "${project}"
+
+  run_step "Run the caller-provided QA command" "${project}" $'QA_COMMAND=false\ntrue'
+
+  [ "${status}" -ne 0 ]
+}
+
+@test "the caller-provided QA command runs in the configured working directory" {
+  project="${TEST_TEMP}/passing project"
+  prepare_fixture passing "${project}"
+
+  run_step "Run the caller-provided QA command" "${project}" 'QA_COMMAND=cat marker-file'
+
+  [ "${status}" -eq 0 ]
+  [[ "${output}" == *"marker"* ]]
 }

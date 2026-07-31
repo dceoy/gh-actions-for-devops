@@ -93,26 +93,46 @@ jobs:
 
 ### Shell project CI
 
-Replace a small shell project’s combined `make check` job with one reusable workflow:
+Replace a small shell project's local tool installation and version pinning with one reusable workflow that installs ShellCheck, shfmt, actionlint, Bats, zizmor, yamllint, and Checkov, then runs your QA command:
 
 ```yaml
 jobs:
-  check:
+  ci:
     permissions:
       contents: read
     uses: dceoy/gh-actions-for-devops/.github/workflows/shell-project-ci.yml@main
     with:
-      shell-file-names: |
-        bin/*.sh
-        lib/*.bash
-        test/*.bats
-      shfmt-file-names: |
-        bin/*.sh
-        lib/*.bash
-        test/*.bats
-      bats-test-paths: test/*.bats
-      shfmt-indent: 2
+      command: .agents/skills/local-qa/scripts/qa.sh
 ```
+
+### Generated file update pull requests
+
+Run the `create-generated-update-pr` composite action as a step after your own generation and validation steps, in the same job and workspace, to open or refresh a pull request for the resulting changes. It requires `contents: write` and `pull-requests: write`, and reads `GH_TOKEN` from the step environment rather than an action input; the action runs `gh auth setup-git` internally, so `actions/checkout` does not need `persist-credentials: true`:
+
+```yaml
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: ./scripts/generate-docs.sh
+      - uses: dceoy/gh-actions-for-devops/.github/actions/create-generated-update-pr@main
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          paths: |
+            docs/**
+          branch: update-generated-docs
+          base: main
+          title: Update generated docs
+```
+
+Only the pathspecs listed in `paths` are ever staged or committed; unrelated workspace changes are left untouched. Re-running the action resets the same branch and updates the same open pull request instead of creating duplicates. See the action's `action.yml` for the full set of inputs (commit message, labels, draft mode, Git author) and outputs (`changed`, `branch`, `commit-sha`, `pr-number`, `pr-url`).
 
 ## Reusable Workflows
 
