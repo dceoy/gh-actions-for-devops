@@ -16,10 +16,25 @@ if [[ "${BRANCH}" == -* ]] || ! git check-ref-format --branch "${BRANCH}" > /dev
   exit 1
 fi
 
+if [[ -z "${PATHS:-}" ]]; then
+  echo "::error::paths input must not be empty" >&2
+  exit 1
+fi
+
+pathspecs=()
+while IFS= read -r pathspec; do
+  [[ -n "${pathspec}" ]] && pathspecs+=("${pathspec}")
+done <<< "${PATHS}"
+
+if [[ ${#pathspecs[@]} -eq 0 ]]; then
+  echo "::error::paths input produced no pathspecs" >&2
+  exit 1
+fi
+
 gh auth setup-git
 
 git checkout -B "${BRANCH}"
-git -c user.name="${GIT_USER_NAME}" -c user.email="${GIT_USER_EMAIL}" commit --message "${COMMIT_MESSAGE}"
+git -c user.name="${GIT_USER_NAME}" -c user.email="${GIT_USER_EMAIL}" commit --only --message "${COMMIT_MESSAGE}" -- "${pathspecs[@]}"
 git push --force --set-upstream origin "${BRANCH}"
 
 echo "commit-sha=$(git rev-parse HEAD)" >> "${GITHUB_OUTPUT}"

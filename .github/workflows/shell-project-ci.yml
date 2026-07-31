@@ -198,3 +198,8 @@ jobs:
           qa_command_script="$(mktemp)"
           printf '%s\n' "${QA_COMMAND}" > "${qa_command_script}"
           bash -euo pipefail "${qa_command_script}"
+          if ! git diff --quiet -- .; then
+            echo "::error::the QA command modified tracked files; run it locally and commit the results before pushing"
+            git --no-pager diff --stat -- .
+            exit 1
+          fi

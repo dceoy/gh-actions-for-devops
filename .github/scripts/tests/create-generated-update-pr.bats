@@ -109,7 +109,8 @@ output_value() {
     BRANCH=update-generated \
     COMMIT_MESSAGE='Update generated files' \
     GIT_USER_NAME='Bot' \
-    GIT_USER_EMAIL='bot@example.com'
+    GIT_USER_EMAIL='bot@example.com' \
+    PATHS=$'generated/*'
 
   [ "${status}" -eq 0 ]
   [ "$(git rev-parse --abbrev-ref HEAD)" = "update-generated" ]
@@ -119,6 +120,47 @@ output_value() {
   remote_sha="$(git ls-remote origin refs/heads/update-generated | cut -f1)"
   [ "${remote_sha}" = "${commit_sha}" ]
   grep -q '^auth setup-git' "${GH_STUB_LOG}"
+}
+
+@test "commit-and-push commits only the caller-scoped pathspecs, leaving other staged files staged" {
+  cd "${REPO}"
+  echo "generated edit" >> generated/output.txt
+  echo "unrelated staged edit" >> other/unrelated.txt
+  git add -- generated/output.txt other/unrelated.txt
+  run_script commit-and-push.sh \
+    "PATH=${GH_STUB_DIR}:${PATH}" \
+    GH_TOKEN=test-token \
+    GH_STUB_LOG="${GH_STUB_LOG}" \
+    BRANCH=update-generated \
+    COMMIT_MESSAGE='Update generated files' \
+    GIT_USER_NAME='Bot' \
+    GIT_USER_EMAIL='bot@example.com' \
+    PATHS=$'generated/*'
+
+  [ "${status}" -eq 0 ]
+  committed="$(git show --name-only --pretty=format: HEAD)"
+  [ "${committed}" = "generated/output.txt" ]
+  staged="$(git diff --cached --name-only)"
+  [ "${staged}" = "other/unrelated.txt" ]
+}
+
+@test "commit-and-push fails when paths input is empty" {
+  cd "${REPO}"
+  echo "generated edit" >> generated/output.txt
+  git add -- generated/output.txt
+  run_script commit-and-push.sh \
+    "PATH=${GH_STUB_DIR}:${PATH}" \
+    GH_TOKEN=test-token \
+    GH_STUB_LOG="${GH_STUB_LOG}" \
+    BRANCH=update-generated \
+    COMMIT_MESSAGE='Update generated files' \
+    GIT_USER_NAME='Bot' \
+    GIT_USER_EMAIL='bot@example.com' \
+    PATHS=
+
+  [ "${status}" -ne 0 ]
+  [[ "${output}" == *"paths input must not be empty"* ]]
+  [ ! -s "${GH_STUB_LOG}" ]
 }
 
 @test "commit-and-push resets a previously pushed branch instead of accumulating commits" {
@@ -132,7 +174,8 @@ output_value() {
     BRANCH=update-generated \
     COMMIT_MESSAGE='first update' \
     GIT_USER_NAME='Bot' \
-    GIT_USER_EMAIL='bot@example.com'
+    GIT_USER_EMAIL='bot@example.com' \
+    PATHS=$'generated/*'
   [ "${status}" -eq 0 ]
   first_sha="$(output_value commit-sha)"
 
@@ -146,7 +189,8 @@ output_value() {
     BRANCH=update-generated \
     COMMIT_MESSAGE='second update' \
     GIT_USER_NAME='Bot' \
-    GIT_USER_EMAIL='bot@example.com'
+    GIT_USER_EMAIL='bot@example.com' \
+    PATHS=$'generated/*'
   [ "${status}" -eq 0 ]
   second_sha="$(output_value commit-sha)"
 

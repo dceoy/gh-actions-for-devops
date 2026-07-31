@@ -24,6 +24,12 @@ prepare_fixture() {
     mkdir -p "$(dirname "${output_path}")"
     cp "${fixture}" "${output_path}"
   done < <(find "${FIXTURES}/${fixture_name}" -type f -name '*.fixture' -print0)
+
+  git -C "${destination}" init -q
+  git -C "${destination}" config user.email test@example.com
+  git -C "${destination}" config user.name "Test User"
+  git -C "${destination}" add -A
+  git -C "${destination}" commit -q -m fixture
 }
 
 extract_step() {
@@ -130,4 +136,14 @@ run_step() {
 
   [ "${status}" -eq 0 ]
   [[ "${output}" == *"marker"* ]]
+}
+
+@test "the workflow fails when the QA command rewrites a tracked file" {
+  project="${TEST_TEMP}/passing project"
+  prepare_fixture passing "${project}"
+
+  run_step "Run the caller-provided QA command" "${project}" 'QA_COMMAND=echo rewritten > marker-file'
+
+  [ "${status}" -ne 0 ]
+  [[ "${output}" == *"modified tracked files"* ]]
 }
