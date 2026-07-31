@@ -91,3 +91,9 @@ runs:
         LABELS: ${{ inputs.labels }}
         DRAFT: ${{ inputs.draft }}
       run: ${{ github.action_path }}/scripts/create-or-update-pr.sh
+    - name: Close an obsolete pull request
+      if: steps.stage.outputs.changed == 'false'
+      shell: bash -euo pipefail {0}
+      env:
+        BRANCH: ${{ inputs.branch }}
+      run: ${{ github.action_path }}/scripts/close-obsolete-pr.sh

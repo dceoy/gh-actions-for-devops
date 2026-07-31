@@ -132,7 +132,7 @@ jobs:
           title: Update generated docs
 ```
 
-Only the pathspecs listed in `paths` are ever staged or committed; unrelated workspace changes are left untouched. Re-running the action resets the same branch and updates the same open pull request instead of creating duplicates. The generation step must run with `base` checked out (or a commit already merged into `base`); the action compares the checked-out commit against `base` on GitHub and fails before pushing anything if it is ahead of or diverged from `base`, so a mismatched checkout can never smuggle unrelated commits into the branch or pull request. See the action's `action.yml` for the full set of inputs (commit message, labels, draft mode, Git author) and outputs (`changed`, `branch`, `commit-sha`, `pr-number`, `pr-url`).
+Only the pathspecs listed in `paths` are ever staged or committed; unrelated workspace changes are left untouched. Re-running the action resets the same branch and updates the same open pull request instead of creating duplicates; if a later run finds no scoped changes, it closes that pull request instead of leaving it open with a stale diff. The generation step must run with `base` checked out (or a commit already merged into `base`); the action compares the checked-out commit against `base` on GitHub and fails before pushing anything if it is ahead of or diverged from `base`, so a mismatched checkout can never smuggle unrelated commits into the branch or pull request. See the action's `action.yml` for the full set of inputs (commit message, labels, draft mode, Git author) and outputs (`changed`, `branch`, `commit-sha`, `pr-number`, `pr-url`).
 
 ## Reusable Workflows
 

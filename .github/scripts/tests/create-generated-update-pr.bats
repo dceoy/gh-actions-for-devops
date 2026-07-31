@@ -60,6 +60,7 @@ case "${1:-} ${2:-}" in
     ;;
   "pr edit") ;;
   "pr ready") ;;
+  "pr close") ;;
   "pr view")
     if [[ "$*" == *"isDraft"* ]]; then
       printf '%s' "${GH_STUB_PR_IS_DRAFT:-false}"
@@ -631,4 +632,132 @@ output_value() {
   [[ "${output}" == *"not a valid Git branch name"* ]]
   [ ! -f /tmp/create-generated-update-pr-pwned ]
   [ ! -s "${GH_STUB_LOG}" ]
+}
+
+@test "close-obsolete-pr closes an existing open pull request" {
+  cd "${REPO}"
+  run_script close-obsolete-pr.sh \
+    "PATH=${GH_STUB_DIR}:${PATH}" \
+    GH_TOKEN=test-token \
+    GH_STUB_LOG="${GH_STUB_LOG}" \
+    GH_STUB_PR_LIST_OUTPUT=77 \
+    BRANCH=update-generated
+
+  [ "${status}" -eq 0 ]
+  grep -q '^pr close 77 ' "${GH_STUB_LOG}"
+}
+
+@test "close-obsolete-pr does nothing when no pull request is open" {
+  cd "${REPO}"
+  run_script close-obsolete-pr.sh \
+    "PATH=${GH_STUB_DIR}:${PATH}" \
+    GH_TOKEN=test-token \
+    GH_STUB_LOG="${GH_STUB_LOG}" \
+    GH_STUB_PR_LIST_OUTPUT='' \
+    BRANCH=update-generated
+
+  [ "${status}" -eq 0 ]
+  run ! grep -q '^pr close ' "${GH_STUB_LOG}"
+}
+
+@test "close-obsolete-pr skips a fork pull request with the same head branch name" {
+  cd "${REPO}"
+  run_script close-obsolete-pr.sh \
+    "PATH=${GH_STUB_DIR}:${PATH}" \
+    GH_TOKEN=test-token \
+    GH_STUB_LOG="${GH_STUB_LOG}" \
+    GH_STUB_PR_LIST_JSON='[{"number":55,"isCrossRepository":true}]' \
+    BRANCH=update-generated
+
+  [ "${status}" -eq 0 ]
+  run ! grep -q '^pr close ' "${GH_STUB_LOG}"
+}
+
+@test "close-obsolete-pr rejects a branch name that looks like a flag" {
+  cd "${REPO}"
+  run_script close-obsolete-pr.sh \
+    "PATH=${GH_STUB_DIR}:${PATH}" \
+    GH_TOKEN=test-token \
+    GH_STUB_LOG="${GH_STUB_LOG}" \
+    BRANCH='--upload-pack=touch /tmp/create-generated-update-pr-pwned'
+
+  [ "${status}" -ne 0 ]
+  [[ "${output}" == *"not a valid Git branch name"* ]]
+  [ ! -f /tmp/create-generated-update-pr-pwned ]
+  [ ! -s "${GH_STUB_LOG}" ]
+}
+
+@test "close-obsolete-pr rejects checkout shorthand that resolves to another branch" {
+  cd "${REPO}"
+  git checkout -q -b decoy
+
+  run_script close-obsolete-pr.sh \
+    "PATH=${GH_STUB_DIR}:${PATH}" \
+    GH_TOKEN=test-token \
+    GH_STUB_LOG="${GH_STUB_LOG}" \
+    BRANCH='@{-1}'
+
+  [ "${status}" -ne 0 ]
+  [[ "${output}" == *"not a valid Git branch name"* ]]
+  [ ! -s "${GH_STUB_LOG}" ]
+}
+
+@test "close-obsolete-pr fails when GH_TOKEN is not set" {
+  cd "${REPO}"
+  run env -u GH_TOKEN \
+    "PATH=${GH_STUB_DIR}:${PATH}" \
+    GH_STUB_LOG="${GH_STUB_LOG}" \
+    GITHUB_OUTPUT="${GITHUB_OUTPUT_FILE}" \
+    BRANCH=update-generated \
+    bash "${ACTION_DIR}/scripts/close-obsolete-pr.sh"
+
+  [ "${status}" -ne 0 ]
+  [[ "${output}" == *"GH_TOKEN must be set"* ]]
+}
+
+@test "an update pull request opened by an earlier run is closed once the scoped diff disappears" {
+  cd "${REPO}"
+  echo "generated edit" >> generated/output.txt
+  git add -- generated/output.txt
+  run_script commit-and-push.sh \
+    "PATH=${GH_STUB_DIR}:${PATH}" \
+    GH_TOKEN=test-token \
+    GH_STUB_LOG="${GH_STUB_LOG}" \
+    BRANCH=update-generated \
+    BASE=main \
+    COMMIT_MESSAGE='Update generated files' \
+    GIT_USER_NAME='Bot' \
+    GIT_USER_EMAIL='bot@example.com' \
+    PATHS=$'generated/*'
+  [ "${status}" -eq 0 ]
+
+  run_script create-or-update-pr.sh \
+    "PATH=${GH_STUB_DIR}:${PATH}" \
+    GH_TOKEN=test-token \
+    GH_STUB_LOG="${GH_STUB_LOG}" \
+    GH_STUB_CREATED_MARKER="${GH_STUB_CREATED_MARKER}" \
+    GH_STUB_PR_LIST_OUTPUT='' \
+    GH_STUB_PR_NUMBER=101 \
+    GH_STUB_PR_URL='https://example.invalid/pr/101' \
+    BRANCH=update-generated \
+    BASE=main \
+    TITLE='Update generated files' \
+    BODY='body text'
+  [ "${status}" -eq 0 ]
+  [ "$(output_value pr-number)" = "101" ]
+
+  git -C "${REPO}" checkout -q main
+  run_script stage-changes.sh PATHS=$'generated/*'
+  [ "${status}" -eq 0 ]
+  [ "$(output_value changed)" = "false" ]
+
+  run_script close-obsolete-pr.sh \
+    "PATH=${GH_STUB_DIR}:${PATH}" \
+    GH_TOKEN=test-token \
+    GH_STUB_LOG="${GH_STUB_LOG}" \
+    GH_STUB_CREATED_MARKER="${GH_STUB_CREATED_MARKER}" \
+    GH_STUB_PR_NUMBER=101 \
+    BRANCH=update-generated
+  [ "${status}" -eq 0 ]
+  grep -q '^pr close 101 ' "${GH_STUB_LOG}"
 }
