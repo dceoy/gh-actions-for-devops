@@ -1,8 +1,8 @@
-# gh-actions-for-devops
+# gha-for-devops
 
 Reusable GitHub Actions workflows for CI/CD, security, infrastructure, and developer automation.
 
-[![CI](https://github.com/dceoy/gh-actions-for-devops/actions/workflows/ci.yml/badge.svg)](https://github.com/dceoy/gh-actions-for-devops/actions/workflows/ci.yml)
+[![CI](https://github.com/dceoy/gha-for-devops/actions/workflows/ci.yml/badge.svg)](https://github.com/dceoy/gha-for-devops/actions/workflows/ci.yml)
 
 ## Usage
 
@@ -15,7 +15,7 @@ on:
 
 jobs:
   lint:
-    uses: dceoy/gh-actions-for-devops/.github/workflows/yaml-lint.yml@main
+    uses: dceoy/gha-for-devops/.github/workflows/yaml-lint.yml@main
 ```
 
 For production use, replace `@main` with a release tag or commit SHA. Pass sensitive values through `secrets:`, never `with:`. Cache-enabled workflows document options such as `enable-cache`, `cache-dependency-path`, and `cache-salt` in their workflow files.
@@ -31,7 +31,7 @@ jobs:
       contents: read
       id-token: write
       pages: write
-    uses: dceoy/gh-actions-for-devops/.github/workflows/hugo-deploy-to-gh-pages.yml@main
+    uses: dceoy/gha-for-devops/.github/workflows/hugo-deploy-to-gh-pages.yml@main
 ```
 
 For a custom build, upload a Pages artifact in one job and reuse only the deployment contract:
@@ -56,7 +56,7 @@ jobs:
     permissions:
       id-token: write
       pages: write
-    uses: dceoy/gh-actions-for-devops/.github/workflows/github-pages-deploy.yml@main
+    uses: dceoy/gha-for-devops/.github/workflows/github-pages-deploy.yml@main
 ```
 
 ### Go quality checks
@@ -69,12 +69,12 @@ jobs:
     permissions:
       contents: read
       security-events: write
-    uses: dceoy/gh-actions-for-devops/.github/workflows/go-package-lint-and-scan.yml@main
+    uses: dceoy/gha-for-devops/.github/workflows/go-package-lint-and-scan.yml@main
 
   test:
     permissions:
       contents: read
-    uses: dceoy/gh-actions-for-devops/.github/workflows/go-package-test.yml@main
+    uses: dceoy/gha-for-devops/.github/workflows/go-package-test.yml@main
     with:
       race-enabled: true
       coverage-enabled: true
@@ -100,7 +100,7 @@ jobs:
   ci:
     permissions:
       contents: read
-    uses: dceoy/gh-actions-for-devops/.github/workflows/shell-project-ci.yml@main
+    uses: dceoy/gha-for-devops/.github/workflows/shell-project-ci.yml@main
     with:
       command: .agents/skills/local-qa/scripts/qa.sh
 ```
@@ -121,7 +121,7 @@ jobs:
         with:
           persist-credentials: false
       - run: ./scripts/generate-docs.sh
-      - uses: dceoy/gh-actions-for-devops/.github/actions/create-generated-update-pr@main
+      - uses: dceoy/gha-for-devops/.github/actions/create-generated-update-pr@main
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
