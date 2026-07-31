@@ -1,8 +1,8 @@
-# gh-actions-for-devops
+# gha-for-devops
 
 Reusable GitHub Actions workflows for CI/CD, security, infrastructure, and developer automation.
 
-[![CI](https://github.com/dceoy/gh-actions-for-devops/actions/workflows/ci.yml/badge.svg)](https://github.com/dceoy/gh-actions-for-devops/actions/workflows/ci.yml)
+[![CI](https://github.com/dceoy/gha-for-devops/actions/workflows/ci.yml/badge.svg)](https://github.com/dceoy/gha-for-devops/actions/workflows/ci.yml)
 
 ## Usage
 
@@ -15,7 +15,7 @@ on:
 
 jobs:
   lint:
-    uses: dceoy/gh-actions-for-devops/.github/workflows/yaml-lint.yml@main
+    uses: dceoy/gha-for-devops/.github/workflows/yaml-lint.yml@main
 ```
 
 For production use, replace `@main` with a release tag or commit SHA. Pass sensitive values through `secrets:`, never `with:`. Cache-enabled workflows document options such as `enable-cache`, `cache-dependency-path`, and `cache-salt` in their workflow files.
@@ -31,7 +31,7 @@ jobs:
       contents: read
       id-token: write
       pages: write
-    uses: dceoy/gh-actions-for-devops/.github/workflows/hugo-deploy-to-gh-pages.yml@main
+    uses: dceoy/gha-for-devops/.github/workflows/hugo-deploy-to-gh-pages.yml@main
 ```
 
 For a custom build, upload a Pages artifact in one job and reuse only the deployment contract:
@@ -56,7 +56,7 @@ jobs:
     permissions:
       id-token: write
       pages: write
-    uses: dceoy/gh-actions-for-devops/.github/workflows/github-pages-deploy.yml@main
+    uses: dceoy/gha-for-devops/.github/workflows/github-pages-deploy.yml@main
 ```
 
 ### Go quality checks
@@ -69,12 +69,12 @@ jobs:
     permissions:
       contents: read
       security-events: write
-    uses: dceoy/gh-actions-for-devops/.github/workflows/go-package-lint-and-scan.yml@main
+    uses: dceoy/gha-for-devops/.github/workflows/go-package-lint-and-scan.yml@main
 
   test:
     permissions:
       contents: read
-    uses: dceoy/gh-actions-for-devops/.github/workflows/go-package-test.yml@main
+    uses: dceoy/gha-for-devops/.github/workflows/go-package-test.yml@main
     with:
       race-enabled: true
       coverage-enabled: true
@@ -93,26 +93,46 @@ jobs:
 
 ### Shell project CI
 
-Replace a small shell project’s combined `make check` job with one reusable workflow:
+Replace a small shell project's local tool installation and version pinning with one reusable workflow that installs ShellCheck, shfmt, actionlint, Bats, zizmor, yamllint, and Checkov, then runs your QA command:
 
 ```yaml
 jobs:
-  check:
+  ci:
     permissions:
       contents: read
-    uses: dceoy/gh-actions-for-devops/.github/workflows/shell-project-ci.yml@main
+    uses: dceoy/gha-for-devops/.github/workflows/shell-project-ci.yml@main
     with:
-      shell-file-names: |
-        bin/*.sh
-        lib/*.bash
-        test/*.bats
-      shfmt-file-names: |
-        bin/*.sh
-        lib/*.bash
-        test/*.bats
-      bats-test-paths: test/*.bats
-      shfmt-indent: 2
+      command: .agents/skills/local-qa/scripts/qa.sh
 ```
+
+### Generated file update pull requests
+
+Run the `create-generated-update-pr` composite action as a step after your own generation and validation steps, in the same job and workspace, to open or refresh a pull request for the resulting changes. It requires `contents: write` and `pull-requests: write`, and reads `GH_TOKEN` from the step environment rather than an action input; the action runs `gh auth setup-git` internally, so `actions/checkout` does not need `persist-credentials: true`:
+
+```yaml
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: ./scripts/generate-docs.sh
+      - uses: dceoy/gha-for-devops/.github/actions/create-generated-update-pr@main
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          paths: |
+            docs/**
+          branch: update-generated-docs
+          base: main
+          title: Update generated docs
+```
+
+Only the pathspecs listed in `paths` are ever staged or committed; unrelated workspace changes are left untouched. Re-running the action resets the same branch and updates the same open pull request instead of creating duplicates; if a later run finds no scoped changes, it closes that pull request instead of leaving it open with a stale diff. The generation step must run with `base` checked out (or a commit already merged into `base`); the action compares the checked-out commit against `base` on GitHub and fails before pushing anything if it is ahead of or diverged from `base`, so a mismatched checkout can never smuggle unrelated commits into the branch or pull request. See the action's `action.yml` for the full set of inputs (commit message, labels, draft mode, Git author) and outputs (`changed`, `branch`, `commit-sha`, `pr-number`, `pr-url`).
 
 ## Reusable Workflows
 

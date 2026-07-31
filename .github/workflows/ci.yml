@@ -86,6 +86,7 @@ jobs:
     uses: ./.github/workflows/github-actions-lint-and-scan.yml
     with:
       search-path: .github/workflows
+      zizmor-search-path: .github
       go-version: stable
       python-version: 3.x
   github-codeql-analysis:
@@ -184,7 +185,7 @@ jobs:
           PRETTIER_VERSION: ${{ env.PRETTIER_VERSION }}
         run: | # zizmor: ignore[adhoc-packages] installs pinned Prettier tool
           [[ "${PRETTIER_VERSION}" =~ ^[0-9]+(\.[0-9]+)*([._+-][A-Za-z0-9]+)*$ ]] || { echo "invalid PRETTIER_VERSION"; exit 1; }
-          tool_dir="${HOME}/.cache/gh-actions-for-devops/prettier"
+          tool_dir="${HOME}/.cache/gha-for-devops/prettier"
           if [[ ! -x "${tool_dir}/node_modules/.bin/prettier" ]]; then
             npm install --prefix "${tool_dir}" "prettier@${PRETTIER_VERSION}"
           fi

@@ -3,53 +3,20 @@ name: Run shell project CI
 on:
   workflow_call:
     inputs:
+      command:
+        required: true
+        type: string
+        description: Caller-provided QA command to run after installing pinned tools (ShellCheck, shfmt, actionlint, Bats, zizmor, yamllint, and Checkov)
       search-path:
         required: false
         type: string
-        description: Relative path containing the shell project
+        description: Relative path to run the command in
         default: .
-      shell-file-names:
+      python-version:
         required: false
         type: string
-        description: Newline-separated shell file pathspecs passed to git ls-files
-        default: |
-          *.sh
-          *.bash
-          *.bats
-      shfmt-file-names:
-        required: false
-        type: string
-        description: Newline-separated shfmt file pathspecs passed to git ls-files
-        default: |
-          *.sh
-          *.bash
-          *.bats
-      shfmt-indent:
-        required: false
-        type: number
-        description: Number of spaces used for indentation, with 0 selecting tabs
-        default: 2
-      shfmt-binary-next-line:
-        required: false
-        type: boolean
-        description: Place binary operators at the start of the next line
-        default: true
-      shfmt-case-indent:
-        required: false
-        type: boolean
-        description: Indent case statement bodies
-        default: true
-      shfmt-space-redirects:
-        required: false
-        type: boolean
-        description: Add a space after redirect operators
-        default: true
-      bats-test-paths:
-        required: false
-        type: string
-        description: Newline-separated Bats test pathspecs passed to git ls-files
-        default: |
-          *.bats
+        description: Python version used to install zizmor, yamllint, and Checkov
+        default: "3.12"
       bats-version:
         required: false
         type: string
@@ -61,6 +28,16 @@ on:
         type: boolean
         description: Install bats-support, bats-assert, bats-detik, and bats-file
         default: false
+      enable-cache:
+        required: false
+        type: boolean
+        description: Cache pinned tool downloads
+        default: true
+      cache-salt:
+        required: false
+        type: string
+        description: Optional value used to bust tool caches
+        default: null
       runs-on:
         required: false
         type: string
@@ -78,7 +55,7 @@ defaults:
     shell: bash -euo pipefail {0}
     working-directory: .
 jobs:
-  test:
+  ci:
     runs-on: ${{ inputs.runs-on }}
     timeout-minutes: ${{ inputs.timeout-minutes }}
     env:
@@ -86,6 +63,14 @@ jobs:
       SHELLCHECK_VERSION: v0.10.0
       # renovate: datasource=github-releases depName=mvdan/sh
       SHFMT_VERSION: v3.12.0
+      # renovate: datasource=github-releases depName=rhysd/actionlint
+      ACTIONLINT_VERSION: v1.7.12
+      # renovate: datasource=pypi depName=zizmor versioning=pep440
+      ZIZMOR_VERSION: "1.28.0"
+      # renovate: datasource=pypi depName=yamllint versioning=pep440
+      YAMLLINT_VERSION: "1.38.0"
+      # renovate: datasource=pypi depName=checkov versioning=pep440
+      CHECKOV_VERSION: "3.3.8"
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
@@ -95,9 +80,13 @@ jobs:
       - name: Validate inputs
         env:
           SEARCH_PATH: ${{ inputs.search-path }}
-          SHFMT_INDENT: ${{ inputs.shfmt-indent }}
+          QA_COMMAND: ${{ inputs.command }}
           BATS_VERSION: ${{ inputs.bats-version }}
         run: |
+          if [[ -z "${QA_COMMAND}" ]]; then
+            echo "::error::command must not be empty"
+            exit 1
+          fi
           if [[ -z "${SEARCH_PATH}" || "${SEARCH_PATH}" == /* || "${SEARCH_PATH}" == ".." || "${SEARCH_PATH}" == ../* || "${SEARCH_PATH}" == */../* || "${SEARCH_PATH}" == */.. || "${SEARCH_PATH}" == *$'\n'* ]]; then
             echo "::error::search-path must be a relative path without parent-directory components or newlines"
             exit 1
@@ -106,44 +95,51 @@ jobs:
             echo "::error::search-path does not exist: ${SEARCH_PATH}"
             exit 1
           fi
-          if [[ ! "${SHFMT_INDENT}" =~ ^[0-8]$ ]]; then
-            echo "::error::shfmt-indent must be an integer from 0 through 8"
-            exit 1
-          fi
           if [[ ! "${BATS_VERSION}" =~ ^[0-9]+(\.[0-9]+){1,2}$ ]]; then
             echo "::error::bats-version must be a numeric release version"
             exit 1
           fi
-      - name: Install ShellCheck when unavailable
+      - name: Cache linter binaries
+        if: inputs.enable-cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
+        with:
+          path: ~/.local/bin
+          key: shell-project-ci-bin-${{ runner.os }}-${{ runner.arch }}-shellcheck-${{ env.SHELLCHECK_VERSION }}-shfmt-${{ env.SHFMT_VERSION }}-actionlint-${{ env.ACTIONLINT_VERSION }}-${{ inputs.cache-salt }}
+      - name: Install ShellCheck if the pinned version is missing
         env:
           SHELLCHECK_VERSION: ${{ env.SHELLCHECK_VERSION }}
         run: |
           [[ "${SHELLCHECK_VERSION}" =~ ^v[0-9]+(\.[0-9]+)*$ ]] || { echo "::error::invalid SHELLCHECK_VERSION"; exit 1; }
-          if command -v shellcheck >/dev/null; then
-            exit 0
+          mkdir -p "${HOME}/.local/bin"
+          echo "${HOME}/.local/bin" >> "${GITHUB_PATH}"
+          current=""
+          if [[ -x "${HOME}/.local/bin/shellcheck" ]]; then
+            current="v$("${HOME}/.local/bin/shellcheck" --version | awk '/^version:/ {print $2}')" || true
           fi
+          [[ "${current}" == "${SHELLCHECK_VERSION}" ]] && exit 0
           [[ "${RUNNER_OS}" == "Linux" ]] || { echo "::error::automatic ShellCheck installation requires Linux"; exit 1; }
           arch=x86_64
           [[ "${RUNNER_ARCH}" == "ARM64" ]] && arch=aarch64
-          mkdir -p "${HOME}/.local/bin"
           curl --fail --location --silent --show-error \
             "https://github.com/koalaman/shellcheck/releases/download/${SHELLCHECK_VERSION}/shellcheck-${SHELLCHECK_VERSION}.linux.${arch}.tar.xz" \
             | tar -xJ --strip-components=1 -C "${RUNNER_TEMP}" "shellcheck-${SHELLCHECK_VERSION}/shellcheck"
           install -m 0755 "${RUNNER_TEMP}/shellcheck" "${HOME}/.local/bin/shellcheck"
-          echo "${HOME}/.local/bin" >> "${GITHUB_PATH}"
-      - name: Install shfmt when unavailable
+      - name: Install shfmt if the pinned version is missing
         env:
           SHFMT_VERSION: ${{ env.SHFMT_VERSION }}
         run: |
           [[ "${SHFMT_VERSION}" =~ ^v[0-9]+(\.[0-9]+)*$ ]] || { echo "::error::invalid SHFMT_VERSION"; exit 1; }
-          if command -v shfmt >/dev/null; then
-            exit 0
+          mkdir -p "${HOME}/.local/bin"
+          echo "${HOME}/.local/bin" >> "${GITHUB_PATH}"
+          current=""
+          if [[ -x "${HOME}/.local/bin/shfmt" ]]; then
+            current="$("${HOME}/.local/bin/shfmt" --version)" || true
           fi
+          [[ "${current}" == "${SHFMT_VERSION}" ]] && exit 0
           [[ "${RUNNER_OS}" == "Linux" ]] || { echo "::error::automatic shfmt installation requires Linux"; exit 1; }
           arch=amd64
           [[ "${RUNNER_ARCH}" == "ARM64" ]] && arch=arm64
           asset="shfmt_${SHFMT_VERSION}_linux_${arch}"
-          mkdir -p "${HOME}/.local/bin"
           curl --fail --location --silent --show-error \
             --output "${RUNNER_TEMP}/${asset}" \
             "https://github.com/mvdan/sh/releases/download/${SHFMT_VERSION}/${asset}"
@@ -152,51 +148,52 @@ jobs:
             | grep -F "  ${asset}" \
             | (cd "${RUNNER_TEMP}" && sha256sum --check --strict -)
           install -m 0755 "${RUNNER_TEMP}/${asset}" "${HOME}/.local/bin/shfmt"
+      - name: Install actionlint if the pinned version is missing
+        env:
+          ACTIONLINT_VERSION: ${{ env.ACTIONLINT_VERSION }}
+        run: |
+          # shellcheck disable=SC2153
+          [[ "${ACTIONLINT_VERSION}" =~ ^v[0-9]+(\.[0-9]+)*$ ]] || { echo "::error::invalid ACTIONLINT_VERSION"; exit 1; }
+          mkdir -p "${HOME}/.local/bin"
           echo "${HOME}/.local/bin" >> "${GITHUB_PATH}"
-      - name: Run ShellCheck
-        working-directory: ${{ inputs.search-path }}
+          current=""
+          if [[ -x "${HOME}/.local/bin/actionlint" ]]; then
+            current="v$("${HOME}/.local/bin/actionlint" --version | head -n1)" || true
+          fi
+          [[ "${current}" == "${ACTIONLINT_VERSION}" ]] && exit 0
+          [[ "${RUNNER_OS}" == "Linux" ]] || { echo "::error::automatic actionlint installation requires Linux"; exit 1; }
+          arch=amd64
+          [[ "${RUNNER_ARCH}" == "ARM64" ]] && arch=arm64
+          actionlint_version="${ACTIONLINT_VERSION#v}"
+          asset="actionlint_${actionlint_version}_linux_${arch}.tar.gz"
+          curl --fail --location --silent --show-error \
+            --output "${RUNNER_TEMP}/${asset}" \
+            "https://github.com/rhysd/actionlint/releases/download/${ACTIONLINT_VERSION}/${asset}"
+          curl --fail --location --silent --show-error \
+            "https://github.com/rhysd/actionlint/releases/download/${ACTIONLINT_VERSION}/actionlint_${actionlint_version}_checksums.txt" \
+            | grep -F "  ${asset}" \
+            | (cd "${RUNNER_TEMP}" && sha256sum --check --strict -)
+          tar -xz -C "${HOME}/.local/bin" -f "${RUNNER_TEMP}/${asset}" actionlint
+      - name: Setup Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+        with:
+          python-version: ${{ inputs.python-version }}
+      - name: Cache Python QA tool downloads
+        if: inputs.enable-cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
+        with:
+          path: ~/.cache/pip
+          key: shell-project-ci-pip-${{ runner.os }}-${{ inputs.python-version }}-zizmor-${{ env.ZIZMOR_VERSION }}-yamllint-${{ env.YAMLLINT_VERSION }}-checkov-${{ env.CHECKOV_VERSION }}-${{ inputs.cache-salt }}
+      - name: Install zizmor, yamllint, and Checkov
         env:
-          FILE_NAMES: ${{ inputs.shell-file-names }}
-        run: |
-          echo "::group::ShellCheck"
-          pathspecs=()
-          while IFS= read -r pathspec; do
-            [[ -n "${pathspec}" ]] && pathspecs+=("${pathspec}")
-          done <<< "${FILE_NAMES}"
-          [[ ${#pathspecs[@]} -gt 0 ]] || { echo "::error::shell-file-names produced no pathspecs"; exit 1; }
-          files=()
-          while IFS= read -r -d '' file; do
-            files+=("./${file}")
-          done < <(git ls-files -z -- "${pathspecs[@]}")
-          [[ ${#files[@]} -gt 0 ]] || { echo "::error::ShellCheck selected no tracked files"; exit 1; }
-          shellcheck --external-sources -- "${files[@]}"
-          echo "::endgroup::"
-      - name: Check formatting with shfmt
-        working-directory: ${{ inputs.search-path }}
-        env:
-          FILE_NAMES: ${{ inputs.shfmt-file-names }}
-          SHFMT_INDENT: ${{ inputs.shfmt-indent }}
-          SHFMT_BINARY_NEXT_LINE: ${{ inputs.shfmt-binary-next-line }}
-          SHFMT_CASE_INDENT: ${{ inputs.shfmt-case-indent }}
-          SHFMT_SPACE_REDIRECTS: ${{ inputs.shfmt-space-redirects }}
-        run: |
-          echo "::group::shfmt"
-          pathspecs=()
-          while IFS= read -r pathspec; do
-            [[ -n "${pathspec}" ]] && pathspecs+=("${pathspec}")
-          done <<< "${FILE_NAMES}"
-          [[ ${#pathspecs[@]} -gt 0 ]] || { echo "::error::shfmt-file-names produced no pathspecs"; exit 1; }
-          files=()
-          while IFS= read -r -d '' file; do
-            files+=("./${file}")
-          done < <(git ls-files -z -- "${pathspecs[@]}")
-          [[ ${#files[@]} -gt 0 ]] || { echo "::error::shfmt selected no tracked files"; exit 1; }
-          shfmt_args=(-d -i "${SHFMT_INDENT}")
-          [[ "${SHFMT_BINARY_NEXT_LINE}" == "true" ]] && shfmt_args+=(-bn)
-          [[ "${SHFMT_CASE_INDENT}" == "true" ]] && shfmt_args+=(-ci)
-          [[ "${SHFMT_SPACE_REDIRECTS}" == "true" ]] && shfmt_args+=(-sr)
-          shfmt "${shfmt_args[@]}" "${files[@]}"
-          echo "::endgroup::"
+          ZIZMOR_VERSION: ${{ env.ZIZMOR_VERSION }}
+          YAMLLINT_VERSION: ${{ env.YAMLLINT_VERSION }}
+          CHECKOV_VERSION: ${{ env.CHECKOV_VERSION }}
+        run: | # zizmor: ignore[adhoc-packages] installs pinned Python QA tools
+          for version in "${ZIZMOR_VERSION}" "${YAMLLINT_VERSION}" "${CHECKOV_VERSION}"; do
+            [[ "${version}" =~ ^[0-9]+(\.[0-9]+)*([._+-][A-Za-z0-9]+)*$ ]] || { echo "::error::invalid pinned Python QA tool version: ${version}"; exit 1; }
+          done
+          pip install "zizmor==${ZIZMOR_VERSION}" "yamllint==${YAMLLINT_VERSION}" "checkov==${CHECKOV_VERSION}"
       - name: Set up Bats
         uses: bats-core/bats-action@77d6fb60505b4d0d1d73e48bd035b55074bbfb43  # 4.0.0
         with:
@@ -205,21 +202,17 @@ jobs:
           assert-install: ${{ inputs.install-bats-libraries }}
           detik-install: ${{ inputs.install-bats-libraries }}
           file-install: ${{ inputs.install-bats-libraries }}
-      - name: Run Bats tests
+      - name: Run the caller-provided QA command
         working-directory: ${{ inputs.search-path }}
         env:
-          TEST_PATHS: ${{ inputs.bats-test-paths }}
+          QA_COMMAND: ${{ inputs.command }}
         run: |
-          echo "::group::Bats"
-          pathspecs=()
-          while IFS= read -r pathspec; do
-            [[ -n "${pathspec}" ]] && pathspecs+=("${pathspec}")
-          done <<< "${TEST_PATHS}"
-          [[ ${#pathspecs[@]} -gt 0 ]] || { echo "::error::bats-test-paths produced no pathspecs"; exit 1; }
-          files=()
-          while IFS= read -r -d '' file; do
-            files+=("./${file}")
-          done < <(git ls-files -z -- "${pathspecs[@]}")
-          [[ ${#files[@]} -gt 0 ]] || { echo "::error::Bats selected no tracked test files"; exit 1; }
-          bats "${files[@]}"
-          echo "::endgroup::"
+          qa_command_script="$(mktemp)"
+          printf '%s\n' "${QA_COMMAND}" > "${qa_command_script}"
+          bash -euo pipefail "${qa_command_script}"
+          dirty="$(git -C "${GITHUB_WORKSPACE}" status --porcelain --untracked-files=no)"
+          if [[ -n "${dirty}" ]]; then
+            echo "::error::the QA command modified tracked files; run it locally and commit the results before pushing"
+            echo "${dirty}"
+            exit 1
+          fi

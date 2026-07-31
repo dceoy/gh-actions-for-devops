@@ -108,14 +108,14 @@ jobs:
         if: inputs.enable-cache
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
         with:
-          path: ~/.cache/gh-actions-for-devops/jsonlint
+          path: ~/.cache/gha-for-devops/jsonlint
           key: jsonlint-${{ runner.os }}-${{ inputs.node-version }}-${{ env.JSONLINT_VERSION }}-${{ inputs.cache-salt }}
       - name: Install jsonlint
         env:
           JSONLINT_VERSION: ${{ env.JSONLINT_VERSION }}
         run: | # zizmor: ignore[adhoc-packages] installs pinned jsonlint tool
           [[ "${JSONLINT_VERSION}" =~ ^[0-9]+(\.[0-9]+)*([._+-][A-Za-z0-9]+)*$ ]] || { echo "invalid JSONLINT_VERSION"; exit 1; }
-          tool_dir="${HOME}/.cache/gh-actions-for-devops/jsonlint"
+          tool_dir="${HOME}/.cache/gha-for-devops/jsonlint"
           if [[ ! -x "${tool_dir}/node_modules/.bin/jsonlint" ]]; then
             npm install --prefix "${tool_dir}" "jsonlint@${JSONLINT_VERSION}"
           fi
