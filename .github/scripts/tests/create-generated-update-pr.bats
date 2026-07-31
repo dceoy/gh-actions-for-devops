@@ -139,6 +139,14 @@ output_value() {
   [[ "${output}" == *"paths input must not be empty"* ]]
 }
 
+@test "stage-changes fails when paths input contains only blank lines" {
+  cd "${REPO}"
+  run_script stage-changes.sh PATHS=$'\n\n'
+
+  [ "${status}" -ne 0 ]
+  [[ "${output}" == *"paths input produced no pathspecs"* ]]
+}
+
 @test "commit-and-push creates the branch, commits, and pushes to origin" {
   cd "${REPO}"
   echo "generated edit" >> generated/output.txt
@@ -440,6 +448,27 @@ output_value() {
   grep -q -- '--label automated' "${GH_STUB_LOG}"
   grep -q -- '--label generated' "${GH_STUB_LOG}"
   run ! grep -q '^pr edit ' "${GH_STUB_LOG}"
+}
+
+@test "create-or-update-pr creates a new pull request as a draft" {
+  cd "${REPO}"
+  run_script create-or-update-pr.sh \
+    "PATH=${GH_STUB_DIR}:${PATH}" \
+    GH_TOKEN=test-token \
+    GH_STUB_LOG="${GH_STUB_LOG}" \
+    GH_STUB_CREATED_MARKER="${GH_STUB_CREATED_MARKER}" \
+    GH_STUB_PR_LIST_OUTPUT='' \
+    GH_STUB_PR_NUMBER=102 \
+    GH_STUB_PR_URL='https://example.invalid/pr/102' \
+    BRANCH=update-generated \
+    BASE=main \
+    TITLE='Update generated files' \
+    BODY='body text' \
+    LABELS='' \
+    DRAFT=true
+
+  [ "${status}" -eq 0 ]
+  grep -q -- '^pr create.*--draft' "${GH_STUB_LOG}"
 }
 
 @test "create-or-update-pr resolves an all-numeric branch name without an ambiguous positional argument" {

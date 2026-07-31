@@ -113,6 +113,19 @@ STUB
   [[ "${output}" == *"search-path must be a relative path"* ]]
 }
 
+@test "a non-existent search-path fails validation" {
+  project="${TEST_TEMP}/missing-search-path"
+  prepare_fixture passing "${project}"
+
+  run_step "Validate inputs" "${project}" \
+    'QA_COMMAND=./scripts/qa.sh' \
+    'SEARCH_PATH=nonexistent-directory' \
+    BATS_VERSION=1.13.0
+
+  [ "${status}" -ne 0 ]
+  [[ "${output}" == *"search-path does not exist"* ]]
+}
+
 @test "a non-numeric bats-version fails validation" {
   project="${TEST_TEMP}/invalid-bats-version"
   prepare_fixture passing "${project}"
