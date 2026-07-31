@@ -27,7 +27,7 @@ jobs:
           # revision as the scanner. Reusable and ruleset runs use the exact
           # repository and SHA of the workflow that defines this job, not the
           # caller workflow identity from the github context.
-          ref: ${{ job.workflow_repository == github.repository && github.event_name == 'pull_request' && github.event.pull_request.base.sha || job.workflow_sha }}
+          ref: ${{ github.event.pull_request.head.sha || job.workflow_sha }}  # tmp: one-off diagnostic to exercise the pipeline; revert before merge
           path: _trusted
           persist-credentials: false
       - name: Check out untrusted target revision
