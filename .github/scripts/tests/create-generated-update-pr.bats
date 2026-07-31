@@ -38,8 +38,11 @@ case "${1:-} ${2:-}" in
     ;;
   "pr create") ;;
   "pr edit") ;;
+  "pr ready") ;;
   "pr view")
-    if [[ "$*" == *"number"* ]]; then
+    if [[ "$*" == *"isDraft"* ]]; then
+      printf '%s' "${GH_STUB_PR_IS_DRAFT:-false}"
+    elif [[ "$*" == *"number"* ]]; then
       printf '%s' "${GH_STUB_PR_NUMBER:-42}"
     else
       printf '%s' "${GH_STUB_PR_URL:-https://example.invalid/pr/42}"
@@ -195,7 +198,7 @@ output_value() {
   second_sha="$(output_value commit-sha)"
 
   [ "${first_sha}" != "${second_sha}" ]
-  [ "$(git rev-list --count update-generated)" -eq 2 ]
+  [ "$(git rev-list --count update-generated)" -eq "$(($(git rev-list --count main) + 1))" ]
   remote_sha="$(git ls-remote origin refs/heads/update-generated | cut -f1)"
   [ "${remote_sha}" = "${second_sha}" ]
 }
@@ -272,6 +275,7 @@ output_value() {
     GH_STUB_PR_LIST_OUTPUT=77 \
     GH_STUB_PR_NUMBER=77 \
     GH_STUB_PR_URL='https://example.invalid/pr/77' \
+    GH_STUB_PR_IS_DRAFT=false \
     BRANCH=update-generated \
     BASE=main \
     TITLE='Update generated files' \
@@ -282,8 +286,56 @@ output_value() {
   [ "${status}" -eq 0 ]
   [ "$(output_value pr-number)" = "77" ]
   grep -q '^pr edit 77 ' "${GH_STUB_LOG}"
+  grep -q -- '--base main' "${GH_STUB_LOG}"
   grep -q -- '--add-label automated' "${GH_STUB_LOG}"
   run ! grep -q '^pr create ' "${GH_STUB_LOG}"
+  run ! grep -q '^pr ready ' "${GH_STUB_LOG}"
+  pr_list_line="$(grep '^pr list' "${GH_STUB_LOG}")"
+  [[ "${pr_list_line}" == 'pr list --head update-generated --state open '* ]]
+}
+
+@test "create-or-update-pr retargets base and un-drafts an existing pull request" {
+  cd "${REPO}"
+  run_script create-or-update-pr.sh \
+    "PATH=${GH_STUB_DIR}:${PATH}" \
+    GH_TOKEN=test-token \
+    GH_STUB_LOG="${GH_STUB_LOG}" \
+    GH_STUB_PR_LIST_OUTPUT=77 \
+    GH_STUB_PR_NUMBER=77 \
+    GH_STUB_PR_URL='https://example.invalid/pr/77' \
+    GH_STUB_PR_IS_DRAFT=true \
+    BRANCH=update-generated \
+    BASE=develop \
+    TITLE='Update generated files' \
+    BODY='body text' \
+    LABELS='' \
+    DRAFT=false
+
+  [ "${status}" -eq 0 ]
+  grep -q -- '--base develop' "${GH_STUB_LOG}"
+  grep -q '^pr ready 77 *$' "${GH_STUB_LOG}"
+  run ! grep -q -- '--undo' "${GH_STUB_LOG}"
+}
+
+@test "create-or-update-pr converts an existing pull request to draft" {
+  cd "${REPO}"
+  run_script create-or-update-pr.sh \
+    "PATH=${GH_STUB_DIR}:${PATH}" \
+    GH_TOKEN=test-token \
+    GH_STUB_LOG="${GH_STUB_LOG}" \
+    GH_STUB_PR_LIST_OUTPUT=77 \
+    GH_STUB_PR_NUMBER=77 \
+    GH_STUB_PR_URL='https://example.invalid/pr/77' \
+    GH_STUB_PR_IS_DRAFT=false \
+    BRANCH=update-generated \
+    BASE=main \
+    TITLE='Update generated files' \
+    BODY='body text' \
+    LABELS='' \
+    DRAFT=true
+
+  [ "${status}" -eq 0 ]
+  grep -q -- '^pr ready 77 --undo' "${GH_STUB_LOG}"
 }
 
 @test "create-or-update-pr fails when GH_TOKEN is not set" {
@@ -313,5 +365,21 @@ output_value() {
 
   [ "${status}" -ne 0 ]
   [[ "${output}" == *"not a valid Git branch name"* ]]
+  [ ! -s "${GH_STUB_LOG}" ]
+}
+
+@test "create-or-update-pr rejects a base that looks like a flag" {
+  cd "${REPO}"
+  run_script create-or-update-pr.sh \
+    "PATH=${GH_STUB_DIR}:${PATH}" \
+    GH_TOKEN=test-token \
+    GH_STUB_LOG="${GH_STUB_LOG}" \
+    BRANCH=update-generated \
+    BASE='--upload-pack=touch /tmp/create-generated-update-pr-pwned' \
+    TITLE='Update generated files'
+
+  [ "${status}" -ne 0 ]
+  [[ "${output}" == *"not a valid Git branch name"* ]]
+  [ ! -f /tmp/create-generated-update-pr-pwned ]
   [ ! -s "${GH_STUB_LOG}" ]
 }

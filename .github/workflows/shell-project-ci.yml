@@ -158,9 +158,15 @@ jobs:
           [[ "${RUNNER_ARCH}" == "ARM64" ]] && arch=arm64
           mkdir -p "${HOME}/.local/bin"
           actionlint_version="${ACTIONLINT_VERSION#v}"
+          asset="actionlint_${actionlint_version}_linux_${arch}.tar.gz"
           curl --fail --location --silent --show-error \
-            "https://github.com/rhysd/actionlint/releases/download/${ACTIONLINT_VERSION}/actionlint_${actionlint_version}_linux_${arch}.tar.gz" \
-            | tar -xz -C "${HOME}/.local/bin" actionlint
+            --output "${RUNNER_TEMP}/${asset}" \
+            "https://github.com/rhysd/actionlint/releases/download/${ACTIONLINT_VERSION}/${asset}"
+          curl --fail --location --silent --show-error \
+            "https://github.com/rhysd/actionlint/releases/download/${ACTIONLINT_VERSION}/actionlint_${actionlint_version}_checksums.txt" \
+            | grep -F "  ${asset}" \
+            | (cd "${RUNNER_TEMP}" && sha256sum --check --strict -)
+          tar -xz -C "${HOME}/.local/bin" -f "${RUNNER_TEMP}/${asset}" actionlint
           echo "${HOME}/.local/bin" >> "${GITHUB_PATH}"
       - name: Setup Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
@@ -198,8 +204,9 @@ jobs:
           qa_command_script="$(mktemp)"
           printf '%s\n' "${QA_COMMAND}" > "${qa_command_script}"
           bash -euo pipefail "${qa_command_script}"
-          if ! git diff --quiet -- .; then
+          dirty="$(git -C "${GITHUB_WORKSPACE}" status --porcelain --untracked-files=no)"
+          if [[ -n "${dirty}" ]]; then
             echo "::error::the QA command modified tracked files; run it locally and commit the results before pushing"
-            git --no-pager diff --stat -- .
+            echo "${dirty}"
             exit 1
           fi

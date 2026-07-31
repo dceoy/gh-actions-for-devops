@@ -15,6 +15,11 @@ if [[ "${BRANCH}" == -* ]] || ! git check-ref-format --branch "${BRANCH}" > /dev
   exit 1
 fi
 
+if [[ "${BASE}" == -* ]] || ! git check-ref-format --branch "${BASE}" > /dev/null 2>&1; then
+  echo "::error::base is not a valid Git branch name: ${BASE}" >&2
+  exit 1
+fi
+
 labels=()
 if [[ -n "${LABELS:-}" ]]; then
   while IFS= read -r label; do
@@ -22,17 +27,25 @@ if [[ -n "${LABELS:-}" ]]; then
   done < <(tr ',' '\n' <<< "${LABELS}")
 fi
 
-existing_pr_number="$(gh pr list --head "${BRANCH}" --base "${BASE}" --state open --json number --jq '.[0].number // empty')"
+draft="${DRAFT:-false}"
+
+existing_pr_number="$(gh pr list --head "${BRANCH}" --state open --json number --jq '.[0].number // empty')"
 
 if [[ -n "${existing_pr_number}" ]]; then
-  gh pr edit "${existing_pr_number}" --title "${TITLE}" --body "${BODY:-}"
+  gh pr edit "${existing_pr_number}" --title "${TITLE}" --body "${BODY:-}" --base "${BASE}"
   for label in "${labels[@]}"; do
     gh pr edit "${existing_pr_number}" --add-label "${label}"
   done
+  existing_is_draft="$(gh pr view "${existing_pr_number}" --json isDraft --jq '.isDraft')"
+  if [[ "${draft}" == "true" && "${existing_is_draft}" == "false" ]]; then
+    gh pr ready "${existing_pr_number}" --undo
+  elif [[ "${draft}" != "true" && "${existing_is_draft}" == "true" ]]; then
+    gh pr ready "${existing_pr_number}"
+  fi
   pr_number="${existing_pr_number}"
 else
   create_args=(--title "${TITLE}" --body "${BODY:-}" --base "${BASE}" --head "${BRANCH}")
-  [[ "${DRAFT:-false}" == "true" ]] && create_args+=(--draft)
+  [[ "${draft}" == "true" ]] && create_args+=(--draft)
   for label in "${labels[@]}"; do
     create_args+=(--label "${label}")
   done

@@ -104,7 +104,8 @@ run_step() {
   project="${TEST_TEMP}/passing project"
   prepare_fixture passing "${project}"
 
-  run_step "Run the caller-provided QA command" "${project}" 'QA_COMMAND=echo qa-ok'
+  run_step "Run the caller-provided QA command" "${project}" \
+    "GITHUB_WORKSPACE=${project}" 'QA_COMMAND=echo qa-ok'
 
   [ "${status}" -eq 0 ]
   [[ "${output}" == *"qa-ok"* ]]
@@ -114,7 +115,8 @@ run_step() {
   project="${TEST_TEMP}/passing project"
   prepare_fixture passing "${project}"
 
-  run_step "Run the caller-provided QA command" "${project}" 'QA_COMMAND=exit 1'
+  run_step "Run the caller-provided QA command" "${project}" \
+    "GITHUB_WORKSPACE=${project}" 'QA_COMMAND=exit 1'
 
   [ "${status}" -ne 0 ]
 }
@@ -123,7 +125,8 @@ run_step() {
   project="${TEST_TEMP}/passing project"
   prepare_fixture passing "${project}"
 
-  run_step "Run the caller-provided QA command" "${project}" $'QA_COMMAND=false\ntrue'
+  run_step "Run the caller-provided QA command" "${project}" \
+    "GITHUB_WORKSPACE=${project}" $'QA_COMMAND=false\ntrue'
 
   [ "${status}" -ne 0 ]
 }
@@ -132,7 +135,8 @@ run_step() {
   project="${TEST_TEMP}/passing project"
   prepare_fixture passing "${project}"
 
-  run_step "Run the caller-provided QA command" "${project}" 'QA_COMMAND=cat marker-file'
+  run_step "Run the caller-provided QA command" "${project}" \
+    "GITHUB_WORKSPACE=${project}" 'QA_COMMAND=cat marker-file'
 
   [ "${status}" -eq 0 ]
   [[ "${output}" == *"marker"* ]]
@@ -142,7 +146,31 @@ run_step() {
   project="${TEST_TEMP}/passing project"
   prepare_fixture passing "${project}"
 
-  run_step "Run the caller-provided QA command" "${project}" 'QA_COMMAND=echo rewritten > marker-file'
+  run_step "Run the caller-provided QA command" "${project}" \
+    "GITHUB_WORKSPACE=${project}" 'QA_COMMAND=echo rewritten > marker-file'
+
+  [ "${status}" -ne 0 ]
+  [[ "${output}" == *"modified tracked files"* ]]
+}
+
+@test "the workflow fails when the QA command rewrites a tracked file outside search-path" {
+  project="${TEST_TEMP}/passing project"
+  prepare_fixture passing "${project}"
+  mkdir -p "${project}/sub"
+
+  run_step "Run the caller-provided QA command" "${project}/sub" \
+    "GITHUB_WORKSPACE=${project}" 'QA_COMMAND=echo rewritten > ../marker-file'
+
+  [ "${status}" -ne 0 ]
+  [[ "${output}" == *"modified tracked files"* ]]
+}
+
+@test "the workflow fails when the QA command stages a rewrite without leaving it unstaged" {
+  project="${TEST_TEMP}/passing project"
+  prepare_fixture passing "${project}"
+
+  run_step "Run the caller-provided QA command" "${project}" \
+    "GITHUB_WORKSPACE=${project}" 'QA_COMMAND=echo rewritten > marker-file && git add marker-file'
 
   [ "${status}" -ne 0 ]
   [[ "${output}" == *"modified tracked files"* ]]
