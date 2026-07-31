@@ -39,6 +39,17 @@ fi
 
 gh auth setup-git
 
+: "${GITHUB_REPOSITORY:?GITHUB_REPOSITORY is required}"
+head_sha="$(git rev-parse HEAD)"
+compare_status="$(gh api "repos/${GITHUB_REPOSITORY}/compare/${BASE}...${head_sha}" --jq '.status')"
+case "${compare_status}" in
+  identical | behind) ;;
+  *)
+    echo "::error::the checked-out commit is not based on base (${BASE}); checkout base before running this action" >&2
+    exit 1
+    ;;
+esac
+
 git checkout -B "${BRANCH}"
 git -c user.name="${GIT_USER_NAME}" -c user.email="${GIT_USER_EMAIL}" commit --only --message "${COMMIT_MESSAGE}" -- "${pathspecs[@]}"
 git push --force --set-upstream origin "${BRANCH}"

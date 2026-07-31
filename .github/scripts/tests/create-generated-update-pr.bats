@@ -11,6 +11,7 @@ setup() {
   GH_STUB_LOG="${TEST_TEMP}/gh-invocations.log"
   GH_STUB_CREATED_MARKER="${TEST_TEMP}/pr-created"
   GITHUB_OUTPUT_FILE="${TEST_TEMP}/github-output"
+  export GITHUB_REPOSITORY="owner/repo"
   : > "${GITHUB_OUTPUT_FILE}"
   : > "${GH_STUB_LOG}"
 
@@ -34,6 +35,9 @@ set -euo pipefail
 printf '%s\n' "$*" >> "${GH_STUB_LOG}"
 case "${1:-} ${2:-}" in
   "auth setup-git") ;;
+  "api repos/"*)
+    printf '%s' "${GH_STUB_COMPARE_STATUS:-identical}"
+    ;;
   "pr list")
     if [[ -f "${GH_STUB_CREATED_MARKER:-}" ]]; then
       printf '%s' "${GH_STUB_PR_NUMBER:-42}"
@@ -282,6 +286,47 @@ output_value() {
   [[ "${output}" == *"branch must not be the same as base"* ]]
   [ ! -s "${GH_STUB_LOG}" ]
   [ "$(git -C "${ORIGIN}" rev-parse main)" = "${before_sha}" ]
+}
+
+@test "commit-and-push fails when the checked-out commit is not based on base" {
+  cd "${REPO}"
+  echo "edit" >> generated/output.txt
+  git add -- generated/output.txt
+  run_script commit-and-push.sh \
+    "PATH=${GH_STUB_DIR}:${PATH}" \
+    GH_TOKEN=test-token \
+    GH_STUB_LOG="${GH_STUB_LOG}" \
+    GH_STUB_COMPARE_STATUS=diverged \
+    BRANCH=update-generated \
+    BASE=main \
+    COMMIT_MESSAGE=m \
+    GIT_USER_NAME=Bot \
+    GIT_USER_EMAIL=bot@example.com \
+    PATHS=$'generated/*'
+
+  [ "${status}" -ne 0 ]
+  [[ "${output}" == *"is not based on base"* ]]
+  run ! git -C "${REPO}" rev-parse --verify refs/heads/update-generated
+  run ! git -C "${ORIGIN}" rev-parse --verify refs/heads/update-generated
+}
+
+@test "commit-and-push proceeds when the checked-out commit is behind base" {
+  cd "${REPO}"
+  echo "edit" >> generated/output.txt
+  git add -- generated/output.txt
+  run_script commit-and-push.sh \
+    "PATH=${GH_STUB_DIR}:${PATH}" \
+    GH_TOKEN=test-token \
+    GH_STUB_LOG="${GH_STUB_LOG}" \
+    GH_STUB_COMPARE_STATUS=behind \
+    BRANCH=update-generated \
+    BASE=main \
+    COMMIT_MESSAGE=m \
+    GIT_USER_NAME=Bot \
+    GIT_USER_EMAIL=bot@example.com \
+    PATHS=$'generated/*'
+
+  [ "${status}" -eq 0 ]
 }
 
 @test "commit-and-push fails when GH_TOKEN is not set" {
