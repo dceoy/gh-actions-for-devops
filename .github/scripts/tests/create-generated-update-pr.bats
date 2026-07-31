@@ -246,6 +246,47 @@ output_value() {
   [ "${remote_sha}" = "${second_sha}" ]
 }
 
+@test "commit-and-push skips the push when a rerun produces an identical tree" {
+  cd "${REPO}"
+  echo "first" >> generated/output.txt
+  git add -- generated/output.txt
+  run_script commit-and-push.sh \
+    "PATH=${GH_STUB_DIR}:${PATH}" \
+    GH_TOKEN=test-token \
+    GH_STUB_LOG="${GH_STUB_LOG}" \
+    BRANCH=update-generated \
+    BASE=main \
+    COMMIT_MESSAGE='first update' \
+    GIT_USER_NAME='Bot' \
+    GIT_USER_EMAIL='bot@example.com' \
+    PATHS=$'generated/*'
+  [ "${status}" -eq 0 ]
+  first_sha="$(output_value commit-sha)"
+  remote_sha_after_first="$(git ls-remote origin refs/heads/update-generated | cut -f1)"
+
+  git checkout -q main
+  echo "first" >> generated/output.txt
+  git add -- generated/output.txt
+  : > "${GITHUB_OUTPUT_FILE}"
+  run_script commit-and-push.sh \
+    "PATH=${GH_STUB_DIR}:${PATH}" \
+    GH_TOKEN=test-token \
+    GH_STUB_LOG="${GH_STUB_LOG}" \
+    BRANCH=update-generated \
+    BASE=main \
+    COMMIT_MESSAGE='second update, same content' \
+    GIT_USER_NAME='Bot' \
+    GIT_USER_EMAIL='bot@example.com' \
+    PATHS=$'generated/*'
+  [ "${status}" -eq 0 ]
+  [[ "${output}" == *"skipping push"* ]]
+  second_sha="$(output_value commit-sha)"
+
+  [ "${second_sha}" = "${first_sha}" ]
+  remote_sha_after_second="$(git ls-remote origin refs/heads/update-generated | cut -f1)"
+  [ "${remote_sha_after_second}" = "${remote_sha_after_first}" ]
+}
+
 @test "commit-and-push rejects a branch name that looks like a flag" {
   cd "${REPO}"
   echo "edit" >> generated/output.txt
@@ -264,6 +305,32 @@ output_value() {
   [[ "${output}" == *"not a valid Git branch name"* ]]
   [ ! -f /tmp/create-generated-update-pr-pwned ]
   [ ! -s "${GH_STUB_LOG}" ]
+}
+
+@test "commit-and-push rejects checkout shorthand that resolves to another branch" {
+  cd "${REPO}"
+  git checkout -q -b decoy
+  echo "edit" >> generated/output.txt
+  git add -- generated/output.txt
+  before_local_main="$(git rev-parse main)"
+  before_remote_main="$(git -C "${ORIGIN}" rev-parse main)"
+
+  run_script commit-and-push.sh \
+    "PATH=${GH_STUB_DIR}:${PATH}" \
+    GH_TOKEN=test-token \
+    GH_STUB_LOG="${GH_STUB_LOG}" \
+    BRANCH='@{-1}' \
+    BASE=main \
+    COMMIT_MESSAGE=m \
+    GIT_USER_NAME=Bot \
+    GIT_USER_EMAIL=bot@example.com \
+    PATHS=$'generated/*'
+
+  [ "${status}" -ne 0 ]
+  [[ "${output}" == *"not a valid Git branch name"* ]]
+  [ ! -s "${GH_STUB_LOG}" ]
+  [ "$(git rev-parse main)" = "${before_local_main}" ]
+  [ "$(git -C "${ORIGIN}" rev-parse main)" = "${before_remote_main}" ]
 }
 
 @test "commit-and-push refuses to force-push when branch equals base" {

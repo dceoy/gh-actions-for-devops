@@ -50,7 +50,7 @@ outputs:
     description: The branch the changes were pushed to
     value: ${{ inputs.branch }}
   commit-sha:
-    description: The SHA of the commit pushed to the branch, empty when nothing changed
+    description: The SHA of the branch's HEAD commit after this run (unchanged from the previous run when the generated tree did not change), empty when nothing changed
     value: ${{ steps.commit.outputs.commit-sha }}
   pr-number:
     description: The pull request number, empty when nothing changed

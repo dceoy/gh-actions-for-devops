@@ -12,7 +12,7 @@ if [[ -z "${GH_TOKEN:-}" ]]; then
   exit 1
 fi
 
-if [[ "${BRANCH}" == -* ]] || ! git check-ref-format --branch "${BRANCH}" > /dev/null 2>&1; then
+if [[ "${BRANCH}" == -* ]] || ! git check-ref-format "refs/heads/${BRANCH}" > /dev/null 2>&1; then
   echo "::error::branch is not a valid Git branch name: ${BRANCH}" >&2
   exit 1
 fi
@@ -52,6 +52,12 @@ esac
 
 git checkout -B "${BRANCH}"
 git -c user.name="${GIT_USER_NAME}" -c user.email="${GIT_USER_EMAIL}" commit --only --message "${COMMIT_MESSAGE}" -- "${pathspecs[@]}"
-git push --force --set-upstream origin "${BRANCH}"
 
-echo "commit-sha=$(git rev-parse HEAD)" >> "${GITHUB_OUTPUT}"
+if git fetch origin "refs/heads/${BRANCH}" 2> /dev/null \
+  && [[ "$(git rev-parse "HEAD^{tree}")" == "$(git rev-parse "FETCH_HEAD^{tree}")" ]]; then
+  echo "Remote branch already up to date with an identical tree; skipping push"
+  echo "commit-sha=$(git rev-parse FETCH_HEAD)" >> "${GITHUB_OUTPUT}"
+else
+  git push --force --set-upstream origin "${BRANCH}"
+  echo "commit-sha=$(git rev-parse HEAD)" >> "${GITHUB_OUTPUT}"
+fi
