@@ -29,7 +29,7 @@ fi
 
 draft="${DRAFT:-false}"
 
-existing_pr_number="$(gh pr list --head "${BRANCH}" --state open --json number --jq '.[0].number // empty')"
+existing_pr_number="$(gh pr list --head "${BRANCH}" --state open --json number,isCrossRepository --jq '[.[] | select(.isCrossRepository == false)][0].number // empty')"
 
 if [[ -n "${existing_pr_number}" ]]; then
   gh pr edit "${existing_pr_number}" --title "${TITLE}" --body "${BODY:-}" --base "${BASE}"
@@ -50,7 +50,7 @@ else
     create_args+=(--label "${label}")
   done
   gh pr create "${create_args[@]}"
-  pr_number="$(gh pr list --head "${BRANCH}" --state open --json number --jq '.[0].number')"
+  pr_number="$(gh pr list --head "${BRANCH}" --state open --json number,isCrossRepository --jq '[.[] | select(.isCrossRepository == false)][0].number')"
 fi
 
 pr_url="$(gh pr view "${pr_number}" --json url --jq '.url')"

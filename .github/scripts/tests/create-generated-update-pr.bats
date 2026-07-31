@@ -37,6 +37,15 @@ case "${1:-} ${2:-}" in
   "pr list")
     if [[ -f "${GH_STUB_CREATED_MARKER:-}" ]]; then
       printf '%s' "${GH_STUB_PR_NUMBER:-42}"
+    elif [[ -n "${GH_STUB_PR_LIST_JSON:-}" ]]; then
+      jq_filter=""
+      args=("$@")
+      for ((i = 0; i < ${#args[@]}; i++)); do
+        if [[ "${args[${i}]}" == "--jq" ]]; then
+          jq_filter="${args[$((i + 1))]}"
+        fi
+      done
+      printf '%s' "${GH_STUB_PR_LIST_JSON}" | jq -r "${jq_filter}"
     else
       printf '%s' "${GH_STUB_PR_LIST_OUTPUT:-}"
     fi
@@ -135,6 +144,7 @@ output_value() {
     GH_TOKEN=test-token \
     GH_STUB_LOG="${GH_STUB_LOG}" \
     BRANCH=update-generated \
+    BASE=main \
     COMMIT_MESSAGE='Update generated files' \
     GIT_USER_NAME='Bot' \
     GIT_USER_EMAIL='bot@example.com' \
@@ -160,6 +170,7 @@ output_value() {
     GH_TOKEN=test-token \
     GH_STUB_LOG="${GH_STUB_LOG}" \
     BRANCH=update-generated \
+    BASE=main \
     COMMIT_MESSAGE='Update generated files' \
     GIT_USER_NAME='Bot' \
     GIT_USER_EMAIL='bot@example.com' \
@@ -181,6 +192,7 @@ output_value() {
     GH_TOKEN=test-token \
     GH_STUB_LOG="${GH_STUB_LOG}" \
     BRANCH=update-generated \
+    BASE=main \
     COMMIT_MESSAGE='Update generated files' \
     GIT_USER_NAME='Bot' \
     GIT_USER_EMAIL='bot@example.com' \
@@ -200,6 +212,7 @@ output_value() {
     GH_TOKEN=test-token \
     GH_STUB_LOG="${GH_STUB_LOG}" \
     BRANCH=update-generated \
+    BASE=main \
     COMMIT_MESSAGE='first update' \
     GIT_USER_NAME='Bot' \
     GIT_USER_EMAIL='bot@example.com' \
@@ -215,6 +228,7 @@ output_value() {
     GH_TOKEN=test-token \
     GH_STUB_LOG="${GH_STUB_LOG}" \
     BRANCH=update-generated \
+    BASE=main \
     COMMIT_MESSAGE='second update' \
     GIT_USER_NAME='Bot' \
     GIT_USER_EMAIL='bot@example.com' \
@@ -237,6 +251,7 @@ output_value() {
     GH_TOKEN=test-token \
     GH_STUB_LOG="${GH_STUB_LOG}" \
     BRANCH='--upload-pack=touch /tmp/create-generated-update-pr-pwned' \
+    BASE=main \
     COMMIT_MESSAGE=m \
     GIT_USER_NAME=Bot \
     GIT_USER_EMAIL=bot@example.com
@@ -245,6 +260,28 @@ output_value() {
   [[ "${output}" == *"not a valid Git branch name"* ]]
   [ ! -f /tmp/create-generated-update-pr-pwned ]
   [ ! -s "${GH_STUB_LOG}" ]
+}
+
+@test "commit-and-push refuses to force-push when branch equals base" {
+  cd "${REPO}"
+  echo "edit" >> generated/output.txt
+  git add -- generated/output.txt
+  before_sha="$(git -C "${ORIGIN}" rev-parse main)"
+  run_script commit-and-push.sh \
+    "PATH=${GH_STUB_DIR}:${PATH}" \
+    GH_TOKEN=test-token \
+    GH_STUB_LOG="${GH_STUB_LOG}" \
+    BRANCH=main \
+    BASE=main \
+    COMMIT_MESSAGE=m \
+    GIT_USER_NAME=Bot \
+    GIT_USER_EMAIL=bot@example.com \
+    PATHS=$'generated/*'
+
+  [ "${status}" -ne 0 ]
+  [[ "${output}" == *"branch must not be the same as base"* ]]
+  [ ! -s "${GH_STUB_LOG}" ]
+  [ "$(git -C "${ORIGIN}" rev-parse main)" = "${before_sha}" ]
 }
 
 @test "commit-and-push fails when GH_TOKEN is not set" {
@@ -256,6 +293,7 @@ output_value() {
     GH_STUB_LOG="${GH_STUB_LOG}" \
     GITHUB_OUTPUT="${GITHUB_OUTPUT_FILE}" \
     BRANCH=update-generated \
+    BASE=main \
     COMMIT_MESSAGE=m \
     GIT_USER_NAME=Bot \
     GIT_USER_EMAIL=bot@example.com \
@@ -340,6 +378,28 @@ output_value() {
   run ! grep -q '^pr ready ' "${GH_STUB_LOG}"
   pr_list_line="$(grep '^pr list' "${GH_STUB_LOG}")"
   [[ "${pr_list_line}" == 'pr list --head update-generated --state open '* ]]
+}
+
+@test "create-or-update-pr skips a fork pull request with the same head branch name" {
+  cd "${REPO}"
+  run_script create-or-update-pr.sh \
+    "PATH=${GH_STUB_DIR}:${PATH}" \
+    GH_TOKEN=test-token \
+    GH_STUB_LOG="${GH_STUB_LOG}" \
+    GH_STUB_PR_LIST_JSON='[{"number":55,"isCrossRepository":true},{"number":77,"isCrossRepository":false}]' \
+    GH_STUB_PR_URL='https://example.invalid/pr/77' \
+    GH_STUB_PR_IS_DRAFT=false \
+    BRANCH=update-generated \
+    BASE=main \
+    TITLE='Update generated files' \
+    BODY='body text' \
+    LABELS='' \
+    DRAFT=false
+
+  [ "${status}" -eq 0 ]
+  [ "$(output_value pr-number)" = "77" ]
+  grep -q '^pr edit 77 ' "${GH_STUB_LOG}"
+  run ! grep -q '^pr edit 55 ' "${GH_STUB_LOG}"
 }
 
 @test "create-or-update-pr retargets base and un-drafts an existing pull request" {

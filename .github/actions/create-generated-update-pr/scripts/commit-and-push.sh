@@ -2,6 +2,7 @@
 set -euo pipefail
 
 : "${BRANCH:?BRANCH is required}"
+: "${BASE:?BASE is required}"
 : "${COMMIT_MESSAGE:?COMMIT_MESSAGE is required}"
 : "${GIT_USER_NAME:?GIT_USER_NAME is required}"
 : "${GIT_USER_EMAIL:?GIT_USER_EMAIL is required}"
@@ -13,6 +14,11 @@ fi
 
 if [[ "${BRANCH}" == -* ]] || ! git check-ref-format --branch "${BRANCH}" > /dev/null 2>&1; then
   echo "::error::branch is not a valid Git branch name: ${BRANCH}" >&2
+  exit 1
+fi
+
+if [[ "${BRANCH}" == "${BASE}" ]]; then
+  echo "::error::branch must not be the same as base: ${BRANCH}" >&2
   exit 1
 fi
 
