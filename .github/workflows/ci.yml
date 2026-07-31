@@ -200,30 +200,3 @@ jobs:
           message: Update README.md
           push: true
           github_token: ${{ secrets.GITHUB_TOKEN }}
-  tmp-generate-aqua-checksums:
-    runs-on: ubuntu-24.04
-    permissions:
-      contents: write
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
-        with:
-          fetch-depth: 1
-          ref: ${{ github.head_ref || github.ref_name }}
-          persist-credentials: true
-      - name: Install aqua
-        uses: aquaproj/aqua-installer@96a9bc20066c5bf5e275b41019cfc165b25f4e2e  # v4.0.5
-        with:
-          aqua_version: v2.62.1
-          enable_aqua_install: false
-      - name: Generate aqua checksums
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: aqua update-checksum
-      - name: Commit and push the changes
-        uses: EndBug/add-and-commit@290ea2c423ad77ca9c62ae0f5b224379612c0321  # v10.0.0
-        with:
-          add: ./aqua-checksums.json
-          message: "tmp: generate aqua checksums"
-          push: true
-          github_token: ${{ secrets.GITHUB_TOKEN }}

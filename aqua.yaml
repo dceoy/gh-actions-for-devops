@@ -13,4 +13,3 @@ packages:
   - name: rhysd/actionlint@v1.7.12
 checksum:
   enabled: true
-  require_checksum: true
