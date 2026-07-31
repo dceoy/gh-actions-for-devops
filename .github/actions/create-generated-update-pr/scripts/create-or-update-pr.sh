@@ -50,7 +50,7 @@ else
     create_args+=(--label "${label}")
   done
   gh pr create "${create_args[@]}"
-  pr_number="$(gh pr view "${BRANCH}" --json number --jq '.number')"
+  pr_number="$(gh pr list --head "${BRANCH}" --state open --json number --jq '.[0].number')"
 fi
 
 pr_url="$(gh pr view "${pr_number}" --json url --jq '.url')"

@@ -16,10 +16,10 @@ if [[ ${#pathspecs[@]} -eq 0 ]]; then
   exit 1
 fi
 
-git add -A -- "${pathspecs[@]}"
-
-if git diff --cached --quiet -- "${pathspecs[@]}"; then
+if [[ -z "$(git status --porcelain -- "${pathspecs[@]}")" ]]; then
   echo "changed=false" >> "${GITHUB_OUTPUT}"
-else
-  echo "changed=true" >> "${GITHUB_OUTPUT}"
+  exit 0
 fi
+
+git add -A -- "${pathspecs[@]}"
+echo "changed=true" >> "${GITHUB_OUTPUT}"

@@ -105,36 +105,41 @@ jobs:
         with:
           path: ~/.local/bin
           key: shell-project-ci-bin-${{ runner.os }}-${{ runner.arch }}-shellcheck-${{ env.SHELLCHECK_VERSION }}-shfmt-${{ env.SHFMT_VERSION }}-actionlint-${{ env.ACTIONLINT_VERSION }}-${{ inputs.cache-salt }}
-      - name: Install ShellCheck when unavailable
+      - name: Install ShellCheck if the pinned version is missing
         env:
           SHELLCHECK_VERSION: ${{ env.SHELLCHECK_VERSION }}
         run: |
           [[ "${SHELLCHECK_VERSION}" =~ ^v[0-9]+(\.[0-9]+)*$ ]] || { echo "::error::invalid SHELLCHECK_VERSION"; exit 1; }
-          if command -v shellcheck >/dev/null; then
-            exit 0
+          mkdir -p "${HOME}/.local/bin"
+          echo "${HOME}/.local/bin" >> "${GITHUB_PATH}"
+          current=""
+          if [[ -x "${HOME}/.local/bin/shellcheck" ]]; then
+            current="v$("${HOME}/.local/bin/shellcheck" --version | awk '/^version:/ {print $2}')" || true
           fi
+          [[ "${current}" == "${SHELLCHECK_VERSION}" ]] && exit 0
           [[ "${RUNNER_OS}" == "Linux" ]] || { echo "::error::automatic ShellCheck installation requires Linux"; exit 1; }
           arch=x86_64
           [[ "${RUNNER_ARCH}" == "ARM64" ]] && arch=aarch64
-          mkdir -p "${HOME}/.local/bin"
           curl --fail --location --silent --show-error \
             "https://github.com/koalaman/shellcheck/releases/download/${SHELLCHECK_VERSION}/shellcheck-${SHELLCHECK_VERSION}.linux.${arch}.tar.xz" \
             | tar -xJ --strip-components=1 -C "${RUNNER_TEMP}" "shellcheck-${SHELLCHECK_VERSION}/shellcheck"
           install -m 0755 "${RUNNER_TEMP}/shellcheck" "${HOME}/.local/bin/shellcheck"
-          echo "${HOME}/.local/bin" >> "${GITHUB_PATH}"
-      - name: Install shfmt when unavailable
+      - name: Install shfmt if the pinned version is missing
         env:
           SHFMT_VERSION: ${{ env.SHFMT_VERSION }}
         run: |
           [[ "${SHFMT_VERSION}" =~ ^v[0-9]+(\.[0-9]+)*$ ]] || { echo "::error::invalid SHFMT_VERSION"; exit 1; }
-          if command -v shfmt >/dev/null; then
-            exit 0
+          mkdir -p "${HOME}/.local/bin"
+          echo "${HOME}/.local/bin" >> "${GITHUB_PATH}"
+          current=""
+          if [[ -x "${HOME}/.local/bin/shfmt" ]]; then
+            current="$("${HOME}/.local/bin/shfmt" --version)" || true
           fi
+          [[ "${current}" == "${SHFMT_VERSION}" ]] && exit 0
           [[ "${RUNNER_OS}" == "Linux" ]] || { echo "::error::automatic shfmt installation requires Linux"; exit 1; }
           arch=amd64
           [[ "${RUNNER_ARCH}" == "ARM64" ]] && arch=arm64
           asset="shfmt_${SHFMT_VERSION}_linux_${arch}"
-          mkdir -p "${HOME}/.local/bin"
           curl --fail --location --silent --show-error \
             --output "${RUNNER_TEMP}/${asset}" \
             "https://github.com/mvdan/sh/releases/download/${SHFMT_VERSION}/${asset}"
@@ -143,20 +148,22 @@ jobs:
             | grep -F "  ${asset}" \
             | (cd "${RUNNER_TEMP}" && sha256sum --check --strict -)
           install -m 0755 "${RUNNER_TEMP}/${asset}" "${HOME}/.local/bin/shfmt"
-          echo "${HOME}/.local/bin" >> "${GITHUB_PATH}"
-      - name: Install actionlint when unavailable
+      - name: Install actionlint if the pinned version is missing
         env:
           ACTIONLINT_VERSION: ${{ env.ACTIONLINT_VERSION }}
         run: |
           # shellcheck disable=SC2153
           [[ "${ACTIONLINT_VERSION}" =~ ^v[0-9]+(\.[0-9]+)*$ ]] || { echo "::error::invalid ACTIONLINT_VERSION"; exit 1; }
-          if command -v actionlint >/dev/null; then
-            exit 0
+          mkdir -p "${HOME}/.local/bin"
+          echo "${HOME}/.local/bin" >> "${GITHUB_PATH}"
+          current=""
+          if [[ -x "${HOME}/.local/bin/actionlint" ]]; then
+            current="v$("${HOME}/.local/bin/actionlint" --version | head -n1)" || true
           fi
+          [[ "${current}" == "${ACTIONLINT_VERSION}" ]] && exit 0
           [[ "${RUNNER_OS}" == "Linux" ]] || { echo "::error::automatic actionlint installation requires Linux"; exit 1; }
           arch=amd64
           [[ "${RUNNER_ARCH}" == "ARM64" ]] && arch=arm64
-          mkdir -p "${HOME}/.local/bin"
           actionlint_version="${ACTIONLINT_VERSION#v}"
           asset="actionlint_${actionlint_version}_linux_${arch}.tar.gz"
           curl --fail --location --silent --show-error \
@@ -167,7 +174,6 @@ jobs:
             | grep -F "  ${asset}" \
             | (cd "${RUNNER_TEMP}" && sha256sum --check --strict -)
           tar -xz -C "${HOME}/.local/bin" -f "${RUNNER_TEMP}/${asset}" actionlint
-          echo "${HOME}/.local/bin" >> "${GITHUB_PATH}"
       - name: Setup Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
         with:

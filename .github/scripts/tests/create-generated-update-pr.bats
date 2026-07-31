@@ -9,6 +9,7 @@ setup() {
   REPO="${TEST_TEMP}/repo"
   GH_STUB_DIR="${TEST_TEMP}/bin"
   GH_STUB_LOG="${TEST_TEMP}/gh-invocations.log"
+  GH_STUB_CREATED_MARKER="${TEST_TEMP}/pr-created"
   GITHUB_OUTPUT_FILE="${TEST_TEMP}/github-output"
   : > "${GITHUB_OUTPUT_FILE}"
   : > "${GH_STUB_LOG}"
@@ -34,16 +35,21 @@ printf '%s\n' "$*" >> "${GH_STUB_LOG}"
 case "${1:-} ${2:-}" in
   "auth setup-git") ;;
   "pr list")
-    printf '%s' "${GH_STUB_PR_LIST_OUTPUT:-}"
+    if [[ -f "${GH_STUB_CREATED_MARKER:-}" ]]; then
+      printf '%s' "${GH_STUB_PR_NUMBER:-42}"
+    else
+      printf '%s' "${GH_STUB_PR_LIST_OUTPUT:-}"
+    fi
     ;;
-  "pr create") ;;
+  "pr create")
+    [[ -n "${GH_STUB_CREATED_MARKER:-}" ]] && : > "${GH_STUB_CREATED_MARKER}"
+    true
+    ;;
   "pr edit") ;;
   "pr ready") ;;
   "pr view")
     if [[ "$*" == *"isDraft"* ]]; then
       printf '%s' "${GH_STUB_PR_IS_DRAFT:-false}"
-    elif [[ "$*" == *"number"* ]]; then
-      printf '%s' "${GH_STUB_PR_NUMBER:-42}"
     else
       printf '%s' "${GH_STUB_PR_URL:-https://example.invalid/pr/42}"
     fi
@@ -91,6 +97,25 @@ output_value() {
   [ "$(output_value changed)" = "true" ]
   staged="$(git diff --cached --name-only)"
   [ "${staged}" = "generated/output.txt" ]
+}
+
+@test "stage-changes reports changed=false when the pathspec matches nothing" {
+  cd "${REPO}"
+  run_script stage-changes.sh PATHS=$'nonexistent/*'
+
+  [ "${status}" -eq 0 ]
+  [ "$(output_value changed)" = "false" ]
+}
+
+@test "stage-changes stages a new untracked file matching the pathspec" {
+  cd "${REPO}"
+  echo "new" > generated/new-file.txt
+  run_script stage-changes.sh PATHS=$'generated/*'
+
+  [ "${status}" -eq 0 ]
+  [ "$(output_value changed)" = "true" ]
+  staged="$(git diff --cached --name-only)"
+  [ "${staged}" = "generated/new-file.txt" ]
 }
 
 @test "stage-changes fails when paths input is empty" {
@@ -247,6 +272,7 @@ output_value() {
     "PATH=${GH_STUB_DIR}:${PATH}" \
     GH_TOKEN=test-token \
     GH_STUB_LOG="${GH_STUB_LOG}" \
+    GH_STUB_CREATED_MARKER="${GH_STUB_CREATED_MARKER}" \
     GH_STUB_PR_LIST_OUTPUT='' \
     GH_STUB_PR_NUMBER=101 \
     GH_STUB_PR_URL='https://example.invalid/pr/101' \
@@ -264,6 +290,28 @@ output_value() {
   grep -q -- '--label automated' "${GH_STUB_LOG}"
   grep -q -- '--label generated' "${GH_STUB_LOG}"
   run ! grep -q '^pr edit ' "${GH_STUB_LOG}"
+}
+
+@test "create-or-update-pr resolves an all-numeric branch name without an ambiguous positional argument" {
+  cd "${REPO}"
+  run_script create-or-update-pr.sh \
+    "PATH=${GH_STUB_DIR}:${PATH}" \
+    GH_TOKEN=test-token \
+    GH_STUB_LOG="${GH_STUB_LOG}" \
+    GH_STUB_CREATED_MARKER="${GH_STUB_CREATED_MARKER}" \
+    GH_STUB_PR_LIST_OUTPUT='' \
+    GH_STUB_PR_NUMBER=999 \
+    GH_STUB_PR_URL='https://example.invalid/pr/999' \
+    BRANCH=123 \
+    BASE=main \
+    TITLE='Update generated files' \
+    BODY='body text' \
+    LABELS='' \
+    DRAFT=false
+
+  [ "${status}" -eq 0 ]
+  [ "$(output_value pr-number)" = "999" ]
+  run ! grep -q '^pr view 123' "${GH_STUB_LOG}"
 }
 
 @test "create-or-update-pr updates the existing open pull request" {

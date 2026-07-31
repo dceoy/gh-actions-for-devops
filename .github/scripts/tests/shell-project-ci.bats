@@ -50,6 +50,32 @@ run_step() {
   run env "$@" bash -c 'cd "$1" && exec bash -euo pipefail "$2"' _ "${working_directory}" "${step_script}"
 }
 
+install_fake_tool() {
+  local home_dir="$1"
+  local tool_name="$2"
+  local version_output="$3"
+
+  mkdir -p "${home_dir}/.local/bin"
+  cat > "${home_dir}/.local/bin/${tool_name}" << STUB
+#!/usr/bin/env bash
+printf '%s\n' "${version_output}"
+STUB
+  chmod +x "${home_dir}/.local/bin/${tool_name}"
+}
+
+stub_curl() {
+  local stub_dir="$1"
+  local log_file="$2"
+
+  mkdir -p "${stub_dir}"
+  cat > "${stub_dir}/curl" << STUB
+#!/usr/bin/env bash
+printf '%s\n' "\$*" >> "${log_file}"
+exit 1
+STUB
+  chmod +x "${stub_dir}/curl"
+}
+
 @test "validation passes with a valid command, search-path, and bats-version" {
   project="${TEST_TEMP}/passing project"
   prepare_fixture passing "${project}"
@@ -174,4 +200,109 @@ run_step() {
 
   [ "${status}" -ne 0 ]
   [[ "${output}" == *"modified tracked files"* ]]
+}
+
+@test "the ShellCheck install step skips reinstalling when the cached version matches the pin" {
+  fake_home="${TEST_TEMP}/fake-home"
+  install_fake_tool "${fake_home}" shellcheck "version: 0.10.0"
+  stub_curl "${TEST_TEMP}/stub-bin" "${TEST_TEMP}/curl-invocations.log"
+
+  run_step "Install ShellCheck if the pinned version is missing" "${TEST_TEMP}" \
+    "HOME=${fake_home}" \
+    "PATH=${TEST_TEMP}/stub-bin:${PATH}" \
+    "GITHUB_PATH=${TEST_TEMP}/github-path" \
+    RUNNER_OS=Linux \
+    RUNNER_ARCH=X64 \
+    "RUNNER_TEMP=${TEST_TEMP}/runner-temp" \
+    SHELLCHECK_VERSION=v0.10.0
+
+  [ "${status}" -eq 0 ]
+  [ ! -s "${TEST_TEMP}/curl-invocations.log" ]
+}
+
+@test "the ShellCheck install step reinstalls when the cached version does not match the pin" {
+  fake_home="${TEST_TEMP}/fake-home"
+  install_fake_tool "${fake_home}" shellcheck "version: 0.9.0"
+  stub_curl "${TEST_TEMP}/stub-bin" "${TEST_TEMP}/curl-invocations.log"
+
+  run_step "Install ShellCheck if the pinned version is missing" "${TEST_TEMP}" \
+    "HOME=${fake_home}" \
+    "PATH=${TEST_TEMP}/stub-bin:${PATH}" \
+    "GITHUB_PATH=${TEST_TEMP}/github-path" \
+    RUNNER_OS=Linux \
+    RUNNER_ARCH=X64 \
+    "RUNNER_TEMP=${TEST_TEMP}/runner-temp" \
+    SHELLCHECK_VERSION=v0.10.0
+
+  grep -q "shellcheck-v0.10.0.linux.x86_64.tar.xz" "${TEST_TEMP}/curl-invocations.log"
+}
+
+@test "the shfmt install step skips reinstalling when the cached version matches the pin" {
+  fake_home="${TEST_TEMP}/fake-home"
+  install_fake_tool "${fake_home}" shfmt "v3.10.0"
+  stub_curl "${TEST_TEMP}/stub-bin" "${TEST_TEMP}/curl-invocations.log"
+
+  run_step "Install shfmt if the pinned version is missing" "${TEST_TEMP}" \
+    "HOME=${fake_home}" \
+    "PATH=${TEST_TEMP}/stub-bin:${PATH}" \
+    "GITHUB_PATH=${TEST_TEMP}/github-path" \
+    RUNNER_OS=Linux \
+    RUNNER_ARCH=X64 \
+    "RUNNER_TEMP=${TEST_TEMP}/runner-temp" \
+    SHFMT_VERSION=v3.10.0
+
+  [ "${status}" -eq 0 ]
+  [ ! -s "${TEST_TEMP}/curl-invocations.log" ]
+}
+
+@test "the shfmt install step reinstalls when the cached version does not match the pin" {
+  fake_home="${TEST_TEMP}/fake-home"
+  install_fake_tool "${fake_home}" shfmt "v3.9.0"
+  stub_curl "${TEST_TEMP}/stub-bin" "${TEST_TEMP}/curl-invocations.log"
+
+  run_step "Install shfmt if the pinned version is missing" "${TEST_TEMP}" \
+    "HOME=${fake_home}" \
+    "PATH=${TEST_TEMP}/stub-bin:${PATH}" \
+    "GITHUB_PATH=${TEST_TEMP}/github-path" \
+    RUNNER_OS=Linux \
+    RUNNER_ARCH=X64 \
+    "RUNNER_TEMP=${TEST_TEMP}/runner-temp" \
+    SHFMT_VERSION=v3.10.0
+
+  grep -q "shfmt_v3.10.0_linux_amd64" "${TEST_TEMP}/curl-invocations.log"
+}
+
+@test "the actionlint install step skips reinstalling when the cached version matches the pin" {
+  fake_home="${TEST_TEMP}/fake-home"
+  install_fake_tool "${fake_home}" actionlint "1.7.7"
+  stub_curl "${TEST_TEMP}/stub-bin" "${TEST_TEMP}/curl-invocations.log"
+
+  run_step "Install actionlint if the pinned version is missing" "${TEST_TEMP}" \
+    "HOME=${fake_home}" \
+    "PATH=${TEST_TEMP}/stub-bin:${PATH}" \
+    "GITHUB_PATH=${TEST_TEMP}/github-path" \
+    RUNNER_OS=Linux \
+    RUNNER_ARCH=X64 \
+    "RUNNER_TEMP=${TEST_TEMP}/runner-temp" \
+    ACTIONLINT_VERSION=v1.7.7
+
+  [ "${status}" -eq 0 ]
+  [ ! -s "${TEST_TEMP}/curl-invocations.log" ]
+}
+
+@test "the actionlint install step reinstalls when the cached version does not match the pin" {
+  fake_home="${TEST_TEMP}/fake-home"
+  install_fake_tool "${fake_home}" actionlint "1.7.6"
+  stub_curl "${TEST_TEMP}/stub-bin" "${TEST_TEMP}/curl-invocations.log"
+
+  run_step "Install actionlint if the pinned version is missing" "${TEST_TEMP}" \
+    "HOME=${fake_home}" \
+    "PATH=${TEST_TEMP}/stub-bin:${PATH}" \
+    "GITHUB_PATH=${TEST_TEMP}/github-path" \
+    RUNNER_OS=Linux \
+    RUNNER_ARCH=X64 \
+    "RUNNER_TEMP=${TEST_TEMP}/runner-temp" \
+    ACTIONLINT_VERSION=v1.7.7
+
+  grep -q "actionlint_1.7.7_linux_amd64.tar.gz" "${TEST_TEMP}/curl-invocations.log"
 }
