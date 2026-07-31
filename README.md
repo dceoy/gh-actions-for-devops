@@ -127,6 +127,8 @@ The reusable workflow runs zizmor, actionlint with embedded ShellCheck, standalo
 
 For organization-wide enforcement, configure `.github/workflows/repository-security-scan.yml` at a reviewed full commit SHA as a ruleset required workflow for `pull_request` and `merge_group`. Require the stable `Repository security / scan` check. Target repositories need no secrets or write permissions, and fork and Dependabot pull requests use the same read-only path.
 
+The workflow currently exposes only `workflow_call`; it does not yet declare its own `pull_request`/`merge_group` triggers, so it cannot be selected directly as an organization ruleset workflow until a follow-up re-enables them once a trusted revision exists on `main`. The `workflow_call` usage above is unaffected and works today.
+
 ### Generated file update pull requests
 
 Run the `create-generated-update-pr` composite action as a step after your own generation and validation steps, in the same job and workspace, to open or refresh a pull request for the resulting changes. It requires `contents: write` and `pull-requests: write`, and reads `GH_TOKEN` from the step environment rather than an action input; the action runs `gh auth setup-git` internally, so `actions/checkout` does not need `persist-credentials: true`:

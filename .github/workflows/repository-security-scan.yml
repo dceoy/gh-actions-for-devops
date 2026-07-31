@@ -1,9 +1,13 @@
 ---
 name: Repository security
 on:
+  # Bootstrap stage: only workflow_call is enabled. The trusted scanner
+  # implementation (.github/actions/repository-security-scan) does not exist
+  # on any prior commit yet, so a direct pull_request/merge_group trigger on
+  # this same workflow would check out its own base revision and fail before
+  # the action exists there. Direct triggers are re-enabled in a follow-up
+  # once this revision is reachable from main. See #867.
   workflow_call:
-  pull_request:
-  merge_group:
 permissions:
   contents: read
 jobs:

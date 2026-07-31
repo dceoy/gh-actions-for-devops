@@ -337,10 +337,13 @@ assert_fixture_fails_gate() {
   [[ "${output}" == *'checkov gate failed with status not-a-status'* ]]
 }
 
+@test "the workflow defers direct pull_request/merge_group activation to a follow-up" {
+  [ "$(yq eval '.on | keys | join(",")' "${WORKFLOW}")" = workflow_call ]
+  yq eval --exit-status '.on | has("pull_request") | not' "${WORKFLOW}" > /dev/null
+  yq eval --exit-status '.on | has("merge_group") | not' "${WORKFLOW}" > /dev/null
+}
+
 @test "the workflow preserves reusable, merge-group, fork, and read-only boundaries" {
-  yq eval --exit-status '.on.workflow_call == null' "${WORKFLOW}" > /dev/null
-  yq eval --exit-status '.on.pull_request == null' "${WORKFLOW}" > /dev/null
-  yq eval --exit-status '.on.merge_group == null' "${WORKFLOW}" > /dev/null
   yq eval --exit-status '.permissions.contents == "read" and (.permissions | length == 1)' "${WORKFLOW}" > /dev/null
   yq eval --exit-status '.jobs.scan.permissions.contents == "read" and (.jobs.scan.permissions | length == 1)' "${WORKFLOW}" > /dev/null
   [ "$(yq eval '[.jobs.scan.steps[] | select(.uses == "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1") | select(.with."persist-credentials" != false)] | length' "${WORKFLOW}")" -eq 0 ]
