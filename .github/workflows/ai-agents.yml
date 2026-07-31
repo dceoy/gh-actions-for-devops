@@ -97,7 +97,7 @@ jobs:
       actions: read
     uses: ./.github/workflows/opencode-review.yml
     with:
-      model: sakura/preview/Kimi-K2.6
+      model: sakura/preview/Kimi-K2.7-Code
     secrets:
       SAKURA_AI_ENGINE_API_KEY: ${{ secrets.SAKURA_AI_ENGINE_API_KEY }}
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -130,7 +130,7 @@ jobs:
       actions: read
     uses: ./.github/workflows/opencode-bot.yml
     with:
-      model: sakura/preview/Kimi-K2.6
+      model: sakura/preview/Kimi-K2.7-Code
     secrets:
       SAKURA_AI_ENGINE_API_KEY: ${{ secrets.SAKURA_AI_ENGINE_API_KEY }}
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
