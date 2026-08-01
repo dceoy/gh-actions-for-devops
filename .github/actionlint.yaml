@@ -10,4 +10,4 @@ paths:
     # GitHub added these job identity properties after actionlint's current
     # expression schema. Remove this compatibility exclusion once supported.
     ignore:
-      - 'property "workflow_(repository|sha)" is not defined in object type'
+      - 'property "workflow_(ref|repository|sha)" is not defined in object type'

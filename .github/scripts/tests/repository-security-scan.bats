@@ -342,6 +342,12 @@ assert_fixture_fails_gate() {
     "${GITHUB_WORKSPACE}/security-results/shellcheck.txt"
 }
 
+@test "an expression-valued composite shell fails the gate closed" {
+  assert_fixture_fails_gate composite-action-dynamic-shell shellcheck
+  grep -q 'expression-valued composite shells are not allowed' \
+    "${GITHUB_WORKSPACE}/security-results/shellcheck.txt"
+}
+
 @test "an extensionless env -i shebang script is still detected by standalone ShellCheck" {
   assert_fixture_fails_gate env-i-shebang shellcheck
   grep -q 'shellcheck fixture finding' "${GITHUB_WORKSPACE}/security-results/shellcheck.txt"
@@ -506,6 +512,8 @@ assert_fixture_fails_gate() {
   grep -q 'github.event.merge_group.base_sha' "${WORKFLOW}"
   grep -q 'github.event.pull_request.base.sha' "${WORKFLOW}"
   run ! grep -q 'github.event.pull_request.head.sha' "${WORKFLOW}"
+  [ "$(yq eval '.jobs.scan.steps[] | select(.name == "Check out trusted scanner implementation") | .with.ref' "${WORKFLOW}")" = \
+    "\${{ job.workflow_ref == github.workflow_ref && github.event_name == 'pull_request' && github.event.pull_request.base.sha || job.workflow_ref == github.workflow_ref && github.event_name == 'merge_group' && github.event.merge_group.base_sha || job.workflow_sha }}" ]
   [ "$(yq eval '.jobs.scan.steps[] | select(.name == "Check out untrusted target revision") | .with.ref' "${WORKFLOW}")" = \
     "\${{ github.event_name == 'merge_group' && github.event.merge_group.head_sha || github.sha }}" ]
   grep -q 'repository: .*job.workflow_repository' "${WORKFLOW}"

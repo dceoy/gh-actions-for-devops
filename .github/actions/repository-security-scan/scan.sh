@@ -252,10 +252,25 @@ extract_composite_action_shell_blocks() {
   local action_file block_json block_index decode_status extracted_file
   local blocks_jsonl="${results_dir}/shellcheck-composite-blocks.jsonl"
   local extraction_dir="${results_dir}/shellcheck-composite"
+  local expression_marker='$'
   local shell_pattern='(^|[[:space:]/])(sh|ash|dash|bash|ksh93|ksh88|ksh|oksh|bats)([[:space:]]|$)'
 
   composite_output_ref=()
   for action_file in "$@"; do
+    if ! yq eval --output-format=json --unwrapScalar=false \
+      "select(.runs.using == \"composite\") | .runs.steps[]? | select(has(\"run\")) | select((.shell // \"\") | contains(\"${expression_marker}{{\")) | .shell" \
+      "${action_file}" > "${blocks_jsonl}" 2>> "${results_dir}/shellcheck.log"; then
+      rm -f -- "${blocks_jsonl}"
+      rm -rf -- "${extraction_dir}"
+      return 1
+    fi
+    if [[ -s "${blocks_jsonl}" ]]; then
+      printf 'Rejected expression-valued composite shell in %s.\n' "${action_file}" \
+        >> "${results_dir}/shellcheck.log"
+      rm -f -- "${blocks_jsonl}"
+      rm -rf -- "${extraction_dir}"
+      return 2
+    fi
     if ! yq eval --output-format=json --unwrapScalar=false \
       "select(.runs.using == \"composite\") | .runs.steps[]? | select(has(\"run\")) | select(.shell | test(\"${shell_pattern}\")) | .run" \
       "${action_file}" > "${blocks_jsonl}" 2>> "${results_dir}/shellcheck.log"; then
@@ -393,7 +408,7 @@ run_actionlint() {
 }
 
 run_shellcheck() {
-  local scanner_status_value render_status_value entry mode file first_line
+  local scanner_status_value render_status_value entry mode file first_line extraction_status
   local shell_shebang='^#![[:space:]]*(/usr/bin/env[[:space:]]+([^[:space:]]+[[:space:]]+)*)?(/[^[:space:]]*/)?(busybox[[:space:]]+)?(sh|ash|dash|bash|ksh93|ksh88|ksh|oksh|bats)([[:space:]]|$)'
   local composite_shell_dir="${results_dir}/shellcheck-composite"
   local -a action_files=()
@@ -440,7 +455,17 @@ run_shellcheck() {
   fi
 
   : > "${results_dir}/shellcheck.log"
-  if ! extract_composite_action_shell_blocks composite_shell_files "${action_files[@]}"; then
+  extract_composite_action_shell_blocks composite_shell_files "${action_files[@]}"
+  extraction_status=$?
+  if ((extraction_status == 2)); then
+    printf '{"scanner":"shellcheck","result":"policy-violation","reason":"expression-valued composite shell"}\n' \
+      > "${results_dir}/shellcheck.json"
+    printf 'Failed: expression-valued composite shells are not allowed because their interpreter cannot be verified.\n' \
+      > "${results_dir}/shellcheck.txt"
+    printf '1\n' > "${results_dir}/shellcheck.status"
+    return 0
+  fi
+  if ((extraction_status != 0)); then
     printf '{"scanner":"shellcheck","result":"not-run","reason":"unable to inspect composite action shell blocks"}\n' \
       > "${results_dir}/shellcheck.json"
     printf 'Failed: unable to inspect composite action shell blocks.\n' \
