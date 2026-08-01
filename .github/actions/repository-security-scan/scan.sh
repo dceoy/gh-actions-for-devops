@@ -130,6 +130,86 @@ collect_regular_files() {
   done < "${results_dir}/tracked-files.index"
 }
 
+write_shellcheck_directive_failure() {
+  local scanner_name="$1"
+  local directive_report="$2"
+
+  printf '{"scanner":"%s","result":"policy-violation","reason":"target-owned ShellCheck directives"}\n' \
+    "${scanner_name}" > "${results_dir}/${scanner_name}.json"
+  {
+    printf 'Failed: target-owned ShellCheck directives are not allowed; exclusions belong in the trusted policy.\n'
+    sed 's/^/  /' "${directive_report}"
+  } > "${results_dir}/${scanner_name}.txt"
+  printf '1\n' > "${results_dir}/${scanner_name}.status"
+}
+
+reject_workflow_shellcheck_directives() {
+  local scanner_name="$1"
+  shift
+  local file match
+  local directive_pattern='^[[:space:]]*#[[:space:]]*shellcheck[[:space:]]+[[:alpha:]-]+='
+  local directive_report="${results_dir}/${scanner_name}.shellcheck-directives"
+  local run_blocks="${results_dir}/${scanner_name}.run-blocks"
+  local matches="${results_dir}/${scanner_name}.shellcheck-matches"
+
+  : > "${directive_report}"
+  : > "${results_dir}/${scanner_name}.log"
+  for file in "$@"; do
+    if ! yq eval '.jobs[]?.steps[]? | select(has("run")) | .run' "${file}" \
+      > "${run_blocks}" 2>> "${results_dir}/${scanner_name}.log"; then
+      printf '{"scanner":"%s","result":"not-run","reason":"unable to inspect workflow shell blocks"}\n' \
+        "${scanner_name}" > "${results_dir}/${scanner_name}.json"
+      printf 'Failed: unable to inspect workflow shell blocks for target-owned ShellCheck directives.\n' \
+        > "${results_dir}/${scanner_name}.txt"
+      printf '1\n' > "${results_dir}/${scanner_name}.status"
+      rm -f -- "${directive_report}" "${run_blocks}" "${matches}"
+      return 0
+    fi
+    if LC_ALL=C grep -nE "${directive_pattern}" "${run_blocks}" > "${matches}"; then
+      while IFS= read -r match; do
+        printf '%s:%s\n' "${file}" "${match}" >> "${directive_report}"
+      done < "${matches}"
+    fi
+  done
+  rm -f -- "${run_blocks}" "${matches}"
+  if [[ -s "${directive_report}" ]]; then
+    write_shellcheck_directive_failure "${scanner_name}" "${directive_report}"
+    rm -f -- "${directive_report}"
+    return 0
+  fi
+  rm -f -- "${directive_report}" "${results_dir}/${scanner_name}.log"
+  return 1
+}
+
+reject_script_shellcheck_directives() {
+  local scanner_name="$1"
+  shift
+  local grep_status
+  local directive_pattern='^[[:space:]]*#[[:space:]]*shellcheck[[:space:]]+[[:alpha:]-]+='
+  local directive_report="${results_dir}/${scanner_name}.shellcheck-directives"
+
+  : > "${results_dir}/${scanner_name}.log"
+  LC_ALL=C grep -nHE "${directive_pattern}" -- "$@" \
+    > "${directive_report}" 2>> "${results_dir}/${scanner_name}.log"
+  grep_status=$?
+  if ((grep_status == 0)); then
+    write_shellcheck_directive_failure "${scanner_name}" "${directive_report}"
+    rm -f -- "${directive_report}"
+    return 0
+  fi
+  if ((grep_status != 1)); then
+    printf '{"scanner":"%s","result":"not-run","reason":"unable to inspect shell scripts"}\n' \
+      "${scanner_name}" > "${results_dir}/${scanner_name}.json"
+    printf 'Failed: unable to inspect shell scripts for target-owned ShellCheck directives.\n' \
+      > "${results_dir}/${scanner_name}.txt"
+    printf '1\n' > "${results_dir}/${scanner_name}.status"
+    rm -f -- "${directive_report}"
+    return 0
+  fi
+  rm -f -- "${directive_report}" "${results_dir}/${scanner_name}.log"
+  return 1
+}
+
 run_zizmor() {
   local scanner_status_value render_status_value
   local -a workflow_files=()
@@ -190,6 +270,9 @@ run_actionlint() {
   collect_regular_files workflow_files workflows
   if ((${#workflow_files[@]} == 0)); then
     write_skip_evidence actionlint 'no tracked GitHub Actions workflow files were found.'
+    return 0
+  fi
+  if reject_workflow_shellcheck_directives actionlint "${workflow_files[@]}"; then
     return 0
   fi
 
@@ -274,6 +357,9 @@ run_shellcheck() {
   fi
   if ((${#script_files[@]} == 0)); then
     write_skip_evidence shellcheck 'no tracked standalone shell scripts were found.'
+    return 0
+  fi
+  if reject_script_shellcheck_directives shellcheck "${script_files[@]}"; then
     return 0
   fi
 

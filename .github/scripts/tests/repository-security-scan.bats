@@ -7,6 +7,7 @@ setup() {
   SCANNER="${REPO_ROOT}/.github/actions/repository-security-scan/scan.sh"
   WORKFLOW="${REPO_ROOT}/.github/workflows/repository-security-scan.yml"
   ACTION="${REPO_ROOT}/.github/actions/repository-security-scan/action.yml"
+  TRIVY_SECRET_CONFIG="${REPO_ROOT}/.github/security/repository-security/trivy-secret.yaml"
   FIXTURES="${BATS_TEST_DIRNAME}/fixtures/repository-security-scan"
   TEST_TEMP="$(mktemp -d)"
   export GITHUB_WORKSPACE="${TEST_TEMP}/workspace"
@@ -19,6 +20,8 @@ setup() {
     "${GITHUB_WORKSPACE}/_target" \
     "${GITHUB_WORKSPACE}/_trusted/.github/security/repository-security" \
     "${STUB_BIN}"
+  cp "${TRIVY_SECRET_CONFIG}" \
+    "${GITHUB_WORKSPACE}/_trusted/.github/security/repository-security/trivy-secret.yaml"
   install_scanner_stubs
   export PATH="${STUB_BIN}:${PATH}"
 }
@@ -169,6 +172,7 @@ fi
 
 scanner_kind=''
 output_path=''
+secret_config=''
 while (($# > 0)); do
   case "$1" in
     --scanners)
@@ -177,6 +181,10 @@ while (($# > 0)); do
       ;;
     --output)
       output_path="$2"
+      shift 2
+      ;;
+    --secret-config)
+      secret_config="$2"
       shift 2
       ;;
     *) shift ;;
@@ -188,7 +196,13 @@ if [[ "${scanner_kind}" == vuln ]] && grep -R -q 'vulnerable-dependency-fixture'
   finding=true
 fi
 if [[ "${scanner_kind}" == secret ]] && grep -R -q 'committed-secret-fixture' . 2> /dev/null; then
-  finding=true
+  if grep -R -q --include='*.md' 'committed-secret-fixture' . 2> /dev/null \
+    && ! yq eval --exit-status '.disable-allow-rules | contains(["markdown"])' \
+      "${secret_config}" > /dev/null; then
+    finding=false
+  else
+    finding=true
+  fi
 fi
 if [[ "${finding}" == true ]]; then
   printf '{"Results":[{"Target":"fixture","Vulnerabilities":[{"Title":"fixture-finding"}]}]}\n' > "${output_path}"
@@ -292,6 +306,12 @@ assert_fixture_fails_gate() {
   assert_fixture_fails_gate actionlint-finding actionlint
 }
 
+@test "a workflow ShellCheck directive fails the embedded ShellCheck gate closed" {
+  assert_fixture_fails_gate actionlint-shellcheck-directive actionlint
+  grep -q 'target-owned ShellCheck directives' \
+    "${GITHUB_WORKSPACE}/security-results/actionlint.txt"
+}
+
 @test "blank lines in actionlint JSON Lines output still produce a valid JSON array" {
   assert_fixture_fails_gate actionlint-finding actionlint
 
@@ -302,6 +322,12 @@ assert_fixture_fails_gate() {
 @test "an extensionless shebang script diagnostic fails standalone ShellCheck" {
   assert_fixture_fails_gate shellcheck-finding shellcheck
   grep -q 'shellcheck fixture finding' "${GITHUB_WORKSPACE}/security-results/shellcheck.txt"
+}
+
+@test "a standalone script ShellCheck directive fails the gate closed" {
+  assert_fixture_fails_gate shellcheck-directive shellcheck
+  grep -q 'target-owned ShellCheck directives' \
+    "${GITHUB_WORKSPACE}/security-results/shellcheck.txt"
 }
 
 @test "an extensionless env -i shebang script is still detected by standalone ShellCheck" {
@@ -343,6 +369,13 @@ assert_fixture_fails_gate() {
 
 @test "a committed secret fails Trivy secret scanning" {
   assert_fixture_fails_gate committed-secret trivy-secret
+}
+
+@test "Trivy scans Markdown and disables every built-in path exemption" {
+  [ "$(yq eval '.disable-allow-rules | sort | join(",")' "${TRIVY_SECRET_CONFIG}")" = \
+    'anaconda-log,dist-info,examples,golang,locale-dir,markdown,node.js,python,rubygems,tests,usr-dirs,vendor,wordpress' ]
+  [ "$(yq eval '.skip-patterns | length' "${TRIVY_SECRET_CONFIG}")" -eq 0 ]
+  assert_fixture_fails_gate secret-in-markdown trivy-secret
 }
 
 @test "a repository without relevant files reports successful skips" {
