@@ -184,12 +184,36 @@ reject_workflow_shellcheck_directives() {
   local file match
   local directive_pattern='^[[:space:]]*#[[:space:]]*shellcheck[[:space:]]+[[:alpha:]-]+='
   local directive_report="${results_dir}/${scanner_name}.shellcheck-directives"
+  local dynamic_shells="${results_dir}/${scanner_name}.dynamic-shells"
   local run_blocks="${results_dir}/${scanner_name}.run-blocks"
   local matches="${results_dir}/${scanner_name}.shellcheck-matches"
+  local expression_marker='$'
 
   : > "${directive_report}"
   : > "${results_dir}/${scanner_name}.log"
   for file in "$@"; do
+    if ! yq eval --output-format=json --unwrapScalar=false \
+      "[.defaults.run.shell, .jobs[]?.defaults.run.shell, (.jobs[]?.steps[]? | select(has(\"run\")) | .shell)] | .[] | select((. // \"\") | contains(\"${expression_marker}{{\"))" \
+      "${file}" > "${dynamic_shells}" 2>> "${results_dir}/${scanner_name}.log"; then
+      printf '{"scanner":"%s","result":"not-run","reason":"unable to inspect workflow shell values"}\n' \
+        "${scanner_name}" > "${results_dir}/${scanner_name}.json"
+      printf 'Failed: unable to inspect workflow shell values.\n' \
+        > "${results_dir}/${scanner_name}.txt"
+      printf '1\n' > "${results_dir}/${scanner_name}.status"
+      rm -f -- "${directive_report}" "${dynamic_shells}" "${run_blocks}" "${matches}"
+      return 0
+    fi
+    if [[ -s "${dynamic_shells}" ]]; then
+      printf '{"scanner":"%s","result":"policy-violation","reason":"expression-valued workflow shell"}\n' \
+        "${scanner_name}" > "${results_dir}/${scanner_name}.json"
+      printf 'Failed: expression-valued workflow shells are not allowed because their interpreter cannot be verified.\n' \
+        > "${results_dir}/${scanner_name}.txt"
+      printf 'Rejected expression-valued workflow shell in %s.\n' "${file}" \
+        >> "${results_dir}/${scanner_name}.log"
+      printf '1\n' > "${results_dir}/${scanner_name}.status"
+      rm -f -- "${directive_report}" "${dynamic_shells}" "${run_blocks}" "${matches}"
+      return 0
+    fi
     if ! yq eval '.jobs[]?.steps[]? | select(has("run")) | .run' "${file}" \
       > "${run_blocks}" 2>> "${results_dir}/${scanner_name}.log"; then
       printf '{"scanner":"%s","result":"not-run","reason":"unable to inspect workflow shell blocks"}\n' \
@@ -197,7 +221,7 @@ reject_workflow_shellcheck_directives() {
       printf 'Failed: unable to inspect workflow shell blocks for target-owned ShellCheck directives.\n' \
         > "${results_dir}/${scanner_name}.txt"
       printf '1\n' > "${results_dir}/${scanner_name}.status"
-      rm -f -- "${directive_report}" "${run_blocks}" "${matches}"
+      rm -f -- "${directive_report}" "${dynamic_shells}" "${run_blocks}" "${matches}"
       return 0
     fi
     if LC_ALL=C grep -nE "${directive_pattern}" "${run_blocks}" > "${matches}"; then
@@ -206,7 +230,7 @@ reject_workflow_shellcheck_directives() {
       done < "${matches}"
     fi
   done
-  rm -f -- "${run_blocks}" "${matches}"
+  rm -f -- "${dynamic_shells}" "${run_blocks}" "${matches}"
   if [[ -s "${directive_report}" ]]; then
     write_shellcheck_directive_failure "${scanner_name}" "${directive_report}"
     rm -f -- "${directive_report}"

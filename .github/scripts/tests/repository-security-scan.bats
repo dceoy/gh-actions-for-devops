@@ -312,6 +312,12 @@ assert_fixture_fails_gate() {
     "${GITHUB_WORKSPACE}/security-results/actionlint.txt"
 }
 
+@test "an expression-valued workflow shell fails the embedded ShellCheck gate closed" {
+  assert_fixture_fails_gate actionlint-dynamic-shell actionlint
+  grep -q 'expression-valued workflow shells are not allowed' \
+    "${GITHUB_WORKSPACE}/security-results/actionlint.txt"
+}
+
 @test "blank lines in actionlint JSON Lines output still produce a valid JSON array" {
   assert_fixture_fails_gate actionlint-finding actionlint
 
