@@ -335,6 +335,16 @@ assert_fixture_fails_gate() {
   grep -q 'shellcheck fixture finding' "${GITHUB_WORKSPACE}/security-results/shellcheck.txt"
 }
 
+@test "an extensionless env shebang with an option operand is detected by standalone ShellCheck" {
+  assert_fixture_fails_gate env-option-operand-shebang shellcheck
+  grep -q 'shellcheck fixture finding' "${GITHUB_WORKSPACE}/security-results/shellcheck.txt"
+}
+
+@test "an extensionless env shebang with an assignment is detected by standalone ShellCheck" {
+  assert_fixture_fails_gate env-assignment-shebang shellcheck
+  grep -q 'shellcheck fixture finding' "${GITHUB_WORKSPACE}/security-results/shellcheck.txt"
+}
+
 @test "an unreadable extensionless script fails standalone ShellCheck closed" {
   if [[ "${EUID}" -eq 0 ]]; then
     skip 'cannot simulate an unreadable file while running as root'
@@ -452,6 +462,7 @@ assert_fixture_fails_gate() {
 
 @test "the composite action always retains evidence before one aggregate gate" {
   [ "$(yq eval '.runs.steps[-2].uses' "${ACTION}")" = 'actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a' ]
+  [ "$(yq eval '.runs.steps[-2].with.name' "${ACTION}")" = "repository-security-reports-\${{ github.run_attempt }}" ]
   [ "$(yq eval '.runs.steps[-1].name' "${ACTION}")" = 'Enforce aggregate scanner result' ]
   [ "$(yq eval '[.runs.steps[] | select(.name | test("^Run .* gate$")) | select(.if != "always()")] | length' "${ACTION}")" -eq 0 ]
   [ "$(yq eval '.runs.steps[-2].with."if-no-files-found"' "${ACTION}")" = error ]

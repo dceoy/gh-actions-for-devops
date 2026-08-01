@@ -317,7 +317,7 @@ run_actionlint() {
 
 run_shellcheck() {
   local scanner_status_value render_status_value entry mode file first_line
-  local shell_shebang='^#![[:space:]]*(/usr/bin/env[[:space:]]+(-[[:alnum:]-]+[[:space:]]+)*)?(/[^[:space:]]*/)?(busybox[[:space:]]+)?(sh|ash|dash|bash|ksh93|ksh88|ksh|oksh|bats)([[:space:]]|$)'
+  local shell_shebang='^#![[:space:]]*(/usr/bin/env[[:space:]]+([^[:space:]]+[[:space:]]+)*)?(/[^[:space:]]*/)?(busybox[[:space:]]+)?(sh|ash|dash|bash|ksh93|ksh88|ksh|oksh|bats)([[:space:]]|$)'
   local -a script_files=()
   local -a unreadable_files=()
 
