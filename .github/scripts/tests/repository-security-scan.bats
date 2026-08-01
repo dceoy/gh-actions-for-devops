@@ -330,6 +330,18 @@ assert_fixture_fails_gate() {
     "${GITHUB_WORKSPACE}/security-results/shellcheck.txt"
 }
 
+@test "a composite action run block diagnostic fails standalone ShellCheck" {
+  assert_fixture_fails_gate composite-action-shellcheck-finding shellcheck
+  grep -q 'shellcheck fixture finding' \
+    "${GITHUB_WORKSPACE}/security-results/shellcheck.txt"
+}
+
+@test "a composite action ShellCheck directive fails the gate closed" {
+  assert_fixture_fails_gate composite-action-shellcheck-directive shellcheck
+  grep -q 'target-owned ShellCheck directives' \
+    "${GITHUB_WORKSPACE}/security-results/shellcheck.txt"
+}
+
 @test "an extensionless env -i shebang script is still detected by standalone ShellCheck" {
   assert_fixture_fails_gate env-i-shebang shellcheck
   grep -q 'shellcheck fixture finding' "${GITHUB_WORKSPACE}/security-results/shellcheck.txt"

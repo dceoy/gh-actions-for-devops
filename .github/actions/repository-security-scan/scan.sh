@@ -210,6 +210,48 @@ reject_script_shellcheck_directives() {
   return 1
 }
 
+extract_composite_action_shell_blocks() {
+  local output_name=$1
+  shift
+  local -n composite_output_ref=${output_name}
+  local action_file block_json block_index decode_status extracted_file
+  local blocks_jsonl="${results_dir}/shellcheck-composite-blocks.jsonl"
+  local extraction_dir="${results_dir}/shellcheck-composite"
+  local shell_pattern='(^|[[:space:]/])(sh|ash|dash|bash|ksh93|ksh88|ksh|oksh|bats)([[:space:]]|$)'
+
+  composite_output_ref=()
+  for action_file in "$@"; do
+    if ! yq eval --output-format=json --unwrapScalar=false \
+      "select(.runs.using == \"composite\") | .runs.steps[]? | select(has(\"run\")) | select(.shell | test(\"${shell_pattern}\")) | .run" \
+      "${action_file}" > "${blocks_jsonl}" 2>> "${results_dir}/shellcheck.log"; then
+      rm -f -- "${blocks_jsonl}"
+      rm -rf -- "${extraction_dir}"
+      return 1
+    fi
+
+    block_index=0
+    decode_status=0
+    while IFS= read -r block_json; do
+      extracted_file="${extraction_dir}/${action_file}/step-${block_index}.sh"
+      mkdir -p "$(dirname "${extracted_file}")"
+      if ! printf '%s\n' "${block_json}" \
+        | yq eval --input-format=json --unwrapScalar '.' - \
+          > "${extracted_file}" 2>> "${results_dir}/shellcheck.log"; then
+        decode_status=1
+        break
+      fi
+      composite_output_ref+=("${extracted_file}")
+      ((block_index += 1))
+    done < "${blocks_jsonl}"
+    if ((decode_status != 0)); then
+      rm -f -- "${blocks_jsonl}"
+      rm -rf -- "${extraction_dir}"
+      return 1
+    fi
+  done
+  rm -f -- "${blocks_jsonl}"
+}
+
 run_zizmor() {
   local scanner_status_value render_status_value
   local -a workflow_files=()
@@ -318,6 +360,9 @@ run_actionlint() {
 run_shellcheck() {
   local scanner_status_value render_status_value entry mode file first_line
   local shell_shebang='^#![[:space:]]*(/usr/bin/env[[:space:]]+([^[:space:]]+[[:space:]]+)*)?(/[^[:space:]]*/)?(busybox[[:space:]]+)?(sh|ash|dash|bash|ksh93|ksh88|ksh|oksh|bats)([[:space:]]|$)'
+  local composite_shell_dir="${results_dir}/shellcheck-composite"
+  local -a action_files=()
+  local -a composite_shell_files=()
   local -a script_files=()
   local -a unreadable_files=()
 
@@ -328,6 +373,9 @@ run_shellcheck() {
     file=${entry#*$'\t'}
     if [[ "${mode}" != '100644' && "${mode}" != '100755' ]]; then
       continue
+    fi
+    if [[ "${file}" =~ (^|.*/)action\.ya?ml$ ]]; then
+      action_files+=("${file}")
     fi
     if [[ "${file}" == *.sh || "${file}" == *.bash || "${file}" == *.bats ]]; then
       script_files+=("${file}")
@@ -355,11 +403,23 @@ run_shellcheck() {
     printf '1\n' > "${results_dir}/shellcheck.status"
     return 0
   fi
+
+  : > "${results_dir}/shellcheck.log"
+  if ! extract_composite_action_shell_blocks composite_shell_files "${action_files[@]}"; then
+    printf '{"scanner":"shellcheck","result":"not-run","reason":"unable to inspect composite action shell blocks"}\n' \
+      > "${results_dir}/shellcheck.json"
+    printf 'Failed: unable to inspect composite action shell blocks.\n' \
+      > "${results_dir}/shellcheck.txt"
+    printf '1\n' > "${results_dir}/shellcheck.status"
+    return 0
+  fi
+  script_files+=("${composite_shell_files[@]}")
   if ((${#script_files[@]} == 0)); then
-    write_skip_evidence shellcheck 'no tracked standalone shell scripts were found.'
+    write_skip_evidence shellcheck 'no tracked standalone shell scripts or composite action shell blocks were found.'
     return 0
   fi
   if reject_script_shellcheck_directives shellcheck "${script_files[@]}"; then
+    rm -rf -- "${composite_shell_dir}"
     return 0
   fi
 
@@ -384,6 +444,7 @@ run_shellcheck() {
     > "${results_dir}/shellcheck.txt" \
     2>> "${results_dir}/shellcheck.log"
   render_status_value=$?
+  rm -rf -- "${composite_shell_dir}"
   if ((scanner_status_value == 0 && render_status_value != 0)); then
     scanner_status_value=${render_status_value}
   fi
