@@ -121,7 +121,7 @@ collect_regular_files() {
         ;;
       github-actions)
         if [[ "${file}" =~ ^\.github/workflows/[^/]+\.ya?ml$ ]] \
-          || [[ "${file}" =~ ^\.github/actions/(.*/)?action\.ya?ml$ ]]; then
+          || [[ "${file}" =~ (^|.*/)action\.ya?ml$ ]]; then
           output_files+=("${file}")
         fi
         ;;
@@ -146,6 +146,7 @@ run_zizmor() {
   zizmor \
     --offline \
     --no-config \
+    --no-ignores \
     --strict-collection \
     --persona regular \
     --min-severity medium \
@@ -158,6 +159,7 @@ run_zizmor() {
   zizmor \
     --offline \
     --no-config \
+    --no-ignores \
     --strict-collection \
     --persona regular \
     --min-severity medium \
@@ -179,7 +181,7 @@ run_zizmor() {
 }
 
 run_actionlint() {
-  local scanner_status_value render_status_value line separator
+  local scanner_status_value render_status_value
   local json_lines="${results_dir}/actionlint.jsonl"
   local -a workflow_files=()
 
@@ -202,16 +204,16 @@ run_actionlint() {
     > "${json_lines}" \
     2>> "${results_dir}/actionlint.log"
   scanner_status_value=$?
-  {
-    printf '['
-    separator=''
-    while IFS= read -r line; do
-      [[ -n "${line}" ]] || continue
-      printf '%s%s' "${separator}" "${line}"
-      separator=','
-    done < "${json_lines}"
-    printf ']\n'
-  } > "${results_dir}/actionlint.json"
+  if [[ -s "${json_lines}" ]]; then
+    if ! yq eval-all --input-format=json --output-format=json '[.]' "${json_lines}" \
+      > "${results_dir}/actionlint.json" 2>> "${results_dir}/actionlint.log"; then
+      printf '::error::actionlint produced JSON Lines output that could not be converted to a JSON array; see actionlint.log.\n'
+      printf '[]\n' > "${results_dir}/actionlint.json"
+      scanner_status_value=1
+    fi
+  else
+    printf '[]\n' > "${results_dir}/actionlint.json"
+  fi
   rm -f -- "${json_lines}"
 
   SHELLCHECK_OPTS="--rcfile=${trusted_dir}/.github/security/repository-security/shellcheckrc" \
@@ -232,8 +234,9 @@ run_actionlint() {
 
 run_shellcheck() {
   local scanner_status_value render_status_value entry mode file first_line
-  local shell_shebang='^#![[:space:]]*(/usr/bin/env([[:space:]]+-S)?[[:space:]]+)?(/[^[:space:]]*/)?(busybox[[:space:]]+)?(sh|ash|dash|bash|ksh93|ksh88|ksh|oksh|bats)([[:space:]]|$)'
+  local shell_shebang='^#![[:space:]]*(/usr/bin/env[[:space:]]+(-[[:alnum:]-]+[[:space:]]+)*)?(/[^[:space:]]*/)?(busybox[[:space:]]+)?(sh|ash|dash|bash|ksh93|ksh88|ksh|oksh|bats)([[:space:]]|$)'
   local -a script_files=()
+  local -a unreadable_files=()
 
   preflight_succeeded shellcheck || return 0
   cd "${target_dir}" || return 0
@@ -247,11 +250,28 @@ run_shellcheck() {
       script_files+=("${file}")
       continue
     fi
-    IFS= read -r -n 256 first_line < "${file}" || true
+    if [[ ! -r "${file}" ]]; then
+      printf '::error::Unable to read %s while probing for a shell shebang.\n' "${file}"
+      unreadable_files+=("${file}")
+      continue
+    fi
+    first_line=''
+    IFS= read -r -n 256 first_line < "${file}"
     if [[ "${first_line}" =~ ${shell_shebang} ]]; then
       script_files+=("${file}")
     fi
   done < "${results_dir}/tracked-files.index"
+  if ((${#unreadable_files[@]} > 0)); then
+    : > "${results_dir}/shellcheck.log"
+    printf '[]\n' > "${results_dir}/shellcheck.json"
+    {
+      printf 'Failed: unable to read %d tracked file(s) while probing for shell shebangs:\n' \
+        "${#unreadable_files[@]}"
+      printf '%s\n' "${unreadable_files[@]}"
+    } > "${results_dir}/shellcheck.txt"
+    printf '1\n' > "${results_dir}/shellcheck.status"
+    return 0
+  fi
   if ((${#script_files[@]} == 0)); then
     write_skip_evidence shellcheck 'no tracked standalone shell scripts were found.'
     return 0
@@ -286,7 +306,7 @@ run_shellcheck() {
 }
 
 run_checkov() {
-  local scanner_status_value
+  local scanner_status_value suppressed_check_count
 
   preflight_succeeded checkov || return 0
   cd "${target_dir}" || return 0
@@ -304,6 +324,28 @@ run_checkov() {
     printf 'Skipped: no supported infrastructure-as-code resources were found.\n' \
       > "${results_dir}/checkov.txt"
   fi
+
+  # checkov has no flag to disable inline `#checkov:skip=` suppressions. The
+  # trusted config's skip-check list is always empty, so any entry under
+  # results.skipped_checks can only originate from a target-owned inline
+  # suppression comment; fail the gate closed on that, mirroring --no-ignores
+  # for zizmor.
+  suppressed_check_count=0
+  if [[ -s "${results_dir}/checkov.json" ]]; then
+    suppressed_check_count="$(
+      yq eval '[.. | select(has("skipped_checks")) | .skipped_checks[]] | length' \
+        --input-format=json "${results_dir}/checkov.json" 2> /dev/null
+    )"
+    [[ "${suppressed_check_count}" =~ ^[0-9]+$ ]] || suppressed_check_count=0
+  fi
+  if ((suppressed_check_count > 0)); then
+    printf '::error::Checkov reported %d check(s) skipped via inline suppression comments; this trusted gate does not honor target-owned suppressions.\n' \
+      "${suppressed_check_count}" >> "${results_dir}/checkov.log"
+    printf 'Failed: %d check(s) were skipped via inline suppression comments (e.g. "checkov:skip="), which this trusted gate does not honor.\n' \
+      "${suppressed_check_count}" >> "${results_dir}/checkov.txt"
+    scanner_status_value=1
+  fi
+
   ensure_text_evidence checkov "${scanner_status_value}"
   printf '%s\n' "${scanner_status_value}" > "${results_dir}/checkov.status"
 }

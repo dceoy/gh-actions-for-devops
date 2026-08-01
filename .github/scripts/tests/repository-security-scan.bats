@@ -12,6 +12,7 @@ setup() {
   export GITHUB_WORKSPACE="${TEST_TEMP}/workspace"
   export GITHUB_STEP_SUMMARY="${TEST_TEMP}/summary.md"
   export STUB_LOG="${TEST_TEMP}/scanner-invocations.log"
+  export ZIZMOR_ARGS_LOG="${TEST_TEMP}/zizmor-args.log"
   STUB_BIN="${TEST_TEMP}/stub-bin"
 
   mkdir -p \
@@ -31,6 +32,7 @@ install_scanner_stubs() {
 #!/usr/bin/env bash
 set -u
 printf 'zizmor\n' >> "${STUB_LOG}"
+printf '%s\n' "$*" >> "${ZIZMOR_ARGS_LOG}"
 format=plain
 no_exit_codes=false
 while (($# > 0)); do
@@ -74,7 +76,7 @@ while (($# > 0)); do
 done
 if grep -R -q 'actionlint-finding' .github/workflows 2> /dev/null; then
   if [[ "${json}" == true ]]; then
-    printf '{"kind":"expression","message":"actionlint fixture finding"}\n'
+    printf '\n{"kind":"expression","message":"actionlint fixture finding"}\n\n'
   else
     printf '.github/workflows/ci.yml:1:1: actionlint fixture finding\n'
   fi
@@ -121,6 +123,11 @@ while (($# > 0)); do
 done
 json_path=${output_paths%%,*}
 text_path=${output_paths#*,}
+if grep -R -q 'checkov-suppressed-finding' . 2> /dev/null; then
+  printf '{"summary":{"passed":1,"failed":0,"skipped":1,"resource_count":1},"results":{"skipped_checks":[{"check_id":"CKV_FIXTURE","suppress_comment":"fixture suppression"}]}}\n' > "${json_path}"
+  printf 'Passed Checkov fixture scan (1 check skipped via inline suppression)\n' > "${text_path}"
+  exit 0
+fi
 if grep -R -q 'checkov-finding' . 2> /dev/null; then
   printf '{"summary":{"passed":0,"failed":1,"skipped":0,"resource_count":1}}\n' > "${json_path}"
   printf 'Check CKV_FIXTURE failed\n' > "${text_path}"
@@ -263,8 +270,33 @@ assert_fixture_fails_gate() {
   assert_fixture_fails_gate zizmor-finding zizmor
 }
 
+@test "zizmor is invoked with --no-ignores so target-owned ignore comments cannot suppress findings" {
+  prepare_fixture clean
+  run_scanners
+
+  [ -s "${ZIZMOR_ARGS_LOG}" ]
+  while IFS= read -r invocation_args; do
+    [[ "${invocation_args}" == *'--no-ignores'* ]]
+  done < "${ZIZMOR_ARGS_LOG}"
+}
+
+@test "zizmor receives local action manifests outside .github/actions" {
+  prepare_fixture local-action-outside-github-actions
+  run_scanners
+
+  [ -s "${ZIZMOR_ARGS_LOG}" ]
+  grep -q 'actions/deploy/action.yml' "${ZIZMOR_ARGS_LOG}"
+}
+
 @test "an actionlint or embedded ShellCheck diagnostic fails the actionlint status" {
   assert_fixture_fails_gate actionlint-finding actionlint
+}
+
+@test "blank lines in actionlint JSON Lines output still produce a valid JSON array" {
+  assert_fixture_fails_gate actionlint-finding actionlint
+
+  yq eval --input-format=json '.' "${GITHUB_WORKSPACE}/security-results/actionlint.json" > /dev/null
+  [ "$(yq eval --input-format=json '. | length' "${GITHUB_WORKSPACE}/security-results/actionlint.json")" -eq 1 ]
 }
 
 @test "an extensionless shebang script diagnostic fails standalone ShellCheck" {
@@ -272,8 +304,37 @@ assert_fixture_fails_gate() {
   grep -q 'shellcheck fixture finding' "${GITHUB_WORKSPACE}/security-results/shellcheck.txt"
 }
 
+@test "an extensionless env -i shebang script is still detected by standalone ShellCheck" {
+  assert_fixture_fails_gate env-i-shebang shellcheck
+  grep -q 'shellcheck fixture finding' "${GITHUB_WORKSPACE}/security-results/shellcheck.txt"
+}
+
+@test "an unreadable extensionless script fails standalone ShellCheck closed" {
+  if [[ "${EUID}" -eq 0 ]]; then
+    skip 'cannot simulate an unreadable file while running as root'
+  fi
+  prepare_fixture no-relevant-files
+  printf '#!/usr/bin/env bash\necho hi\n' > "${GITHUB_WORKSPACE}/_target/unreadable-tool"
+  git -C "${GITHUB_WORKSPACE}/_target" add unreadable-tool
+  git -C "${GITHUB_WORKSPACE}/_target" commit -q -m 'add unreadable tool'
+  chmod 000 "${GITHUB_WORKSPACE}/_target/unreadable-tool"
+
+  run_scanners
+  run bash "${SCANNER}" enforce
+  chmod 644 "${GITHUB_WORKSPACE}/_target/unreadable-tool"
+
+  [ "${status}" -ne 0 ]
+  [ "$(< "${GITHUB_WORKSPACE}/security-results/shellcheck.status")" -eq 1 ]
+  grep -q 'unreadable-tool' "${GITHUB_WORKSPACE}/security-results/shellcheck.txt"
+}
+
 @test "a Checkov infrastructure-as-code finding fails the Checkov status" {
   assert_fixture_fails_gate checkov-finding checkov
+}
+
+@test "a Checkov inline suppression comment fails the Checkov status even though Checkov itself passed" {
+  assert_fixture_fails_gate checkov-inline-suppression checkov
+  grep -q 'inline suppression' "${GITHUB_WORKSPACE}/security-results/checkov.txt"
 }
 
 @test "a high-severity vulnerable dependency fails Trivy vulnerability scanning" {
