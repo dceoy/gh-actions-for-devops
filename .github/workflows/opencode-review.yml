@@ -41,7 +41,7 @@ on:
         required: false
         type: string
         description: Model variant for provider-specific reasoning effort (e.g., high, max, minimal)
-        default: thinking
+        default: ""
       oidc-base-url:
         required: false
         type: string
