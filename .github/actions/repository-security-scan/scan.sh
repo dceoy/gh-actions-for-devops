@@ -27,7 +27,7 @@ write_preflight_blocked_evidence() {
   printf '{"scanner":"%s","result":"not-run","reason":"preflight failed"}\n' \
     "${scanner_name}" > "${results_dir}/${scanner_name}.json"
   printf 'Not run: target checkout preflight failed.\n' > "${results_dir}/${scanner_name}.txt"
-  printf 'Scanner execution was blocked because tracked symlinks could not be removed safely.\n' \
+  printf 'Scanner execution was blocked because the target checkout failed trusted preflight validation.\n' \
     > "${results_dir}/${scanner_name}.log"
   printf '125\n' > "${results_dir}/${scanner_name}.status"
 }
@@ -65,8 +65,11 @@ ensure_text_evidence() {
 run_preflight() {
   local index_file="${results_dir}/tracked-files.index"
   local preflight_status_value=0
-  local entry mode file
-  local -a rejected=()
+  local entry mode file lfs_prefix
+  local lfs_pointer_pattern=$'^version https://git-lfs.github.com/spec/v1(\n|$)'
+  local -a rejected_lfs_pointers=()
+  local -a rejected_submodules=()
+  local -a rejected_symlinks=()
 
   : > "${results_dir}/preflight.log"
   if ! cd "${target_dir}" 2>> "${results_dir}/preflight.log"; then
@@ -85,20 +88,52 @@ run_preflight() {
     mode=${entry%% *}
     file=${entry#*$'\t'}
     if [[ "${mode}" == '120000' ]]; then
-      rejected+=("${file}")
+      rejected_symlinks+=("${file}")
       if ! rm -f -- "${file}" 2>> "${results_dir}/preflight.log"; then
+        preflight_status_value=1
+      fi
+    elif [[ "${mode}" == '160000' ]]; then
+      rejected_submodules+=("${file}")
+      preflight_status_value=1
+    elif [[ "${mode}" == '100644' || "${mode}" == '100755' ]]; then
+      lfs_prefix=''
+      IFS= read -r -N 200 lfs_prefix < "${file}"
+      if [[ "${lfs_prefix}" =~ ${lfs_pointer_pattern} ]]; then
+        rejected_lfs_pointers+=("${file}")
         preflight_status_value=1
       fi
     fi
   done < "${index_file}"
-  if ((${#rejected[@]} > 0)); then
+  if ((${#rejected_symlinks[@]} > 0)); then
     {
-      printf 'Removed %d tracked symlink(s) before scanning:\n' "${#rejected[@]}"
-      printf '%s\n' "${rejected[@]}"
+      printf 'Removed %d tracked symlink(s) before scanning:\n' "${#rejected_symlinks[@]}"
+      printf '%s\n' "${rejected_symlinks[@]}"
     } > "${results_dir}/rejected-symlinks.txt"
     printf '::warning::Removed tracked symlinks before scanning the target checkout.\n'
   else
     printf 'No tracked symlinks were present.\n' > "${results_dir}/rejected-symlinks.txt"
+  fi
+  if ((${#rejected_lfs_pointers[@]} > 0)); then
+    {
+      printf 'Rejected %d tracked Git LFS pointer(s); materialize their content before scanning:\n' \
+        "${#rejected_lfs_pointers[@]}"
+      printf '%s\n' "${rejected_lfs_pointers[@]}"
+    } > "${results_dir}/rejected-lfs-pointers.txt"
+    printf '::error::Tracked Git LFS pointer content is not materialized in the target checkout.\n'
+  else
+    printf 'No tracked Git LFS pointers were present.\n' \
+      > "${results_dir}/rejected-lfs-pointers.txt"
+  fi
+  if ((${#rejected_submodules[@]} > 0)); then
+    {
+      printf 'Rejected %d tracked submodule gitlink(s); materialize their content before scanning:\n' \
+        "${#rejected_submodules[@]}"
+      printf '%s\n' "${rejected_submodules[@]}"
+    } > "${results_dir}/rejected-submodules.txt"
+    printf '::error::Tracked submodule content is not materialized in the target checkout.\n'
+  else
+    printf 'No tracked submodule gitlinks were present.\n' \
+      > "${results_dir}/rejected-submodules.txt"
   fi
   printf '%s\n' "${preflight_status_value}" > "${results_dir}/preflight.status"
 }

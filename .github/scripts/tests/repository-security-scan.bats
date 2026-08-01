@@ -426,6 +426,45 @@ assert_fixture_fails_gate() {
   grep -q 'escape.sh' "${GITHUB_WORKSPACE}/security-results/rejected-symlinks.txt"
 }
 
+@test "a tracked Git LFS pointer fails preflight before any scanner runs" {
+  prepare_fixture lfs-pointer
+
+  run_scanners
+  run bash "${SCANNER}" enforce
+
+  [ "${status}" -ne 0 ]
+  [ "$(< "${GITHUB_WORKSPACE}/security-results/preflight.status")" -eq 1 ]
+  grep -q 'large-lockfile' \
+    "${GITHUB_WORKSPACE}/security-results/rejected-lfs-pointers.txt"
+  for scanner_name in zizmor actionlint shellcheck checkov trivy-vulnerability trivy-secret; do
+    [ "$(< "${GITHUB_WORKSPACE}/security-results/${scanner_name}.status")" -eq 125 ]
+  done
+  [ ! -e "${STUB_LOG}" ]
+}
+
+@test "a tracked submodule gitlink fails preflight before any scanner runs" {
+  local target submodule_commit scanner_name
+
+  prepare_fixture no-relevant-files
+  target="${GITHUB_WORKSPACE}/_target"
+  submodule_commit="$(git -C "${target}" rev-parse HEAD)"
+  git -C "${target}" update-index --add \
+    --cacheinfo "160000,${submodule_commit},vendor/dependency"
+  git -C "${target}" commit -q -m 'add submodule fixture'
+
+  run_scanners
+  run bash "${SCANNER}" enforce
+
+  [ "${status}" -ne 0 ]
+  [ "$(< "${GITHUB_WORKSPACE}/security-results/preflight.status")" -eq 1 ]
+  grep -q 'vendor/dependency' \
+    "${GITHUB_WORKSPACE}/security-results/rejected-submodules.txt"
+  for scanner_name in zizmor actionlint shellcheck checkov trivy-vulnerability trivy-secret; do
+    [ "$(< "${GITHUB_WORKSPACE}/security-results/${scanner_name}.status")" -eq 125 ]
+  done
+  [ ! -e "${STUB_LOG}" ]
+}
+
 @test "simultaneous findings still execute every scanner before enforcement" {
   prepare_fixture simultaneous-findings
   run_scanners
@@ -464,8 +503,11 @@ assert_fixture_fails_gate() {
   yq eval --exit-status '.jobs.scan.permissions.contents == "read" and (.jobs.scan.permissions | length == 1)' "${WORKFLOW}" > /dev/null
   [ "$(yq eval '[.jobs.scan.steps[] | select(.uses == "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1") | select(.with."persist-credentials" != false)] | length' "${WORKFLOW}")" -eq 0 ]
   grep -q 'github.event.merge_group.head_sha' "${WORKFLOW}"
-  grep -q 'github.event.pull_request.head.sha' "${WORKFLOW}"
+  grep -q 'github.event.merge_group.base_sha' "${WORKFLOW}"
   grep -q 'github.event.pull_request.base.sha' "${WORKFLOW}"
+  run ! grep -q 'github.event.pull_request.head.sha' "${WORKFLOW}"
+  [ "$(yq eval '.jobs.scan.steps[] | select(.name == "Check out untrusted target revision") | .with.ref' "${WORKFLOW}")" = \
+    "\${{ github.event_name == 'merge_group' && github.event.merge_group.head_sha || github.sha }}" ]
   grep -q 'repository: .*job.workflow_repository' "${WORKFLOW}"
   grep -q 'job.workflow_sha' "${WORKFLOW}"
   run ! grep -q 'ref: .*github.workflow_sha' "${WORKFLOW}"

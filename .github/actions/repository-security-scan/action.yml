@@ -13,7 +13,7 @@ runs:
       if: always()
       shell: bash
       run: '"$GITHUB_ACTION_PATH/scan.sh" prepare'
-    - name: Remove tracked symlinks from the target checkout
+    - name: Validate the target checkout
       if: always()
       shell: bash
       run: '"$GITHUB_ACTION_PATH/scan.sh" preflight'
