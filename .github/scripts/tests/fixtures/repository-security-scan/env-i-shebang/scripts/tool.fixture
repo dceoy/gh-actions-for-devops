@@ -1,0 +1,3 @@
+#!fixture /usr/bin/env -i bash
+
+printf '%s\n' $value  # shellcheck-finding

@@ -1,0 +1,46 @@
+---
+name: Repository security
+on:
+  # Bootstrap stage: only workflow_call is enabled. The trusted scanner
+  # implementation (.github/actions/repository-security-scan) does not exist
+  # on any prior commit yet, so a direct pull_request/merge_group trigger on
+  # this same workflow would check out its own base revision and fail before
+  # the action exists there. Direct triggers are re-enabled in a follow-up
+  # once this revision is reachable from main. See #867.
+  workflow_call:
+permissions:
+  contents: read
+jobs:
+  scan:
+    name: scan
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    env:
+      # Aqua resolves shims by searching for aqua.yaml from the process's
+      # working directory. The scanners run inside the untrusted checkout, so
+      # force every shim to use the trusted workflow revision instead.
+      AQUA_CONFIG: ${{ github.workspace }}/_trusted/aqua.yaml
+    steps:
+      - name: Check out trusted scanner implementation
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          repository: ${{ job.workflow_repository }}
+          # A direct pull request or merge-group run must use its base revision
+          # as the scanner. Reusable and ruleset runs retain the exact SHA of
+          # the workflow that defines this job, even for same-repository calls.
+          ref: ${{ job.workflow_ref == github.workflow_ref && github.event_name == 'pull_request' && github.event.pull_request.base.sha || job.workflow_ref == github.workflow_ref && github.event_name == 'merge_group' && github.event.merge_group.base_sha || job.workflow_sha }}
+          path: _trusted
+          persist-credentials: false
+      - name: Check out untrusted target revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          # A merge queue must scan its synthetic head commit. Pull requests
+          # and reusable calls from other events scan the exact triggering
+          # commit, including the pull request's synthetic merge result.
+          ref: ${{ github.event_name == 'merge_group' && github.event.merge_group.head_sha || github.sha }}
+          path: _target
+          persist-credentials: false
+      - name: Run trusted repository security pipeline
+        uses: ./_trusted/.github/actions/repository-security-scan
