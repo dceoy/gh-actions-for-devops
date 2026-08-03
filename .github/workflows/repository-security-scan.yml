@@ -1,13 +1,56 @@
 ---
 name: Repository security
 on:
-  # Bootstrap stage: only workflow_call is enabled. The trusted scanner
-  # implementation (.github/actions/repository-security-scan) does not exist
-  # on any prior commit yet, so a direct pull_request/merge_group trigger on
-  # this same workflow would check out its own base revision and fail before
-  # the action exists there. Direct triggers are re-enabled in a follow-up
-  # once this revision is reachable from main. See #867.
+  pull_request:
+  merge_group:
   workflow_call:
+    inputs:
+      target-repository:
+        required: false
+        type: string
+        description: >-
+          Explicit owner/name repository to scan on behalf of a trusted
+          organization controller (e.g. a periodic scan orchestrator). Empty
+          means scan the caller/event repository and revision, unchanged.
+        default: ''
+      target-ref:
+        required: false
+        type: string
+        description: >-
+          Full lowercase 40-character commit SHA to scan in target-repository.
+          Required when target-repository is set; ignored otherwise.
+        default: ''
+      repository-id:
+        required: false
+        type: string
+        description: Stable repository identity copied into periodic-scan status evidence
+        default: ''
+      default-branch:
+        required: false
+        type: string
+        description: Default branch identity copied into periodic-scan status evidence
+        default: ''
+      evidence-artifact-name:
+        required: false
+        type: string
+        description: >-
+          Unique evidence artifact name for matrix callers. Empty uses the
+          existing run-attempt-scoped name.
+        default: ''
+    secrets:
+      TARGET_APP_ID:
+        required: false
+        description: GitHub App ID used to mint a repository-scoped token for target-repository
+      TARGET_APP_PRIVATE_KEY:
+        required: false
+        description: GitHub App private key used to mint a repository-scoped token for target-repository
+concurrency:
+  # target-repository disambiguates concurrent matrix invocations from a
+  # periodic-scan controller; run_id is a safe fallback for any other
+  # workflow_call. Only pull_request runs cancel a superseded in-progress
+  # scan; merge_group and matrix target-mode runs must all complete.
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.event.merge_group.head_ref || inputs.target-repository || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 permissions:
   contents: read
 jobs:
@@ -33,14 +76,51 @@ jobs:
           ref: ${{ job.workflow_ref == github.workflow_ref && github.event_name == 'pull_request' && github.event.pull_request.base.sha || job.workflow_ref == github.workflow_ref && github.event_name == 'merge_group' && github.event.merge_group.base_sha || job.workflow_sha }}
           path: _trusted
           persist-credentials: false
+      - name: Resolve immutable scan target
+        id: target
+        shell: bash
+        env:
+          TARGET_REPOSITORY: ${{ inputs.target-repository }}
+          TARGET_REF: ${{ inputs.target-ref }}
+          EVENT_NAME: ${{ github.event_name }}
+          EVENT_REPOSITORY: ${{ github.repository }}
+          EVENT_SHA: ${{ github.sha }}
+          MERGE_GROUP_HEAD_SHA: ${{ github.event.merge_group.head_sha }}
+        run: '"${GITHUB_WORKSPACE}/_trusted/.github/actions/repository-security-scan/resolve-target.sh"'
+      - name: Mint scoped token for explicit target repository
+        # Only a trusted organization controller supplies target-repository
+        # via workflow_call; direct pull_request/merge_group triggers never
+        # set it, so this step is skipped and github.token scans the caller
+        # repository unchanged.
+        if: inputs.target-repository != ''
+        id: target-app-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1  # v3.2.0
+        with:
+          app-id: ${{ secrets.TARGET_APP_ID }}
+          private-key: ${{ secrets.TARGET_APP_PRIVATE_KEY }}
+          owner: ${{ steps.target.outputs.owner }}
+          repositories: ${{ steps.target.outputs.name }}
+          permission-contents: read
+          permission-metadata: read
       - name: Check out untrusted target revision
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
+          repository: ${{ steps.target.outputs.repository }}
           # A merge queue must scan its synthetic head commit. Pull requests
           # and reusable calls from other events scan the exact triggering
-          # commit, including the pull request's synthetic merge result.
-          ref: ${{ github.event_name == 'merge_group' && github.event.merge_group.head_sha || github.sha }}
+          # commit, including the pull request's synthetic merge result. An
+          # explicit target-repository scans its supplied immutable SHA.
+          ref: ${{ steps.target.outputs.ref }}
+          token: ${{ inputs.target-repository != '' && steps.target-app-token.outputs.token || github.token }}
           path: _target
           persist-credentials: false
+          lfs: false
+          submodules: false
       - name: Run trusted repository security pipeline
         uses: ./_trusted/.github/actions/repository-security-scan
+        with:
+          repository-id: ${{ inputs.repository-id }}
+          default-branch: ${{ inputs.default-branch }}
+          repository: ${{ steps.target.outputs.repository }}
+          commit-sha: ${{ steps.target.outputs.ref }}
+          evidence-artifact-name: ${{ inputs.evidence-artifact-name }}

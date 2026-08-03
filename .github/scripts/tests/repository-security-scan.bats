@@ -504,10 +504,10 @@ assert_fixture_fails_gate() {
   [[ "${output}" == *'checkov gate failed with status not-a-status'* ]]
 }
 
-@test "the workflow defers direct pull_request/merge_group activation to a follow-up" {
-  [ "$(yq eval '.on | keys | join(",")' "${WORKFLOW}")" = workflow_call ]
-  yq eval --exit-status '.on | has("pull_request") | not' "${WORKFLOW}" > /dev/null
-  yq eval --exit-status '.on | has("merge_group") | not' "${WORKFLOW}" > /dev/null
+@test "the workflow activates direct pull_request and merge_group triggers alongside workflow_call" {
+  [ "$(yq eval '.on | keys | join(",")' "${WORKFLOW}")" = 'pull_request,merge_group,workflow_call' ]
+  yq eval --exit-status '.on.pull_request == null' "${WORKFLOW}" > /dev/null
+  yq eval --exit-status '.on.merge_group == null' "${WORKFLOW}" > /dev/null
 }
 
 @test "the workflow preserves reusable, merge-group, fork, and read-only boundaries" {
@@ -521,7 +521,9 @@ assert_fixture_fails_gate() {
   [ "$(yq eval '.jobs.scan.steps[] | select(.name == "Check out trusted scanner implementation") | .with.ref' "${WORKFLOW}")" = \
     "\${{ job.workflow_ref == github.workflow_ref && github.event_name == 'pull_request' && github.event.pull_request.base.sha || job.workflow_ref == github.workflow_ref && github.event_name == 'merge_group' && github.event.merge_group.base_sha || job.workflow_sha }}" ]
   [ "$(yq eval '.jobs.scan.steps[] | select(.name == "Check out untrusted target revision") | .with.ref' "${WORKFLOW}")" = \
-    "\${{ github.event_name == 'merge_group' && github.event.merge_group.head_sha || github.sha }}" ]
+    "\${{ steps.target.outputs.ref }}" ]
+  [ "$(yq eval '.jobs.scan.steps[] | select(.name == "Check out untrusted target revision") | .with.lfs' "${WORKFLOW}")" = 'false' ]
+  [ "$(yq eval '.jobs.scan.steps[] | select(.name == "Check out untrusted target revision") | .with.submodules' "${WORKFLOW}")" = 'false' ]
   grep -q 'repository: .*job.workflow_repository' "${WORKFLOW}"
   grep -q 'job.workflow_sha' "${WORKFLOW}"
   run ! grep -q 'ref: .*github.workflow_sha' "${WORKFLOW}"
@@ -530,8 +532,145 @@ assert_fixture_fails_gate() {
 
 @test "the composite action always retains evidence before one aggregate gate" {
   [ "$(yq eval '.runs.steps[-2].uses' "${ACTION}")" = 'actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a' ]
-  [ "$(yq eval '.runs.steps[-2].with.name' "${ACTION}")" = "repository-security-reports-\${{ github.run_attempt }}" ]
+  [ "$(yq eval '.runs.steps[-2].with.name' "${ACTION}")" = \
+    "\${{ inputs.evidence-artifact-name != '' && inputs.evidence-artifact-name || format('repository-security-reports-{0}', github.run_attempt) }}" ]
   [ "$(yq eval '.runs.steps[-1].name' "${ACTION}")" = 'Enforce aggregate scanner result' ]
   [ "$(yq eval '[.runs.steps[] | select(.name | test("^Run .* gate$")) | select(.if != "always()")] | length' "${ACTION}")" -eq 0 ]
   [ "$(yq eval '.runs.steps[-2].with."if-no-files-found"' "${ACTION}")" = error ]
+}
+
+@test "the workflow never lets an explicit target repository influence the trusted scanner revision" {
+  [ "$(yq eval '.jobs.scan.steps[] | select(.name == "Check out trusted scanner implementation") | .with.repository' "${WORKFLOW}")" \
+    = "\${{ job.workflow_repository }}" ]
+  run ! grep -q 'target-repository' <(yq eval '.jobs.scan.steps[] | select(.name == "Check out trusted scanner implementation")' "${WORKFLOW}")
+}
+
+@test "explicit target checkout uses a repository-scoped token minted only when target-repository is set" {
+  [ "$(yq eval '.jobs.scan.steps[] | select(.name == "Mint scoped token for explicit target repository") | .if' "${WORKFLOW}")" \
+    = "inputs.target-repository != ''" ]
+  [ "$(yq eval '.jobs.scan.steps[] | select(.name == "Mint scoped token for explicit target repository") | .with."permission-contents"' "${WORKFLOW}")" = read ]
+  [ "$(yq eval '.jobs.scan.steps[] | select(.name == "Mint scoped token for explicit target repository") | .with."permission-metadata"' "${WORKFLOW}")" = read ]
+  [ "$(yq eval '.jobs.scan.steps[] | select(.name == "Check out untrusted target revision") | .with.token' "${WORKFLOW}")" \
+    = "\${{ inputs.target-repository != '' && steps.target-app-token.outputs.token || github.token }}" ]
+}
+
+@test "resolve-target.sh rejects a target repository without a full lowercase 40-character commit SHA" {
+  local out
+  out="${TEST_TEMP}/github-output"
+  : > "${out}"
+  run env GITHUB_OUTPUT="${out}" TARGET_REPOSITORY=dceoy/segh TARGET_REF=deadbeef \
+    "${REPO_ROOT}/.github/actions/repository-security-scan/resolve-target.sh"
+  [ "${status}" -ne 0 ]
+  [[ "${output}" == *'target-ref must be a full lowercase 40-character commit SHA'* ]]
+}
+
+@test "resolve-target.sh rejects a target-repository without an owner/name pair" {
+  local out
+  out="${TEST_TEMP}/github-output"
+  : > "${out}"
+  run env GITHUB_OUTPUT="${out}" TARGET_REPOSITORY=segh \
+    TARGET_REF=0123456789012345678901234567890123456789 \
+    "${REPO_ROOT}/.github/actions/repository-security-scan/resolve-target.sh"
+  [ "${status}" -ne 0 ]
+  [[ "${output}" == *'target-repository must be an owner/name pair'* ]]
+}
+
+@test "resolve-target.sh rejects a target-ref supplied without a target-repository" {
+  local out
+  out="${TEST_TEMP}/github-output"
+  : > "${out}"
+  run env GITHUB_OUTPUT="${out}" TARGET_REF=0123456789012345678901234567890123456789 \
+    "${REPO_ROOT}/.github/actions/repository-security-scan/resolve-target.sh"
+  [ "${status}" -ne 0 ]
+  [[ "${output}" == *'target-ref requires target-repository to be set'* ]]
+}
+
+@test "resolve-target.sh resolves an explicit immutable target repository and commit SHA" {
+  local out
+  out="${TEST_TEMP}/github-output"
+  : > "${out}"
+  run env GITHUB_OUTPUT="${out}" TARGET_REPOSITORY=dceoy/segh \
+    TARGET_REF=0123456789012345678901234567890123456789 \
+    "${REPO_ROOT}/.github/actions/repository-security-scan/resolve-target.sh"
+  [ "${status}" -eq 0 ]
+  grep -q '^owner=dceoy$' "${out}"
+  grep -q '^name=segh$' "${out}"
+  grep -q '^repository=dceoy/segh$' "${out}"
+  grep -q '^ref=0123456789012345678901234567890123456789$' "${out}"
+}
+
+@test "resolve-target.sh falls back to the caller/event repository and revision when no target is supplied" {
+  local out
+  out="${TEST_TEMP}/github-output"
+  : > "${out}"
+  run env GITHUB_OUTPUT="${out}" EVENT_NAME=merge_group EVENT_REPOSITORY=dceoy/gha-for-devops \
+    EVENT_SHA=1111111111111111111111111111111111111111 \
+    MERGE_GROUP_HEAD_SHA=2222222222222222222222222222222222222222 \
+    "${REPO_ROOT}/.github/actions/repository-security-scan/resolve-target.sh"
+  [ "${status}" -eq 0 ]
+  grep -q '^repository=dceoy/gha-for-devops$' "${out}"
+  grep -q '^ref=2222222222222222222222222222222222222222$' "${out}"
+}
+
+record_status_fixture() {
+  local repository_id="$1"
+  local default_branch="$2"
+
+  SECURITY_SCAN_REPOSITORY_ID="${repository_id}" \
+    SECURITY_SCAN_DEFAULT_BRANCH="${default_branch}" \
+    SECURITY_SCAN_REPOSITORY=dceoy/segh \
+    SECURITY_SCAN_COMMIT_SHA=0123456789012345678901234567890123456789 \
+    bash "${SCANNER}" status
+}
+
+@test "status.json is not written when no repository identity inputs are supplied" {
+  prepare_fixture clean
+  run_scanners
+  record_status_fixture '' ''
+
+  [ ! -e "${GITHUB_WORKSPACE}/security-results/status.json" ]
+}
+
+@test "status.json reports pass for a clean scan bound to repository identity" {
+  prepare_fixture clean
+  run_scanners
+  record_status_fixture segh-repository-id main
+
+  [ "$(yq eval --input-format=json '.result' "${GITHUB_WORKSPACE}/security-results/status.json")" = pass ]
+  [ "$(yq eval --input-format=json '."repository-id"' "${GITHUB_WORKSPACE}/security-results/status.json")" = segh-repository-id ]
+  [ "$(yq eval --input-format=json '.repository' "${GITHUB_WORKSPACE}/security-results/status.json")" = dceoy/segh ]
+  [ "$(yq eval --input-format=json '."default-branch"' "${GITHUB_WORKSPACE}/security-results/status.json")" = main ]
+  [ "$(yq eval --input-format=json '."commit-sha"' "${GITHUB_WORKSPACE}/security-results/status.json")" = 0123456789012345678901234567890123456789 ]
+}
+
+@test "status.json reports findings for a scanner-detected finding" {
+  prepare_fixture zizmor-finding
+  run_scanners
+  record_status_fixture segh-repository-id main
+
+  [ "$(yq eval --input-format=json '.result' "${GITHUB_WORKSPACE}/security-results/status.json")" = findings ]
+}
+
+@test "status.json reports findings for a preflight-rejected LFS pointer" {
+  prepare_fixture lfs-pointer
+  run_scanners
+  record_status_fixture segh-repository-id main
+
+  [ "$(yq eval --input-format=json '.result' "${GITHUB_WORKSPACE}/security-results/status.json")" = findings ]
+}
+
+@test "status.json reports incomplete when required scanner evidence is missing" {
+  prepare_fixture clean
+  run_scanners
+  rm "${GITHUB_WORKSPACE}/security-results/actionlint.json"
+  record_status_fixture segh-repository-id main
+
+  [ "$(yq eval --input-format=json '.result' "${GITHUB_WORKSPACE}/security-results/status.json")" = incomplete ]
+}
+
+@test "status.json reports error when the target checkout could not be inspected" {
+  mkdir -p "${GITHUB_WORKSPACE}/security-results"
+  record_status_fixture segh-repository-id main
+
+  [ "$(yq eval --input-format=json '.result' "${GITHUB_WORKSPACE}/security-results/status.json")" = error ]
 }

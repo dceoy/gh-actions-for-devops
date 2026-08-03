@@ -624,6 +624,86 @@ run_trivy() {
   printf '%s\n' "${scanner_status_value}" > "${results_dir}/${scanner_name}.status"
 }
 
+classify_result() {
+  local preflight_status_value='' scanner_name scanner_status_value
+  local has_incomplete=0 has_findings=0
+
+  if [[ ! -f "${results_dir}/preflight.status" ]]; then
+    printf 'error'
+    return 0
+  fi
+  preflight_status_value="$(< "${results_dir}/preflight.status")"
+  if [[ "${preflight_status_value}" != '0' ]]; then
+    if [[ ! -f "${results_dir}/tracked-files.index" ]]; then
+      printf 'error'
+    else
+      # A non-zero preflight status with a tracked-files index means the
+      # target itself carried a rejected LFS pointer or submodule gitlink;
+      # that is a detected policy violation, not an execution failure.
+      printf 'findings'
+    fi
+    return 0
+  fi
+
+  for scanner_name in "${scanners[@]}"; do
+    local scanner_status_file="${results_dir}/${scanner_name}.status"
+    local scanner_json_file="${results_dir}/${scanner_name}.json"
+
+    if [[ ! -f "${scanner_status_file}" ]]; then
+      has_incomplete=1
+      continue
+    fi
+    scanner_status_value="$(< "${scanner_status_file}")"
+    if [[ ! "${scanner_status_value}" =~ ^[0-9]+$ ]]; then
+      has_incomplete=1
+      continue
+    fi
+    if [[ ! -s "${scanner_json_file}" ]] \
+      || ! yq eval --input-format=json '.' "${scanner_json_file}" > /dev/null 2>&1; then
+      has_incomplete=1
+      continue
+    fi
+    if ((scanner_status_value == 0)); then
+      continue
+    fi
+    if yq eval --exit-status --input-format=json '.result == "not-run"' "${scanner_json_file}" \
+      > /dev/null 2>&1; then
+      has_incomplete=1
+    else
+      has_findings=1
+    fi
+  done
+
+  if ((has_incomplete == 1)); then
+    printf 'incomplete'
+  elif ((has_findings == 1)); then
+    printf 'findings'
+  else
+    printf 'pass'
+  fi
+}
+
+record_status() {
+  local repository_id="${SECURITY_SCAN_REPOSITORY_ID:-}"
+  local default_branch="${SECURITY_SCAN_DEFAULT_BRANCH:-}"
+  local repository="${SECURITY_SCAN_REPOSITORY:-}"
+  local commit_sha="${SECURITY_SCAN_COMMIT_SHA:-}"
+  local result
+
+  if [[ -z "${repository_id}" && -z "${default_branch}" ]]; then
+    return 0
+  fi
+  result="$(classify_result)"
+  STATUS_RESULT="${result}" \
+    STATUS_REPOSITORY_ID="${repository_id}" \
+    STATUS_REPOSITORY="${repository}" \
+    STATUS_DEFAULT_BRANCH="${default_branch}" \
+    STATUS_COMMIT_SHA="${commit_sha}" \
+    yq eval --null-input --output-format=json \
+    '{"result": strenv(STATUS_RESULT), "repository-id": strenv(STATUS_REPOSITORY_ID), "repository": strenv(STATUS_REPOSITORY), "default-branch": strenv(STATUS_DEFAULT_BRANCH), "commit-sha": strenv(STATUS_COMMIT_SHA)}' \
+    > "${results_dir}/status.json"
+}
+
 publish_summary() {
   local scanner_name text_file
 
@@ -696,10 +776,11 @@ case "${1:-}" in
   checkov) run_checkov ;;
   trivy-vulnerability) run_trivy trivy-vulnerability vuln HIGH,CRITICAL ;;
   trivy-secret) run_trivy trivy-secret secret UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL ;;
+  status) record_status ;;
   summary) publish_summary ;;
   enforce) enforce ;;
   *)
-    printf 'usage: %s {prepare|preflight|zizmor|actionlint|shellcheck|checkov|trivy-vulnerability|trivy-secret|summary|enforce}\n' "$0" >&2
+    printf 'usage: %s {prepare|preflight|zizmor|actionlint|shellcheck|checkov|trivy-vulnerability|trivy-secret|status|summary|enforce}\n' "$0" >&2
     exit 2
     ;;
 esac

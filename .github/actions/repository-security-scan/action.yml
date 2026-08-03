@@ -1,6 +1,29 @@
 ---
 name: Trusted repository security scanner pipeline
 description: Run centrally configured security gates against an untrusted repository checkout
+inputs:
+  repository-id:
+    description: Stable repository identity copied into periodic-scan status evidence
+    required: false
+    default: ''
+  default-branch:
+    description: Default branch identity copied into periodic-scan status evidence
+    required: false
+    default: ''
+  repository:
+    description: Repository (owner/name) actually scanned, copied into status evidence
+    required: false
+    default: ''
+  commit-sha:
+    description: Commit SHA actually scanned, copied into status evidence
+    required: false
+    default: ''
+  evidence-artifact-name:
+    description: >-
+      Unique evidence artifact name for matrix callers. Empty uses a
+      run-attempt-scoped name.
+    required: false
+    default: ''
 runs:
   using: composite
   steps:
@@ -41,6 +64,15 @@ runs:
       if: always()
       shell: bash
       run: '"$GITHUB_ACTION_PATH/scan.sh" trivy-secret'
+    - name: Record periodic-scan status evidence
+      if: always()
+      shell: bash
+      env:
+        SECURITY_SCAN_REPOSITORY_ID: ${{ inputs.repository-id }}
+        SECURITY_SCAN_DEFAULT_BRANCH: ${{ inputs.default-branch }}
+        SECURITY_SCAN_REPOSITORY: ${{ inputs.repository }}
+        SECURITY_SCAN_COMMIT_SHA: ${{ inputs.commit-sha }}
+      run: '"$GITHUB_ACTION_PATH/scan.sh" status'
     - name: Publish bounded scanner summary
       if: always()
       shell: bash
@@ -49,7 +81,7 @@ runs:
       if: always()
       uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
       with:
-        name: repository-security-reports-${{ github.run_attempt }}
+        name: ${{ inputs.evidence-artifact-name != '' && inputs.evidence-artifact-name || format('repository-security-reports-{0}', github.run_attempt) }}
         path: security-results
         if-no-files-found: error
         retention-days: 14
