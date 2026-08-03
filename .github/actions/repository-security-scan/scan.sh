@@ -674,6 +674,11 @@ classify_result() {
       has_incomplete=1
       continue
     fi
+    if [[ ! -s "${results_dir}/${scanner_name}.txt" ]] \
+      || [[ ! -f "${results_dir}/${scanner_name}.log" ]]; then
+      has_incomplete=1
+      continue
+    fi
     if ((scanner_status_value == 0)); then
       continue
     fi
@@ -702,6 +707,17 @@ classify_result() {
   fi
 }
 
+json_escape() {
+  local value="$1"
+
+  value="${value//\\/\\\\}"
+  value="${value//\"/\\\"}"
+  value="${value//$'\n'/\\n}"
+  value="${value//$'\r'/\\r}"
+  value="${value//$'\t'/\\t}"
+  printf '%s' "${value}"
+}
+
 record_status() {
   local repository_id="${SECURITY_SCAN_REPOSITORY_ID:-}"
   local default_branch="${SECURITY_SCAN_DEFAULT_BRANCH:-}"
@@ -712,14 +728,15 @@ record_status() {
   if [[ -z "${repository_id}" && -z "${default_branch}" ]]; then
     return 0
   fi
+  # Written without yq so a failed scanner install still uploads status
+  # evidence instead of silently dropping this always-run step's output.
   result="$(classify_result)"
-  STATUS_RESULT="${result}" \
-    STATUS_REPOSITORY_ID="${repository_id}" \
-    STATUS_REPOSITORY="${repository}" \
-    STATUS_DEFAULT_BRANCH="${default_branch}" \
-    STATUS_COMMIT_SHA="${commit_sha}" \
-    yq eval --null-input --output-format=json \
-    '{"result": strenv(STATUS_RESULT), "repository-id": strenv(STATUS_REPOSITORY_ID), "repository": strenv(STATUS_REPOSITORY), "default-branch": strenv(STATUS_DEFAULT_BRANCH), "commit-sha": strenv(STATUS_COMMIT_SHA)}' \
+  printf '{"result":"%s","repository-id":"%s","repository":"%s","default-branch":"%s","commit-sha":"%s"}\n' \
+    "$(json_escape "${result}")" \
+    "$(json_escape "${repository_id}")" \
+    "$(json_escape "${repository}")" \
+    "$(json_escape "${default_branch}")" \
+    "$(json_escape "${commit_sha}")" \
     > "${results_dir}/status.json"
 }
 

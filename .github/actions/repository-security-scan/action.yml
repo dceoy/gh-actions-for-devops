@@ -38,8 +38,9 @@ runs:
       # Must run even when the calling job's earlier setup steps (target
       # resolution, token minting, checkout) failed: without an explicit
       # always-run condition, this step's implicit success() is skipped in
-      # that case, and the later always-run status step's yq dependency is
-      # then missing, losing the promised failure-path status evidence.
+      # that case, preventing the scanner pipeline from using its trusted
+      # toolchain when preflight can proceed.
+      id: install-scanners
       if: (! cancelled())
       uses: aquaproj/aqua-installer@96a9bc20066c5bf5e275b41019cfc165b25f4e2e  # v4.0.5
       with:
@@ -50,10 +51,15 @@ runs:
       shell: bash
       run: '"$GITHUB_ACTION_PATH/scan.sh" prepare'
     - name: Validate the target checkout
+      # Folds this step's own installer failure into the same setup-failed
+      # signal as an upstream checkout failure: the scanner toolchain
+      # (including yq) is unavailable either way, so preflight must fail
+      # closed with explicit error evidence instead of letting each gate
+      # hit missing binaries on its own.
       if: always()
       shell: bash
       env:
-        SECURITY_SCAN_SETUP_FAILED: ${{ inputs.setup-failed }}
+        SECURITY_SCAN_SETUP_FAILED: ${{ inputs.setup-failed == 'true' || steps.install-scanners.outcome == 'failure' }}
       run: '"$GITHUB_ACTION_PATH/scan.sh" preflight'
     - name: Run zizmor gate
       if: always()

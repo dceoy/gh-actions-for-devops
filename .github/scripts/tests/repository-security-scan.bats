@@ -570,6 +570,13 @@ assert_fixture_fails_gate() {
 @test "the composite action installs scanners even after a setup failure so status evidence is not lost" {
   [ "$(yq eval '.runs.steps[0].name' "${ACTION}")" = 'Install checksum-verified scanners' ]
   [ "$(yq eval '.runs.steps[0].if' "${ACTION}")" = '(! cancelled())' ]
+  [ "$(yq eval '.runs.steps[0].id' "${ACTION}")" = install-scanners ]
+}
+
+@test "the composite action folds its own installer failure into setup-failed preflight evidence" {
+  [ "$(yq eval '.runs.steps[] | select(.name == "Validate the target checkout") | .if' "${ACTION}")" = 'always()' ]
+  [ "$(yq eval '.runs.steps[] | select(.name == "Validate the target checkout") | .env.SECURITY_SCAN_SETUP_FAILED' "${ACTION}")" = \
+    "\${{ inputs.setup-failed == 'true' || steps.install-scanners.outcome == 'failure' }}" ]
 }
 
 @test "the composite action always retains evidence before one aggregate gate" {
@@ -754,6 +761,46 @@ record_status_fixture() {
   record_status_fixture segh-repository-id main
 
   [ "$(yq eval --input-format=json '.result' "${GITHUB_WORKSPACE}/security-results/status.json")" = incomplete ]
+}
+
+@test "status.json reports incomplete when a passing scanner is missing its text evidence" {
+  prepare_fixture clean
+  run_scanners
+  : > "${GITHUB_WORKSPACE}/security-results/actionlint.txt"
+  record_status_fixture segh-repository-id main
+
+  [ "$(< "${GITHUB_WORKSPACE}/security-results/actionlint.status")" -eq 0 ]
+  [ "$(yq eval --input-format=json '.result' "${GITHUB_WORKSPACE}/security-results/status.json")" = incomplete ]
+}
+
+@test "status.json reports incomplete when a passing scanner is missing its log evidence" {
+  prepare_fixture clean
+  run_scanners
+  rm "${GITHUB_WORKSPACE}/security-results/actionlint.log"
+  record_status_fixture segh-repository-id main
+
+  [ "$(< "${GITHUB_WORKSPACE}/security-results/actionlint.status")" -eq 0 ]
+  [ "$(yq eval --input-format=json '.result' "${GITHUB_WORKSPACE}/security-results/status.json")" = incomplete ]
+}
+
+@test "status.json is still written with identity evidence when yq is unavailable" {
+  local empty_bin="${TEST_TEMP}/empty-bin"
+
+  prepare_fixture clean
+  run_scanners
+  mkdir -p "${empty_bin}"
+  SECURITY_SCAN_REPOSITORY_ID=segh-repository-id \
+    SECURITY_SCAN_DEFAULT_BRANCH=main \
+    SECURITY_SCAN_REPOSITORY=dceoy/segh \
+    SECURITY_SCAN_COMMIT_SHA=0123456789012345678901234567890123456789 \
+    PATH="${empty_bin}" \
+    "${BASH}" "${SCANNER}" status
+
+  [ -e "${GITHUB_WORKSPACE}/security-results/status.json" ]
+  grep -q '"repository-id":"segh-repository-id"' "${GITHUB_WORKSPACE}/security-results/status.json"
+  grep -q '"repository":"dceoy/segh"' "${GITHUB_WORKSPACE}/security-results/status.json"
+  grep -q '"default-branch":"main"' "${GITHUB_WORKSPACE}/security-results/status.json"
+  grep -q '"commit-sha":"0123456789012345678901234567890123456789"' "${GITHUB_WORKSPACE}/security-results/status.json"
 }
 
 @test "status.json reports error when the target checkout could not be inspected" {
