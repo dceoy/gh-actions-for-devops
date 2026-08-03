@@ -54,8 +54,8 @@ concurrency:
   # periodic-scan controller; run_id is a safe fallback for any other
   # workflow_call. Only pull_request runs cancel a superseded in-progress
   # scan; merge_group and matrix target-mode runs must all complete.
-  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.event.merge_group.head_ref || inputs.target-repository || github.run_id }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ inputs.target-repository || github.event.pull_request.number || github.event.merge_group.head_ref || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' && inputs.target-repository == '' }}
 permissions:
   contents: read
 jobs:
