@@ -634,13 +634,15 @@ classify_result() {
   fi
   preflight_status_value="$(< "${results_dir}/preflight.status")"
   if [[ "${preflight_status_value}" != '0' ]]; then
-    if [[ ! -f "${results_dir}/tracked-files.index" ]]; then
-      printf 'error'
-    else
-      # A non-zero preflight status with a tracked-files index means the
-      # target itself carried a rejected LFS pointer or submodule gitlink;
-      # that is a detected policy violation, not an execution failure.
+    if [[ -f "${results_dir}/rejected-lfs-pointers.txt" ]] \
+      || [[ -f "${results_dir}/rejected-submodules.txt" ]]; then
+      # These files are only written once preflight has fully enumerated the
+      # checkout, so their presence means the non-zero status came from a
+      # rejected LFS pointer or submodule gitlink, not a failed inspection
+      # (e.g. `git ls-files` itself erroring before enumeration completed).
       printf 'findings'
+    else
+      printf 'error'
     fi
     return 0
   fi

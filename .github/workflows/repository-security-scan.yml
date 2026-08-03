@@ -77,6 +77,14 @@ jobs:
           path: _trusted
           persist-credentials: false
       - name: Resolve immutable scan target
+        # Only a trusted organization controller supplies target-repository
+        # via workflow_call, where job.workflow_sha guarantees this helper
+        # exists at the exact revision being run. Direct pull_request and
+        # merge_group triggers never set it, so this step is skipped and
+        # the default repository/ref path below uses plain event
+        # expressions instead of a helper that a direct trigger's trusted
+        # checkout (pinned to the base revision) may not contain yet.
+        if: inputs.target-repository != ''
         id: target
         shell: bash
         env:
@@ -105,12 +113,12 @@ jobs:
       - name: Check out untrusted target revision
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
-          repository: ${{ steps.target.outputs.repository }}
+          repository: ${{ inputs.target-repository != '' && steps.target.outputs.repository || github.repository }}
           # A merge queue must scan its synthetic head commit. Pull requests
           # and reusable calls from other events scan the exact triggering
           # commit, including the pull request's synthetic merge result. An
           # explicit target-repository scans its supplied immutable SHA.
-          ref: ${{ steps.target.outputs.ref }}
+          ref: ${{ inputs.target-repository != '' && steps.target.outputs.ref || (github.event_name == 'merge_group' && github.event.merge_group.head_sha || github.sha) }}
           token: ${{ inputs.target-repository != '' && steps.target-app-token.outputs.token || github.token }}
           path: _target
           persist-credentials: false
@@ -121,6 +129,6 @@ jobs:
         with:
           repository-id: ${{ inputs.repository-id }}
           default-branch: ${{ inputs.default-branch }}
-          repository: ${{ steps.target.outputs.repository }}
-          commit-sha: ${{ steps.target.outputs.ref }}
+          repository: ${{ inputs.target-repository != '' && steps.target.outputs.repository || github.repository }}
+          commit-sha: ${{ inputs.target-repository != '' && steps.target.outputs.ref || (github.event_name == 'merge_group' && github.event.merge_group.head_sha || github.sha) }}
           evidence-artifact-name: ${{ inputs.evidence-artifact-name }}

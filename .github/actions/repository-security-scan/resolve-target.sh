@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-set -u -o pipefail
+set -euo pipefail
 
 main() {
   local target_repository="${TARGET_REPOSITORY:-}"

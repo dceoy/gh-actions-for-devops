@@ -521,7 +521,7 @@ assert_fixture_fails_gate() {
   [ "$(yq eval '.jobs.scan.steps[] | select(.name == "Check out trusted scanner implementation") | .with.ref' "${WORKFLOW}")" = \
     "\${{ job.workflow_ref == github.workflow_ref && github.event_name == 'pull_request' && github.event.pull_request.base.sha || job.workflow_ref == github.workflow_ref && github.event_name == 'merge_group' && github.event.merge_group.base_sha || job.workflow_sha }}" ]
   [ "$(yq eval '.jobs.scan.steps[] | select(.name == "Check out untrusted target revision") | .with.ref' "${WORKFLOW}")" = \
-    "\${{ steps.target.outputs.ref }}" ]
+    "\${{ inputs.target-repository != '' && steps.target.outputs.ref || (github.event_name == 'merge_group' && github.event.merge_group.head_sha || github.sha) }}" ]
   [ "$(yq eval '.jobs.scan.steps[] | select(.name == "Check out untrusted target revision") | .with.lfs' "${WORKFLOW}")" = 'false' ]
   [ "$(yq eval '.jobs.scan.steps[] | select(.name == "Check out untrusted target revision") | .with.submodules' "${WORKFLOW}")" = 'false' ]
   grep -q 'repository: .*job.workflow_repository' "${WORKFLOW}"
@@ -552,6 +552,17 @@ assert_fixture_fails_gate() {
   [ "$(yq eval '.jobs.scan.steps[] | select(.name == "Mint scoped token for explicit target repository") | .with."permission-metadata"' "${WORKFLOW}")" = read ]
   [ "$(yq eval '.jobs.scan.steps[] | select(.name == "Check out untrusted target revision") | .with.token' "${WORKFLOW}")" \
     = "\${{ inputs.target-repository != '' && steps.target-app-token.outputs.token || github.token }}" ]
+}
+
+@test "the immutable-target resolver is skipped on direct triggers so it never depends on the trusted base checkout" {
+  [ "$(yq eval '.jobs.scan.steps[] | select(.name == "Resolve immutable scan target") | .if' "${WORKFLOW}")" \
+    = "inputs.target-repository != ''" ]
+  [ "$(yq eval '.jobs.scan.steps[] | select(.name == "Check out untrusted target revision") | .with.repository' "${WORKFLOW}")" \
+    = "\${{ inputs.target-repository != '' && steps.target.outputs.repository || github.repository }}" ]
+  [ "$(yq eval '.jobs.scan.steps[] | select(.name == "Run trusted repository security pipeline") | .with.repository' "${WORKFLOW}")" \
+    = "\${{ inputs.target-repository != '' && steps.target.outputs.repository || github.repository }}" ]
+  [ "$(yq eval '.jobs.scan.steps[] | select(.name == "Run trusted repository security pipeline") | .with."commit-sha"' "${WORKFLOW}")" \
+    = "\${{ inputs.target-repository != '' && steps.target.outputs.ref || (github.event_name == 'merge_group' && github.event.merge_group.head_sha || github.sha) }}" ]
 }
 
 @test "resolve-target.sh rejects a target repository without a full lowercase 40-character commit SHA" {
@@ -672,5 +683,18 @@ record_status_fixture() {
   mkdir -p "${GITHUB_WORKSPACE}/security-results"
   record_status_fixture segh-repository-id main
 
+  [ "$(yq eval --input-format=json '.result' "${GITHUB_WORKSPACE}/security-results/status.json")" = error ]
+}
+
+@test "status.json reports error when git ls-files fails during preflight instead of reporting findings" {
+  prepare_fixture clean
+  rm -rf "${GITHUB_WORKSPACE}/_target/.git"
+  bash "${SCANNER}" prepare
+  bash "${SCANNER}" preflight
+  record_status_fixture segh-repository-id main
+
+  [ "$(< "${GITHUB_WORKSPACE}/security-results/preflight.status")" -eq 1 ]
+  [ ! -e "${GITHUB_WORKSPACE}/security-results/rejected-lfs-pointers.txt" ]
+  [ ! -e "${GITHUB_WORKSPACE}/security-results/rejected-submodules.txt" ]
   [ "$(yq eval --input-format=json '.result' "${GITHUB_WORKSPACE}/security-results/status.json")" = error ]
 }
