@@ -626,7 +626,7 @@ run_trivy() {
 
 classify_result() {
   local preflight_status_value='' scanner_name scanner_status_value
-  local has_incomplete=0 has_findings=0
+  local has_incomplete=0 has_findings=0 has_error=0
 
   if [[ ! -f "${results_dir}/preflight.status" ]]; then
     printf 'error'
@@ -671,12 +671,20 @@ classify_result() {
     if yq eval --exit-status --input-format=json '.result == "not-run"' "${scanner_json_file}" \
       > /dev/null 2>&1; then
       has_incomplete=1
+    elif ((scanner_status_value > 1)); then
+      # A status of 1 is every scanner's own convention for "policy findings
+      # at the enforced threshold". Anything higher (and not already claimed
+      # as not-run above) means the tool itself failed to complete its scan
+      # (e.g. a usage error or crash), which is not a policy finding.
+      has_error=1
     else
       has_findings=1
     fi
   done
 
-  if ((has_incomplete == 1)); then
+  if ((has_error == 1)); then
+    printf 'error'
+  elif ((has_incomplete == 1)); then
     printf 'incomplete'
   elif ((has_findings == 1)); then
     printf 'findings'

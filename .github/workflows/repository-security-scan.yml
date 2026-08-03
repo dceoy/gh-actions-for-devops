@@ -18,7 +18,7 @@ on:
         type: string
         description: >-
           Full lowercase 40-character commit SHA to scan in target-repository.
-          Required when target-repository is set; ignored otherwise.
+          Required when target-repository is set; rejected otherwise.
         default: ''
       repository-id:
         required: false
@@ -78,13 +78,16 @@ jobs:
           persist-credentials: false
       - name: Resolve immutable scan target
         # Only a trusted organization controller supplies target-repository
-        # via workflow_call, where job.workflow_sha guarantees this helper
-        # exists at the exact revision being run. Direct pull_request and
-        # merge_group triggers never set it, so this step is skipped and
-        # the default repository/ref path below uses plain event
-        # expressions instead of a helper that a direct trigger's trusted
-        # checkout (pinned to the base revision) may not contain yet.
-        if: inputs.target-repository != ''
+        # (or, invalidly, target-ref alone) via workflow_call, where
+        # job.workflow_sha guarantees this helper exists at the exact
+        # revision being run. Direct pull_request and merge_group triggers
+        # never set either input, so this step is skipped and the default
+        # repository/ref path below uses plain event expressions instead of
+        # a helper that a direct trigger's trusted checkout (pinned to the
+        # base revision) may not contain yet. Running on target-ref alone
+        # lets resolve-target.sh reject that invalid combination instead of
+        # silently falling back to the event repository/ref.
+        if: inputs.target-repository != '' || inputs.target-ref != ''
         id: target
         shell: bash
         env:

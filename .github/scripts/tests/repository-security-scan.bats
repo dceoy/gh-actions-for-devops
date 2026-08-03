@@ -77,6 +77,9 @@ while (($# > 0)); do
     shift
   fi
 done
+if grep -R -q 'actionlint-runtime-error' .github/workflows 2> /dev/null; then
+  exit 2
+fi
 if grep -R -q 'actionlint-finding' .github/workflows 2> /dev/null; then
   if [[ "${json}" == true ]]; then
     printf '\n{"kind":"expression","message":"actionlint fixture finding"}\n\n'
@@ -226,6 +229,9 @@ prepare_fixture() {
     cp "${fixture}" "${output_path}"
     if [[ "$(head -n 1 "${output_path}")" == '#!fixture '* ]]; then
       sed -i '1s|^#!fixture |#!|' "${output_path}"
+    fi
+    if [[ "$(head -n 1 "${output_path}")" == 'version-fixture '* ]]; then
+      sed -i '1s|^version-fixture |version |' "${output_path}"
     fi
   done < <(find "${FIXTURES}/${fixture_name}" -type f -name '*.fixture' -print0)
 
@@ -556,7 +562,7 @@ assert_fixture_fails_gate() {
 
 @test "the immutable-target resolver is skipped on direct triggers so it never depends on the trusted base checkout" {
   [ "$(yq eval '.jobs.scan.steps[] | select(.name == "Resolve immutable scan target") | .if' "${WORKFLOW}")" \
-    = "inputs.target-repository != ''" ]
+    = "inputs.target-repository != '' || inputs.target-ref != ''" ]
   [ "$(yq eval '.jobs.scan.steps[] | select(.name == "Check out untrusted target revision") | .with.repository' "${WORKFLOW}")" \
     = "\${{ inputs.target-repository != '' && steps.target.outputs.repository || github.repository }}" ]
   [ "$(yq eval '.jobs.scan.steps[] | select(.name == "Run trusted repository security pipeline") | .with.repository' "${WORKFLOW}")" \
@@ -660,6 +666,18 @@ record_status_fixture() {
   record_status_fixture segh-repository-id main
 
   [ "$(yq eval --input-format=json '.result' "${GITHUB_WORKSPACE}/security-results/status.json")" = findings ]
+}
+
+@test "a scanner runtime failure fails its gate and reports error instead of findings" {
+  prepare_fixture actionlint-runtime-error
+  run_scanners
+  run bash "${SCANNER}" enforce
+  record_status_fixture segh-repository-id main
+
+  [ "${status}" -ne 0 ]
+  [ "$(< "${GITHUB_WORKSPACE}/security-results/actionlint.status")" -eq 2 ]
+  [ "$(yq eval --input-format=json '.' "${GITHUB_WORKSPACE}/security-results/actionlint.json")" = '[]' ]
+  [ "$(yq eval --input-format=json '.result' "${GITHUB_WORKSPACE}/security-results/status.json")" = error ]
 }
 
 @test "status.json reports findings for a preflight-rejected LFS pointer" {
