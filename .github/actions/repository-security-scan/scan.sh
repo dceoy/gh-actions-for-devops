@@ -65,6 +65,7 @@ ensure_text_evidence() {
 run_preflight() {
   local index_file="${results_dir}/tracked-files.index"
   local preflight_status_value=0
+  local preflight_result_value=findings
   local entry mode file lfs_prefix
   local lfs_pointer_pattern=$'^version https://git-lfs.github.com/spec/v1(\n|$)'
   local -a rejected_lfs_pointers=()
@@ -72,15 +73,24 @@ run_preflight() {
   local -a rejected_symlinks=()
 
   : > "${results_dir}/preflight.log"
+  if [[ "${SECURITY_SCAN_SETUP_FAILED:-false}" == 'true' ]]; then
+    printf 'Target checkout setup failed before preflight could run; see the workflow run log.\n' \
+      > "${results_dir}/rejected-symlinks.txt"
+    printf '1\n' > "${results_dir}/preflight.status"
+    printf 'error\n' > "${results_dir}/preflight.result"
+    return 0
+  fi
   if ! cd "${target_dir}" 2>> "${results_dir}/preflight.log"; then
     printf 'Unable to enter the target checkout.\n' > "${results_dir}/rejected-symlinks.txt"
     printf '1\n' > "${results_dir}/preflight.status"
+    printf 'error\n' > "${results_dir}/preflight.result"
     return 0
   fi
   if ! git ls-files -z --stage > "${index_file}" 2>> "${results_dir}/preflight.log"; then
     printf 'Unable to enumerate the target checkout before scanning.\n' \
       > "${results_dir}/rejected-symlinks.txt"
     printf '1\n' > "${results_dir}/preflight.status"
+    printf 'error\n' > "${results_dir}/preflight.result"
     return 0
   fi
 
@@ -91,6 +101,7 @@ run_preflight() {
       rejected_symlinks+=("${file}")
       if ! rm -f -- "${file}" 2>> "${results_dir}/preflight.log"; then
         preflight_status_value=1
+        preflight_result_value=error
       fi
     elif [[ "${mode}" == '160000' ]]; then
       rejected_submodules+=("${file}")
@@ -136,6 +147,9 @@ run_preflight() {
       > "${results_dir}/rejected-submodules.txt"
   fi
   printf '%s\n' "${preflight_status_value}" > "${results_dir}/preflight.status"
+  if ((preflight_status_value != 0)); then
+    printf '%s\n' "${preflight_result_value}" > "${results_dir}/preflight.result"
+  fi
 }
 
 collect_regular_files() {
@@ -369,8 +383,13 @@ run_zizmor() {
     > "${results_dir}/zizmor.txt" \
     2>> "${results_dir}/zizmor.log"
   render_status_value=$?
-  if ((scanner_status_value == 0 && render_status_value != 0)); then
-    scanner_status_value=${render_status_value}
+  if ((render_status_value != 0)); then
+    if ((render_status_value == 1)); then
+      render_status_value=2
+    fi
+    if ((render_status_value > scanner_status_value)); then
+      scanner_status_value=${render_status_value}
+    fi
   fi
   ensure_text_evidence zizmor "${scanner_status_value}"
   printf '%s\n' "${scanner_status_value}" > "${results_dir}/zizmor.status"
@@ -408,7 +427,7 @@ run_actionlint() {
       > "${results_dir}/actionlint.json" 2>> "${results_dir}/actionlint.log"; then
       printf '::error::actionlint produced JSON Lines output that could not be converted to a JSON array; see actionlint.log.\n'
       printf '[]\n' > "${results_dir}/actionlint.json"
-      scanner_status_value=1
+      scanner_status_value=2
     fi
   else
     printf '[]\n' > "${results_dir}/actionlint.json"
@@ -424,7 +443,7 @@ run_actionlint() {
     > "${results_dir}/actionlint.txt" \
     2>> "${results_dir}/actionlint.log"
   render_status_value=$?
-  if ((scanner_status_value == 0 && render_status_value != 0)); then
+  if ((render_status_value > scanner_status_value)); then
     scanner_status_value=${render_status_value}
   fi
   ensure_text_evidence actionlint "${scanner_status_value}"
@@ -529,7 +548,7 @@ run_shellcheck() {
     2>> "${results_dir}/shellcheck.log"
   render_status_value=$?
   rm -rf -- "${composite_shell_dir}"
-  if ((scanner_status_value == 0 && render_status_value != 0)); then
+  if ((render_status_value > scanner_status_value)); then
     scanner_status_value=${render_status_value}
   fi
   ensure_text_evidence shellcheck "${scanner_status_value}"
@@ -617,11 +636,118 @@ run_trivy() {
     "${results_dir}/${scanner_name}.json" \
     2>> "${results_dir}/${scanner_name}.log"
   convert_status_value=$?
-  if ((scanner_status_value == 0 && convert_status_value != 0)); then
-    scanner_status_value=${convert_status_value}
+  if ((convert_status_value != 0)); then
+    if ((convert_status_value == 1)); then
+      convert_status_value=2
+    fi
+    if ((convert_status_value > scanner_status_value)); then
+      scanner_status_value=${convert_status_value}
+    fi
   fi
   ensure_text_evidence "${scanner_name}" "${scanner_status_value}"
   printf '%s\n' "${scanner_status_value}" > "${results_dir}/${scanner_name}.status"
+}
+
+classify_result() {
+  local preflight_status_value='' scanner_name scanner_status_value
+  local has_incomplete=0 has_findings=0 has_error=0
+
+  if [[ ! -f "${results_dir}/preflight.status" ]]; then
+    printf 'error'
+    return 0
+  fi
+  preflight_status_value="$(< "${results_dir}/preflight.status")"
+  if [[ "${preflight_status_value}" != '0' ]]; then
+    if [[ -f "${results_dir}/preflight.result" ]]; then
+      cat -- "${results_dir}/preflight.result"
+    else
+      printf 'error'
+    fi
+    return 0
+  fi
+
+  for scanner_name in "${scanners[@]}"; do
+    local scanner_status_file="${results_dir}/${scanner_name}.status"
+    local scanner_json_file="${results_dir}/${scanner_name}.json"
+
+    if [[ ! -f "${scanner_status_file}" ]]; then
+      has_incomplete=1
+      continue
+    fi
+    scanner_status_value="$(< "${scanner_status_file}")"
+    if [[ ! "${scanner_status_value}" =~ ^[0-9]+$ ]]; then
+      has_incomplete=1
+      continue
+    fi
+    if [[ ! -s "${scanner_json_file}" ]] \
+      || ! yq eval --input-format=json '.' "${scanner_json_file}" > /dev/null 2>&1; then
+      has_incomplete=1
+      continue
+    fi
+    if [[ ! -s "${results_dir}/${scanner_name}.txt" ]] \
+      || [[ ! -f "${results_dir}/${scanner_name}.log" ]]; then
+      has_incomplete=1
+      continue
+    fi
+    if ((scanner_status_value == 0)); then
+      continue
+    fi
+    if yq eval --exit-status --input-format=json '.result == "not-run"' "${scanner_json_file}" \
+      > /dev/null 2>&1; then
+      has_incomplete=1
+    elif ((scanner_status_value > 1)); then
+      # A status of 1 is every scanner's own convention for "policy findings
+      # at the enforced threshold". Anything higher (and not already claimed
+      # as not-run above) means the tool itself failed to complete its scan
+      # (e.g. a usage error or crash), which is not a policy finding.
+      has_error=1
+    else
+      has_findings=1
+    fi
+  done
+
+  if ((has_error == 1)); then
+    printf 'error'
+  elif ((has_incomplete == 1)); then
+    printf 'incomplete'
+  elif ((has_findings == 1)); then
+    printf 'findings'
+  else
+    printf 'pass'
+  fi
+}
+
+json_escape() {
+  local value="$1"
+
+  value="${value//\\/\\\\}"
+  value="${value//\"/\\\"}"
+  value="${value//$'\n'/\\n}"
+  value="${value//$'\r'/\\r}"
+  value="${value//$'\t'/\\t}"
+  printf '%s' "${value}"
+}
+
+record_status() {
+  local repository_id="${SECURITY_SCAN_REPOSITORY_ID:-}"
+  local default_branch="${SECURITY_SCAN_DEFAULT_BRANCH:-}"
+  local repository="${SECURITY_SCAN_REPOSITORY:-}"
+  local commit_sha="${SECURITY_SCAN_COMMIT_SHA:-}"
+  local result
+
+  if [[ -z "${repository_id}" && -z "${default_branch}" ]]; then
+    return 0
+  fi
+  # Written without yq so a failed scanner install still uploads status
+  # evidence instead of silently dropping this always-run step's output.
+  result="$(classify_result)"
+  printf '{"result":"%s","repository-id":"%s","repository":"%s","default-branch":"%s","commit-sha":"%s"}\n' \
+    "$(json_escape "${result}")" \
+    "$(json_escape "${repository_id}")" \
+    "$(json_escape "${repository}")" \
+    "$(json_escape "${default_branch}")" \
+    "$(json_escape "${commit_sha}")" \
+    > "${results_dir}/status.json"
 }
 
 publish_summary() {
@@ -696,10 +822,11 @@ case "${1:-}" in
   checkov) run_checkov ;;
   trivy-vulnerability) run_trivy trivy-vulnerability vuln HIGH,CRITICAL ;;
   trivy-secret) run_trivy trivy-secret secret UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL ;;
+  status) record_status ;;
   summary) publish_summary ;;
   enforce) enforce ;;
   *)
-    printf 'usage: %s {prepare|preflight|zizmor|actionlint|shellcheck|checkov|trivy-vulnerability|trivy-secret|summary|enforce}\n' "$0" >&2
+    printf 'usage: %s {prepare|preflight|zizmor|actionlint|shellcheck|checkov|trivy-vulnerability|trivy-secret|status|summary|enforce}\n' "$0" >&2
     exit 2
     ;;
 esac
