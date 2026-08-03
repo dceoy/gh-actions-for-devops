@@ -383,8 +383,13 @@ run_zizmor() {
     > "${results_dir}/zizmor.txt" \
     2>> "${results_dir}/zizmor.log"
   render_status_value=$?
-  if ((scanner_status_value == 0 && render_status_value != 0)); then
-    scanner_status_value=${render_status_value}
+  if ((render_status_value != 0)); then
+    if ((render_status_value == 1)); then
+      render_status_value=2
+    fi
+    if ((render_status_value > scanner_status_value)); then
+      scanner_status_value=${render_status_value}
+    fi
   fi
   ensure_text_evidence zizmor "${scanner_status_value}"
   printf '%s\n' "${scanner_status_value}" > "${results_dir}/zizmor.status"
@@ -438,7 +443,7 @@ run_actionlint() {
     > "${results_dir}/actionlint.txt" \
     2>> "${results_dir}/actionlint.log"
   render_status_value=$?
-  if ((scanner_status_value == 0 && render_status_value != 0)); then
+  if ((render_status_value > scanner_status_value)); then
     scanner_status_value=${render_status_value}
   fi
   ensure_text_evidence actionlint "${scanner_status_value}"
@@ -543,7 +548,7 @@ run_shellcheck() {
     2>> "${results_dir}/shellcheck.log"
   render_status_value=$?
   rm -rf -- "${composite_shell_dir}"
-  if ((scanner_status_value == 0 && render_status_value != 0)); then
+  if ((render_status_value > scanner_status_value)); then
     scanner_status_value=${render_status_value}
   fi
   ensure_text_evidence shellcheck "${scanner_status_value}"
@@ -631,8 +636,13 @@ run_trivy() {
     "${results_dir}/${scanner_name}.json" \
     2>> "${results_dir}/${scanner_name}.log"
   convert_status_value=$?
-  if ((scanner_status_value == 0 && convert_status_value != 0)); then
-    scanner_status_value=${convert_status_value}
+  if ((convert_status_value != 0)); then
+    if ((convert_status_value == 1)); then
+      convert_status_value=2
+    fi
+    if ((convert_status_value > scanner_status_value)); then
+      scanner_status_value=${convert_status_value}
+    fi
   fi
   ensure_text_evidence "${scanner_name}" "${scanner_status_value}"
   printf '%s\n' "${scanner_status_value}" > "${results_dir}/${scanner_name}.status"

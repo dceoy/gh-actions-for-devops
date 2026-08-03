@@ -14,6 +14,8 @@ setup() {
   export GITHUB_STEP_SUMMARY="${TEST_TEMP}/summary.md"
   export STUB_LOG="${TEST_TEMP}/scanner-invocations.log"
   export ZIZMOR_ARGS_LOG="${TEST_TEMP}/zizmor-args.log"
+  unset ZIZMOR_RENDER_STATUS ACTIONLINT_RENDER_STATUS SHELLCHECK_RENDER_STATUS \
+    TRIVY_CONVERT_FAILURE_KIND TRIVY_CONVERT_FAILURE_STATUS
   STUB_BIN="${TEST_TEMP}/stub-bin"
 
   mkdir -p \
@@ -57,7 +59,9 @@ if grep -R -q 'zizmor-finding' .github 2> /dev/null; then
   else
     printf 'zizmor fixture finding\n'
   fi
-  [[ "${no_exit_codes}" == true ]] && exit 0
+  if [[ "${no_exit_codes}" == true ]]; then
+    exit "${ZIZMOR_RENDER_STATUS:-0}"
+  fi
   exit 1
 fi
 [[ "${format}" == json ]] && printf '[]\n'
@@ -86,7 +90,8 @@ if grep -R -q 'actionlint-jsonl-conversion-error' .github/workflows 2> /dev/null
   else
     printf '.github/workflows/ci.yml:1:1: actionlint fixture conversion error\n'
   fi
-  exit 1
+  [[ "${json}" == true ]] && exit 1
+  exit "${ACTIONLINT_RENDER_STATUS:-1}"
 fi
 if grep -R -q 'actionlint-finding' .github/workflows 2> /dev/null; then
   if [[ "${json}" == true ]]; then
@@ -94,7 +99,8 @@ if grep -R -q 'actionlint-finding' .github/workflows 2> /dev/null; then
   else
     printf '.github/workflows/ci.yml:1:1: actionlint fixture finding\n'
   fi
-  exit 1
+  [[ "${json}" == true ]] && exit 1
+  exit "${ACTIONLINT_RENDER_STATUS:-1}"
 fi
 STUB
 
@@ -116,7 +122,8 @@ if [[ "${finding}" == true ]]; then
   else
     printf 'scripts/tool:2:6: warning: shellcheck fixture finding [SC2086]\n'
   fi
-  exit 1
+  [[ "${json}" == true ]] && exit 1
+  exit "${SHELLCHECK_RENDER_STATUS:-1}"
 fi
 [[ "${json}" == true ]] && printf '{"comments":[]}\n'
 exit 0
@@ -164,19 +171,30 @@ shift || true
 if [[ "${command_name}" == convert ]]; then
   output_path=''
   input_path=''
+  scanner_kind=''
   while (($# > 0)); do
-    if [[ "$1" == '--output' ]]; then
-      output_path="$2"
-      shift 2
-    else
-      input_path="$1"
-      shift
-    fi
+    case "$1" in
+      --output)
+        output_path="$2"
+        shift 2
+        ;;
+      --scanners)
+        scanner_kind="$2"
+        shift 2
+        ;;
+      *)
+        input_path="$1"
+        shift
+        ;;
+    esac
   done
   if grep -q 'fixture-finding' "${input_path}" 2> /dev/null; then
     printf 'Trivy fixture finding\n' > "${output_path}"
   else
     printf 'Passed Trivy fixture scan\n' > "${output_path}"
+  fi
+  if [[ "${scanner_kind}" == "${TRIVY_CONVERT_FAILURE_KIND:-}" ]]; then
+    exit "${TRIVY_CONVERT_FAILURE_STATUS:-2}"
   fi
   exit 0
 fi
@@ -298,6 +316,22 @@ assert_fixture_fails_gate() {
   assert_fixture_fails_gate zizmor-finding zizmor
 }
 
+@test "a zizmor renderer failure preserves findings but reports a runtime error" {
+  prepare_fixture zizmor-finding
+  export ZIZMOR_RENDER_STATUS=1
+  run_scanners
+  run bash "${SCANNER}" enforce
+
+  [ "${status}" -ne 0 ]
+  [ "$(< "${GITHUB_WORKSPACE}/security-results/zizmor.status")" -eq 2 ]
+  [ -s "${GITHUB_WORKSPACE}/security-results/zizmor.json" ]
+  [ "$(yq eval --input-format=json '.[0].rule' "${GITHUB_WORKSPACE}/security-results/zizmor.json")" = zizmor-fixture ]
+  [ -s "${GITHUB_WORKSPACE}/security-results/zizmor.txt" ]
+  [ -f "${GITHUB_WORKSPACE}/security-results/zizmor.log" ]
+  record_status_fixture segh-repository-id main
+  [ "$(yq eval --input-format=json '.result' "${GITHUB_WORKSPACE}/security-results/status.json")" = error ]
+}
+
 @test "zizmor is invoked with --no-ignores so target-owned ignore comments cannot suppress findings" {
   prepare_fixture clean
   run_scanners
@@ -339,9 +373,41 @@ assert_fixture_fails_gate() {
   [ "$(yq eval --input-format=json '. | length' "${GITHUB_WORKSPACE}/security-results/actionlint.json")" -eq 1 ]
 }
 
+@test "an actionlint renderer failure preserves findings but reports a runtime error" {
+  prepare_fixture actionlint-finding
+  export ACTIONLINT_RENDER_STATUS=2
+  run_scanners
+  run bash "${SCANNER}" enforce
+
+  [ "${status}" -ne 0 ]
+  [ "$(< "${GITHUB_WORKSPACE}/security-results/actionlint.status")" -eq 2 ]
+  [ -s "${GITHUB_WORKSPACE}/security-results/actionlint.json" ]
+  [ "$(yq eval --input-format=json '.[0].message' "${GITHUB_WORKSPACE}/security-results/actionlint.json")" = 'actionlint fixture finding' ]
+  [ -s "${GITHUB_WORKSPACE}/security-results/actionlint.txt" ]
+  [ -f "${GITHUB_WORKSPACE}/security-results/actionlint.log" ]
+  record_status_fixture segh-repository-id main
+  [ "$(yq eval --input-format=json '.result' "${GITHUB_WORKSPACE}/security-results/status.json")" = error ]
+}
+
 @test "an extensionless shebang script diagnostic fails standalone ShellCheck" {
   assert_fixture_fails_gate shellcheck-finding shellcheck
   grep -q 'shellcheck fixture finding' "${GITHUB_WORKSPACE}/security-results/shellcheck.txt"
+}
+
+@test "a ShellCheck renderer failure preserves findings but reports a runtime error" {
+  prepare_fixture shellcheck-finding
+  export SHELLCHECK_RENDER_STATUS=2
+  run_scanners
+  run bash "${SCANNER}" enforce
+
+  [ "${status}" -ne 0 ]
+  [ "$(< "${GITHUB_WORKSPACE}/security-results/shellcheck.status")" -eq 2 ]
+  [ -s "${GITHUB_WORKSPACE}/security-results/shellcheck.json" ]
+  [ "$(yq eval --input-format=json '.comments[0].message' "${GITHUB_WORKSPACE}/security-results/shellcheck.json")" = 'shellcheck fixture finding' ]
+  [ -s "${GITHUB_WORKSPACE}/security-results/shellcheck.txt" ]
+  [ -f "${GITHUB_WORKSPACE}/security-results/shellcheck.log" ]
+  record_status_fixture segh-repository-id main
+  [ "$(yq eval --input-format=json '.result' "${GITHUB_WORKSPACE}/security-results/status.json")" = error ]
 }
 
 @test "a standalone script ShellCheck directive fails the gate closed" {
@@ -413,6 +479,23 @@ assert_fixture_fails_gate() {
 
 @test "a high-severity vulnerable dependency fails Trivy vulnerability scanning" {
   assert_fixture_fails_gate vulnerable-dependency trivy-vulnerability
+}
+
+@test "a Trivy converter failure preserves findings but reports a runtime error" {
+  prepare_fixture vulnerable-dependency
+  export TRIVY_CONVERT_FAILURE_KIND=vuln
+  export TRIVY_CONVERT_FAILURE_STATUS=1
+  run_scanners
+  run bash "${SCANNER}" enforce
+
+  [ "${status}" -ne 0 ]
+  [ "$(< "${GITHUB_WORKSPACE}/security-results/trivy-vulnerability.status")" -eq 2 ]
+  [ -s "${GITHUB_WORKSPACE}/security-results/trivy-vulnerability.json" ]
+  [ "$(yq eval --input-format=json '.Results[0].Vulnerabilities[0].Title' "${GITHUB_WORKSPACE}/security-results/trivy-vulnerability.json")" = fixture-finding ]
+  [ -s "${GITHUB_WORKSPACE}/security-results/trivy-vulnerability.txt" ]
+  [ -f "${GITHUB_WORKSPACE}/security-results/trivy-vulnerability.log" ]
+  record_status_fixture segh-repository-id main
+  [ "$(yq eval --input-format=json '.result' "${GITHUB_WORKSPACE}/security-results/status.json")" = error ]
 }
 
 @test "a committed secret fails Trivy secret scanning" {
