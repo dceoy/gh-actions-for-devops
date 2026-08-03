@@ -547,6 +547,14 @@ assert_fixture_fails_gate() {
   yq eval --exit-status '.on | has("merge_group") | not' "${WORKFLOW}" > /dev/null
 }
 
+@test "target-mode concurrency is isolated by target repository and controller run" {
+  [ "$(yq eval '.concurrency.group' "${WORKFLOW}")" = \
+    "\${{ github.workflow }}-\${{ github.event_name }}-\${{ inputs.target-repository != '' && format('{0}-{1}', inputs.target-repository, github.run_id) || github.event.pull_request.number || github.event.merge_group.head_ref || github.run_id }}" ]
+  [ "$(yq eval '.concurrency."cancel-in-progress"' "${WORKFLOW}")" = \
+    "\${{ github.event_name == 'pull_request' && inputs.target-repository == '' }}" ]
+  yq eval --exit-status '.concurrency | has("queue") | not' "${WORKFLOW}" > /dev/null
+}
+
 @test "the workflow preserves reusable, merge-group, fork, and read-only boundaries" {
   yq eval --exit-status '.permissions.contents == "read" and (.permissions | length == 1)' "${WORKFLOW}" > /dev/null
   yq eval --exit-status '.jobs.scan.permissions.contents == "read" and (.jobs.scan.permissions | length == 1)' "${WORKFLOW}" > /dev/null
@@ -613,8 +621,11 @@ assert_fixture_fails_gate() {
     = "\${{ inputs.target-repository != '' && steps.target.outputs.repository || github.repository }}" ]
   [ "$(yq eval '.jobs.scan.steps[] | select(.name == "Run trusted repository security pipeline") | .with.repository' "${WORKFLOW}")" \
     = "\${{ inputs.target-repository == '' && github.repository || inputs.target-repository }}" ]
-  [ "$(yq eval '.jobs.scan.steps[] | select(.name == "Run trusted repository security pipeline") | .with."commit-sha"' "${WORKFLOW}")" \
-    = "\${{ inputs.target-repository == '' && (github.event_name == 'merge_group' && github.event.merge_group.head_sha || github.sha) || inputs.target-ref }}" ]
+}
+
+@test "target-ref-only setup failures preserve the supplied ref in finalizer evidence" {
+  [ "$(yq eval '.jobs.scan.steps[] | select(.name == "Run trusted repository security pipeline") | .with."commit-sha"' "${WORKFLOW}")" = \
+    "\${{ inputs.target-repository == '' && inputs.target-ref == '' && (github.event_name == 'merge_group' && github.event.merge_group.head_sha || github.sha) || inputs.target-ref }}" ]
 }
 
 @test "the trusted pipeline step runs on setup failure but not on cancellation and reports it" {

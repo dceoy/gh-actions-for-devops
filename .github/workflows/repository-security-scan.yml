@@ -50,11 +50,11 @@ on:
         required: false
         description: GitHub App private key used to mint a repository-scoped token for target-repository
 concurrency:
-  # target-repository disambiguates concurrent matrix invocations from a
-  # periodic-scan controller; run_id is a safe fallback for any other
-  # workflow_call. Only pull_request runs cancel a superseded in-progress
-  # scan; merge_group and matrix target-mode runs must all complete.
-  group: ${{ github.workflow }}-${{ github.event_name }}-${{ inputs.target-repository || github.event.pull_request.number || github.event.merge_group.head_ref || github.run_id }}
+  # Explicit target-mode matrix invocations are isolated by target repository
+  # and the periodic-scan controller run_id. Only pull_request runs cancel a
+  # superseded in-progress scan; merge_group and target-mode runs must all
+  # complete.
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ inputs.target-repository != '' && format('{0}-{1}', inputs.target-repository, github.run_id) || github.event.pull_request.number || github.event.merge_group.head_ref || github.run_id }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' && inputs.target-repository == '' }}
 permissions:
   contents: read
@@ -151,12 +151,11 @@ jobs:
           # target-repository/target-ref), those outputs are unset, and
           # falling back to github.repository/github.sha would attribute
           # the failed scan to the caller instead of the requested target.
-          # inputs.target-ref is placed last (not behind another `||`) so
-          # an empty-but-requested ref surfaces as empty evidence instead
-          # of silently falling through to github.sha: `A && '' || B`
-          # evaluates to B, since '' is falsy, so target-ref cannot sit on
-          # the truthy side of that pattern.
+          # The event SHA fallback applies only when both target inputs are
+          # empty. A target-ref-only setup failure therefore retains the raw
+          # supplied ref in error evidence, while a target repository with an
+          # empty ref retains an empty commit-sha.
           repository: ${{ inputs.target-repository == '' && github.repository || inputs.target-repository }}
-          commit-sha: ${{ inputs.target-repository == '' && (github.event_name == 'merge_group' && github.event.merge_group.head_sha || github.sha) || inputs.target-ref }}
+          commit-sha: ${{ inputs.target-repository == '' && inputs.target-ref == '' && (github.event_name == 'merge_group' && github.event.merge_group.head_sha || github.sha) || inputs.target-ref }}
           evidence-artifact-name: ${{ inputs.evidence-artifact-name }}
           setup-failed: ${{ steps.target.outcome == 'failure' || steps.target-app-token.outcome == 'failure' || steps.target-checkout.outcome == 'failure' }}
