@@ -35,6 +35,12 @@ runs:
   using: composite
   steps:
     - name: Install checksum-verified scanners
+      # Must run even when the calling job's earlier setup steps (target
+      # resolution, token minting, checkout) failed: without an explicit
+      # always-run condition, this step's implicit success() is skipped in
+      # that case, and the later always-run status step's yq dependency is
+      # then missing, losing the promised failure-path status evidence.
+      if: (! cancelled())
       uses: aquaproj/aqua-installer@96a9bc20066c5bf5e275b41019cfc165b25f4e2e  # v4.0.5
       with:
         aqua_version: v2.62.1

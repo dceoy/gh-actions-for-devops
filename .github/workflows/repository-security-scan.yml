@@ -146,7 +146,17 @@ jobs:
         with:
           repository-id: ${{ inputs.repository-id }}
           default-branch: ${{ inputs.default-branch }}
-          repository: ${{ inputs.target-repository != '' && steps.target.outputs.repository || github.repository }}
-          commit-sha: ${{ inputs.target-repository != '' && steps.target.outputs.ref || (github.event_name == 'merge_group' && github.event.merge_group.head_sha || github.sha) }}
+          # Use the raw requested inputs, not steps.target's resolved
+          # outputs: when target resolution itself fails (malformed
+          # target-repository/target-ref), those outputs are unset, and
+          # falling back to github.repository/github.sha would attribute
+          # the failed scan to the caller instead of the requested target.
+          # inputs.target-ref is placed last (not behind another `||`) so
+          # an empty-but-requested ref surfaces as empty evidence instead
+          # of silently falling through to github.sha: `A && '' || B`
+          # evaluates to B, since '' is falsy, so target-ref cannot sit on
+          # the truthy side of that pattern.
+          repository: ${{ inputs.target-repository == '' && github.repository || inputs.target-repository }}
+          commit-sha: ${{ inputs.target-repository == '' && (github.event_name == 'merge_group' && github.event.merge_group.head_sha || github.sha) || inputs.target-ref }}
           evidence-artifact-name: ${{ inputs.evidence-artifact-name }}
           setup-failed: ${{ steps.target.outcome == 'failure' || steps.target-app-token.outcome == 'failure' || steps.target-checkout.outcome == 'failure' }}

@@ -567,6 +567,11 @@ assert_fixture_fails_gate() {
   run ! grep -q 'pull_request_target' "${WORKFLOW}"
 }
 
+@test "the composite action installs scanners even after a setup failure so status evidence is not lost" {
+  [ "$(yq eval '.runs.steps[0].name' "${ACTION}")" = 'Install checksum-verified scanners' ]
+  [ "$(yq eval '.runs.steps[0].if' "${ACTION}")" = '(! cancelled())' ]
+}
+
 @test "the composite action always retains evidence before one aggregate gate" {
   [ "$(yq eval '.runs.steps[-2].uses' "${ACTION}")" = 'actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a' ]
   [ "$(yq eval '.runs.steps[-2].with.name' "${ACTION}")" = \
@@ -600,9 +605,9 @@ assert_fixture_fails_gate() {
   [ "$(yq eval '.jobs.scan.steps[] | select(.name == "Check out untrusted target revision") | .with.repository' "${WORKFLOW}")" \
     = "\${{ inputs.target-repository != '' && steps.target.outputs.repository || github.repository }}" ]
   [ "$(yq eval '.jobs.scan.steps[] | select(.name == "Run trusted repository security pipeline") | .with.repository' "${WORKFLOW}")" \
-    = "\${{ inputs.target-repository != '' && steps.target.outputs.repository || github.repository }}" ]
+    = "\${{ inputs.target-repository == '' && github.repository || inputs.target-repository }}" ]
   [ "$(yq eval '.jobs.scan.steps[] | select(.name == "Run trusted repository security pipeline") | .with."commit-sha"' "${WORKFLOW}")" \
-    = "\${{ inputs.target-repository != '' && steps.target.outputs.ref || (github.event_name == 'merge_group' && github.event.merge_group.head_sha || github.sha) }}" ]
+    = "\${{ inputs.target-repository == '' && (github.event_name == 'merge_group' && github.event.merge_group.head_sha || github.sha) || inputs.target-ref }}" ]
 }
 
 @test "the trusted pipeline step runs on setup failure but not on cancellation and reports it" {
@@ -687,6 +692,19 @@ record_status_fixture() {
   record_status_fixture '' ''
 
   [ ! -e "${GITHUB_WORKSPACE}/security-results/status.json" ]
+}
+
+@test "status.json still records evidence with an empty commit-sha when only the ref is missing" {
+  prepare_fixture clean
+  run_scanners
+  SECURITY_SCAN_REPOSITORY_ID=segh-repository-id \
+    SECURITY_SCAN_DEFAULT_BRANCH=main \
+    SECURITY_SCAN_REPOSITORY=dceoy/segh \
+    SECURITY_SCAN_COMMIT_SHA='' \
+    bash "${SCANNER}" status
+
+  [ -e "${GITHUB_WORKSPACE}/security-results/status.json" ]
+  [ "$(yq eval --input-format=json '."commit-sha"' "${GITHUB_WORKSPACE}/security-results/status.json")" = '' ]
 }
 
 @test "status.json reports pass for a clean scan bound to repository identity" {
