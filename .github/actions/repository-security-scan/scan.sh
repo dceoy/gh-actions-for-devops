@@ -422,7 +422,7 @@ run_actionlint() {
       > "${results_dir}/actionlint.json" 2>> "${results_dir}/actionlint.log"; then
       printf '::error::actionlint produced JSON Lines output that could not be converted to a JSON array; see actionlint.log.\n'
       printf '[]\n' > "${results_dir}/actionlint.json"
-      scanner_status_value=1
+      scanner_status_value=2
     fi
   else
     printf '[]\n' > "${results_dir}/actionlint.json"

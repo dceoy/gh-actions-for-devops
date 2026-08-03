@@ -80,6 +80,14 @@ done
 if grep -R -q 'actionlint-runtime-error' .github/workflows 2> /dev/null; then
   exit 2
 fi
+if grep -R -q 'actionlint-jsonl-conversion-error' .github/workflows 2> /dev/null; then
+  if [[ "${json}" == true ]]; then
+    printf '{"kind":"expression","message":"actionlint fixture conversion error"}\nnot-json\n'
+  else
+    printf '.github/workflows/ci.yml:1:1: actionlint fixture conversion error\n'
+  fi
+  exit 1
+fi
 if grep -R -q 'actionlint-finding' .github/workflows 2> /dev/null; then
   if [[ "${json}" == true ]]; then
     printf '\n{"kind":"expression","message":"actionlint fixture finding"}\n\n'
@@ -754,6 +762,24 @@ record_status_fixture() {
   [ "${status}" -ne 0 ]
   [ "$(< "${GITHUB_WORKSPACE}/security-results/actionlint.status")" -eq 2 ]
   [ "$(yq eval --input-format=json '.' "${GITHUB_WORKSPACE}/security-results/actionlint.json")" = '[]' ]
+  [ "$(yq eval --input-format=json '.result' "${GITHUB_WORKSPACE}/security-results/status.json")" = error ]
+}
+
+@test "an actionlint JSONL conversion failure is classified as a scanner runtime error" {
+  local scanner_name
+
+  prepare_fixture actionlint-jsonl-conversion-error
+  run_scanners
+  run bash "${SCANNER}" enforce
+  record_status_fixture segh-repository-id main
+
+  [ "${status}" -ne 0 ]
+  [ "$(< "${GITHUB_WORKSPACE}/security-results/actionlint.status")" -eq 2 ]
+  yq eval --input-format=json '.' "${GITHUB_WORKSPACE}/security-results/actionlint.json" > /dev/null
+  [ "$(yq eval --input-format=json '.' "${GITHUB_WORKSPACE}/security-results/actionlint.json")" = '[]' ]
+  for scanner_name in zizmor shellcheck checkov trivy-vulnerability trivy-secret; do
+    [ "$(< "${GITHUB_WORKSPACE}/security-results/${scanner_name}.status")" -eq 0 ]
+  done
   [ "$(yq eval --input-format=json '.result' "${GITHUB_WORKSPACE}/security-results/status.json")" = error ]
 }
 
