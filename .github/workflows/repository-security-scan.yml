@@ -155,7 +155,7 @@ jobs:
           # empty. A target-ref-only setup failure therefore retains the raw
           # supplied ref in error evidence, while a target repository with an
           # empty ref retains an empty commit-sha.
-          repository: ${{ inputs.target-repository == '' && github.repository || inputs.target-repository }}
+          repository: ${{ inputs.target-repository == '' && inputs.target-ref == '' && github.repository || inputs.target-repository }}
           commit-sha: ${{ inputs.target-repository == '' && inputs.target-ref == '' && (github.event_name == 'merge_group' && github.event.merge_group.head_sha || github.sha) || inputs.target-ref }}
           evidence-artifact-name: ${{ inputs.evidence-artifact-name }}
           setup-failed: ${{ steps.target.outcome == 'failure' || steps.target-app-token.outcome == 'failure' || steps.target-checkout.outcome == 'failure' }}

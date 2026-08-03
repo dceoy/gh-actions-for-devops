@@ -711,10 +711,12 @@ assert_fixture_fails_gate() {
   [ "$(yq eval '.jobs.scan.steps[] | select(.name == "Check out untrusted target revision") | .with.repository' "${WORKFLOW}")" \
     = "\${{ inputs.target-repository != '' && steps.target.outputs.repository || github.repository }}" ]
   [ "$(yq eval '.jobs.scan.steps[] | select(.name == "Run trusted repository security pipeline") | .with.repository' "${WORKFLOW}")" \
-    = "\${{ inputs.target-repository == '' && github.repository || inputs.target-repository }}" ]
+    = "\${{ inputs.target-repository == '' && inputs.target-ref == '' && github.repository || inputs.target-repository }}" ]
 }
 
 @test "target-ref-only setup failures preserve the supplied ref in finalizer evidence" {
+  [ "$(yq eval '.jobs.scan.steps[] | select(.name == "Run trusted repository security pipeline") | .with.repository' "${WORKFLOW}")" = \
+    "\${{ inputs.target-repository == '' && inputs.target-ref == '' && github.repository || inputs.target-repository }}" ]
   [ "$(yq eval '.jobs.scan.steps[] | select(.name == "Run trusted repository security pipeline") | .with."commit-sha"' "${WORKFLOW}")" = \
     "\${{ inputs.target-repository == '' && inputs.target-ref == '' && (github.event_name == 'merge_group' && github.event.merge_group.head_sha || github.sha) || inputs.target-ref }}" ]
 }
