@@ -144,7 +144,7 @@ jobs:
       default-branch: ${{"{{"}} matrix.target.default-branch {{"}}"}}
       evidence-artifact-name: repository-security-reports-${{"{{"}} matrix.target.id {{"}}"}}
     secrets:
-      TARGET_APP_ID: ${{"{{"}} secrets.TARGET_APP_ID {{"}}"}}
+      TARGET_APP_CLIENT_ID: ${{"{{"}} secrets.TARGET_APP_CLIENT_ID {{"}}"}}
       TARGET_APP_PRIVATE_KEY: ${{"{{"}} secrets.TARGET_APP_PRIVATE_KEY {{"}}"}}
 ```
 

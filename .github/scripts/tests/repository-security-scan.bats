@@ -444,6 +444,26 @@ assert_fixture_fails_gate() {
   grep -q 'escape.sh' "${GITHUB_WORKSPACE}/security-results/rejected-symlinks.txt"
 }
 
+@test "a symlink-removal runtime failure reports error instead of findings" {
+  if [[ "${EUID}" -eq 0 ]]; then
+    skip 'cannot simulate a symlink removal failure while running as root'
+  fi
+  prepare_fixture no-relevant-files
+  mkdir -p "${GITHUB_WORKSPACE}/_target/locked"
+  ln -s "${TEST_TEMP}/outside" "${GITHUB_WORKSPACE}/_target/locked/escape.sh"
+  git -C "${GITHUB_WORKSPACE}/_target" add locked/escape.sh
+  chmod 555 "${GITHUB_WORKSPACE}/_target/locked"
+
+  bash "${SCANNER}" prepare
+  run bash "${SCANNER}" preflight
+  chmod 755 "${GITHUB_WORKSPACE}/_target/locked"
+
+  [ "$(< "${GITHUB_WORKSPACE}/security-results/preflight.status")" -eq 1 ]
+  [ "$(< "${GITHUB_WORKSPACE}/security-results/preflight.result")" = error ]
+  record_status_fixture segh-repository-id main
+  [ "$(yq eval --input-format=json '.result' "${GITHUB_WORKSPACE}/security-results/status.json")" = error ]
+}
+
 @test "a tracked Git LFS pointer fails preflight before any scanner runs" {
   prepare_fixture lfs-pointer
 
@@ -481,6 +501,17 @@ assert_fixture_fails_gate() {
     [ "$(< "${GITHUB_WORKSPACE}/security-results/${scanner_name}.status")" -eq 125 ]
   done
   [ ! -e "${STUB_LOG}" ]
+}
+
+@test "a reported target setup failure reports error evidence without inspecting the checkout" {
+  bash "${SCANNER}" prepare
+  SECURITY_SCAN_SETUP_FAILED=true bash "${SCANNER}" preflight
+
+  [ "$(< "${GITHUB_WORKSPACE}/security-results/preflight.status")" -eq 1 ]
+  [ "$(< "${GITHUB_WORKSPACE}/security-results/preflight.result")" = error ]
+  [ ! -e "${GITHUB_WORKSPACE}/security-results/tracked-files.index" ]
+  record_status_fixture segh-repository-id main
+  [ "$(yq eval --input-format=json '.result' "${GITHUB_WORKSPACE}/security-results/status.json")" = error ]
 }
 
 @test "simultaneous findings still execute every scanner before enforcement" {
@@ -554,6 +585,9 @@ assert_fixture_fails_gate() {
 @test "explicit target checkout uses a repository-scoped token minted only when target-repository is set" {
   [ "$(yq eval '.jobs.scan.steps[] | select(.name == "Mint scoped token for explicit target repository") | .if' "${WORKFLOW}")" \
     = "inputs.target-repository != ''" ]
+  [ "$(yq eval '.jobs.scan.steps[] | select(.name == "Mint scoped token for explicit target repository") | .with."client-id"' "${WORKFLOW}")" \
+    = "\${{ secrets.TARGET_APP_CLIENT_ID }}" ]
+  [ "$(yq eval '.jobs.scan.steps[] | select(.name == "Mint scoped token for explicit target repository") | .with."app-id"' "${WORKFLOW}")" = null ]
   [ "$(yq eval '.jobs.scan.steps[] | select(.name == "Mint scoped token for explicit target repository") | .with."permission-contents"' "${WORKFLOW}")" = read ]
   [ "$(yq eval '.jobs.scan.steps[] | select(.name == "Mint scoped token for explicit target repository") | .with."permission-metadata"' "${WORKFLOW}")" = read ]
   [ "$(yq eval '.jobs.scan.steps[] | select(.name == "Check out untrusted target revision") | .with.token' "${WORKFLOW}")" \
@@ -569,6 +603,13 @@ assert_fixture_fails_gate() {
     = "\${{ inputs.target-repository != '' && steps.target.outputs.repository || github.repository }}" ]
   [ "$(yq eval '.jobs.scan.steps[] | select(.name == "Run trusted repository security pipeline") | .with."commit-sha"' "${WORKFLOW}")" \
     = "\${{ inputs.target-repository != '' && steps.target.outputs.ref || (github.event_name == 'merge_group' && github.event.merge_group.head_sha || github.sha) }}" ]
+}
+
+@test "the trusted pipeline step runs on setup failure but not on cancellation and reports it" {
+  [ "$(yq eval '.jobs.scan.steps[] | select(.name == "Run trusted repository security pipeline") | .if' "${WORKFLOW}")" = '(! cancelled())' ]
+  [ "$(yq eval '.jobs.scan.steps[] | select(.name == "Run trusted repository security pipeline") | .with."setup-failed"' "${WORKFLOW}")" = \
+    "\${{ steps.target.outcome == 'failure' || steps.target-app-token.outcome == 'failure' || steps.target-checkout.outcome == 'failure' }}" ]
+  [ "$(yq eval '.jobs.scan.steps[] | select(.name == "Check out untrusted target revision") | .id' "${WORKFLOW}")" = target-checkout ]
 }
 
 @test "resolve-target.sh rejects a target repository without a full lowercase 40-character commit SHA" {

@@ -65,6 +65,7 @@ ensure_text_evidence() {
 run_preflight() {
   local index_file="${results_dir}/tracked-files.index"
   local preflight_status_value=0
+  local preflight_result_value=findings
   local entry mode file lfs_prefix
   local lfs_pointer_pattern=$'^version https://git-lfs.github.com/spec/v1(\n|$)'
   local -a rejected_lfs_pointers=()
@@ -72,15 +73,24 @@ run_preflight() {
   local -a rejected_symlinks=()
 
   : > "${results_dir}/preflight.log"
+  if [[ "${SECURITY_SCAN_SETUP_FAILED:-false}" == 'true' ]]; then
+    printf 'Target checkout setup failed before preflight could run; see the workflow run log.\n' \
+      > "${results_dir}/rejected-symlinks.txt"
+    printf '1\n' > "${results_dir}/preflight.status"
+    printf 'error\n' > "${results_dir}/preflight.result"
+    return 0
+  fi
   if ! cd "${target_dir}" 2>> "${results_dir}/preflight.log"; then
     printf 'Unable to enter the target checkout.\n' > "${results_dir}/rejected-symlinks.txt"
     printf '1\n' > "${results_dir}/preflight.status"
+    printf 'error\n' > "${results_dir}/preflight.result"
     return 0
   fi
   if ! git ls-files -z --stage > "${index_file}" 2>> "${results_dir}/preflight.log"; then
     printf 'Unable to enumerate the target checkout before scanning.\n' \
       > "${results_dir}/rejected-symlinks.txt"
     printf '1\n' > "${results_dir}/preflight.status"
+    printf 'error\n' > "${results_dir}/preflight.result"
     return 0
   fi
 
@@ -91,6 +101,7 @@ run_preflight() {
       rejected_symlinks+=("${file}")
       if ! rm -f -- "${file}" 2>> "${results_dir}/preflight.log"; then
         preflight_status_value=1
+        preflight_result_value=error
       fi
     elif [[ "${mode}" == '160000' ]]; then
       rejected_submodules+=("${file}")
@@ -136,6 +147,9 @@ run_preflight() {
       > "${results_dir}/rejected-submodules.txt"
   fi
   printf '%s\n' "${preflight_status_value}" > "${results_dir}/preflight.status"
+  if ((preflight_status_value != 0)); then
+    printf '%s\n' "${preflight_result_value}" > "${results_dir}/preflight.result"
+  fi
 }
 
 collect_regular_files() {
@@ -634,13 +648,8 @@ classify_result() {
   fi
   preflight_status_value="$(< "${results_dir}/preflight.status")"
   if [[ "${preflight_status_value}" != '0' ]]; then
-    if [[ -f "${results_dir}/rejected-lfs-pointers.txt" ]] \
-      || [[ -f "${results_dir}/rejected-submodules.txt" ]]; then
-      # These files are only written once preflight has fully enumerated the
-      # checkout, so their presence means the non-zero status came from a
-      # rejected LFS pointer or submodule gitlink, not a failed inspection
-      # (e.g. `git ls-files` itself erroring before enumeration completed).
-      printf 'findings'
+    if [[ -f "${results_dir}/preflight.result" ]]; then
+      cat -- "${results_dir}/preflight.result"
     else
       printf 'error'
     fi
