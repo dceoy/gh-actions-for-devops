@@ -192,6 +192,56 @@ write_shellcheck_directive_failure() {
   printf '1\n' > "${results_dir}/${scanner_name}.status"
 }
 
+# ShellCheck directive keys that only annotate how a script should be parsed
+# (interpreter, sourced-file resolution) rather than suppress a finding.
+# Permitting these inline cannot hide a real issue from any gate below.
+# "external-sources" and "source-path" are deliberately excluded: ShellCheck
+# only accepts external-sources via .shellcheckrc (SC1144), never inline, and
+# nothing in this pipeline uses source-path, so admitting either here would
+# be unvetted, speculative surface rather than a fix for a real conflict.
+readonly shellcheck_directive_non_suppressing_keys=' shell source '
+
+# disable= codes that are centrally vetted, narrow, well-understood ShellCheck
+# false positives (SC2153 for the standard actionlint version-validation
+# idiom; SC2016 for an intentionally unexpanded literal passed to a nested
+# shell). Permitting only these two specific codes inline cannot hide a
+# finding the trusted policy has not reviewed; any other code, or any other
+# directive key, remains rejected.
+readonly shellcheck_directive_trusted_disable_codes=' SC2016 SC2153 '
+
+# Classifies one already-matched "# shellcheck key=value ..." line (with any
+# leading line-number/filename prefix already stripped by the caller).
+# Returns success (0) when the line is a policy violation, failure (1) when
+# every key=value token on it is a non-suppressing key or an explicitly
+# trusted disable= code.
+directive_line_is_policy_violation() {
+  local directive_line="$1"
+  local directive_tail token key value code
+  local -a tokens=() codes=()
+
+  directive_tail="${directive_line#*shellcheck}"
+  read -r -a tokens <<< "${directive_tail}"
+  ((${#tokens[@]} > 0)) || return 0
+  for token in "${tokens[@]}"; do
+    key="${token%%=*}"
+    value="${token#*=}"
+    case "${shellcheck_directive_non_suppressing_keys}" in
+      *" ${key} "*) continue ;;
+    esac
+    if [[ "${key}" != disable ]]; then
+      return 0
+    fi
+    IFS=',' read -r -a codes <<< "${value}"
+    for code in "${codes[@]}"; do
+      case "${shellcheck_directive_trusted_disable_codes}" in
+        *" ${code} "*) ;;
+        *) return 0 ;;
+      esac
+    done
+  done
+  return 1
+}
+
 reject_workflow_shellcheck_directives() {
   local scanner_name="$1"
   shift
@@ -240,7 +290,9 @@ reject_workflow_shellcheck_directives() {
     fi
     if LC_ALL=C grep -nE "${directive_pattern}" "${run_blocks}" > "${matches}"; then
       while IFS= read -r match; do
-        printf '%s:%s\n' "${file}" "${match}" >> "${directive_report}"
+        if directive_line_is_policy_violation "${match#*:}"; then
+          printf '%s:%s\n' "${file}" "${match}" >> "${directive_report}"
+        fi
       done < "${matches}"
     fi
   done
@@ -257,25 +309,35 @@ reject_workflow_shellcheck_directives() {
 reject_script_shellcheck_directives() {
   local scanner_name="$1"
   shift
-  local grep_status
+  local grep_status match
   local directive_pattern='^[[:space:]]*#[[:space:]]*shellcheck[[:space:]]+[[:alpha:]-]+='
   local directive_report="${results_dir}/${scanner_name}.shellcheck-directives"
+  local candidates="${results_dir}/${scanner_name}.shellcheck-candidates"
 
   : > "${results_dir}/${scanner_name}.log"
   LC_ALL=C grep -nHE "${directive_pattern}" -- "$@" \
-    > "${directive_report}" 2>> "${results_dir}/${scanner_name}.log"
+    > "${candidates}" 2>> "${results_dir}/${scanner_name}.log"
   grep_status=$?
-  if ((grep_status == 0)); then
-    write_shellcheck_directive_failure "${scanner_name}" "${directive_report}"
-    rm -f -- "${directive_report}"
-    return 0
-  fi
-  if ((grep_status != 1)); then
+  if ((grep_status != 0 && grep_status != 1)); then
     printf '{"scanner":"%s","result":"not-run","reason":"unable to inspect shell scripts"}\n' \
       "${scanner_name}" > "${results_dir}/${scanner_name}.json"
     printf 'Failed: unable to inspect shell scripts for target-owned ShellCheck directives.\n' \
       > "${results_dir}/${scanner_name}.txt"
     printf '1\n' > "${results_dir}/${scanner_name}.status"
+    rm -f -- "${candidates}"
+    return 0
+  fi
+  : > "${directive_report}"
+  if ((grep_status == 0)); then
+    while IFS= read -r match; do
+      if directive_line_is_policy_violation "${match#*:*:}"; then
+        printf '%s\n' "${match}" >> "${directive_report}"
+      fi
+    done < "${candidates}"
+  fi
+  rm -f -- "${candidates}"
+  if [[ -s "${directive_report}" ]]; then
+    write_shellcheck_directive_failure "${scanner_name}" "${directive_report}"
     rm -f -- "${directive_report}"
     return 0
   fi
@@ -287,44 +349,83 @@ extract_composite_action_shell_blocks() {
   local output_name=$1
   shift
   local -n composite_output_ref=${output_name}
-  local action_file block_json block_index decode_status extracted_file
+  local action_file block_json shell_json shell_value block_index decode_status extracted_file shell_word
   local blocks_jsonl="${results_dir}/shellcheck-composite-blocks.jsonl"
+  local shells_jsonl="${results_dir}/shellcheck-composite-shells.jsonl"
   local extraction_dir="${results_dir}/shellcheck-composite"
   local expression_marker='$'
   local shell_pattern='(^|[[:space:]/])(sh|ash|dash|bash|ksh93|ksh88|ksh|oksh|bats)([[:space:]]|$)'
+  local -a shell_values=()
 
   composite_output_ref=()
   for action_file in "$@"; do
     if ! yq eval --output-format=json --unwrapScalar=false \
       "select(.runs.using == \"composite\") | .runs.steps[]? | select(has(\"run\")) | select((.shell // \"\") | contains(\"${expression_marker}{{\")) | .shell" \
       "${action_file}" > "${blocks_jsonl}" 2>> "${results_dir}/shellcheck.log"; then
-      rm -f -- "${blocks_jsonl}"
+      rm -f -- "${blocks_jsonl}" "${shells_jsonl}"
       rm -rf -- "${extraction_dir}"
       return 1
     fi
     if [[ -s "${blocks_jsonl}" ]]; then
       printf 'Rejected expression-valued composite shell in %s.\n' "${action_file}" \
         >> "${results_dir}/shellcheck.log"
-      rm -f -- "${blocks_jsonl}"
+      rm -f -- "${blocks_jsonl}" "${shells_jsonl}"
       rm -rf -- "${extraction_dir}"
       return 2
+    fi
+    # Selected in lockstep with the .run extraction below over the same
+    # predicate and step order, so shell_values[i] is step i's declared
+    # shell. Without this, extracted blocks carry no shebang and ShellCheck
+    # cannot infer a dialect, so every extracted step would spuriously fail
+    # with SC2148 regardless of its actual content.
+    if ! yq eval --output-format=json --unwrapScalar=false \
+      "select(.runs.using == \"composite\") | .runs.steps[]? | select(has(\"run\")) | select(.shell | test(\"${shell_pattern}\")) | .shell" \
+      "${action_file}" > "${shells_jsonl}" 2>> "${results_dir}/shellcheck.log"; then
+      rm -f -- "${blocks_jsonl}" "${shells_jsonl}"
+      rm -rf -- "${extraction_dir}"
+      return 1
     fi
     if ! yq eval --output-format=json --unwrapScalar=false \
       "select(.runs.using == \"composite\") | .runs.steps[]? | select(has(\"run\")) | select(.shell | test(\"${shell_pattern}\")) | .run" \
       "${action_file}" > "${blocks_jsonl}" 2>> "${results_dir}/shellcheck.log"; then
-      rm -f -- "${blocks_jsonl}"
+      rm -f -- "${blocks_jsonl}" "${shells_jsonl}"
       rm -rf -- "${extraction_dir}"
       return 1
     fi
 
+    shell_values=()
+    mapfile -t shell_values < "${shells_jsonl}"
     block_index=0
     decode_status=0
     while IFS= read -r block_json; do
+      shell_word=bash
+      shell_json="${shell_values[${block_index}]:-}"
+      if [[ -n "${shell_json}" ]]; then
+        shell_value="$(printf '%s\n' "${shell_json}" \
+          | yq eval --input-format=json --unwrapScalar '.' - 2>> "${results_dir}/shellcheck.log")"
+        [[ "${shell_value}" =~ ${shell_pattern} ]] && shell_word="${BASH_REMATCH[2]}"
+      fi
       extracted_file="${extraction_dir}/${action_file}/step-${block_index}.sh"
       mkdir -p "$(dirname "${extracted_file}")"
+      printf '#!/usr/bin/env %s\n' "${shell_word}" > "${extracted_file}"
       if ! printf '%s\n' "${block_json}" \
         | yq eval --input-format=json --unwrapScalar '.' - \
-          > "${extracted_file}" 2>> "${results_dir}/shellcheck.log"; then
+          >> "${extracted_file}" 2>> "${results_dir}/shellcheck.log"; then
+        decode_status=1
+        break
+      fi
+      # A composite run: body commonly consists of, or contains, an
+      # unresolved ${{ ... }} expression (e.g. invoking a script by
+      # ${{ github.action_path }}). GitHub substitutes these before the
+      # shell ever sees them; left as literal "${{ ... }}" text they are not
+      # valid shell syntax (SC2296/SC1083) for reasons unrelated to the
+      # step's actual content. Replacing each expression span with a plain
+      # variable reference keeps surrounding quoting exactly as written, so
+      # a genuinely unquoted expansion still trips SC2086 as it should,
+      # while the double-brace parsing noise disappears.
+      # shellcheck disable=SC2016
+      if ! sed -i -E 's/\$\{\{[^}]*\}\}/$GITHUB_ACTIONS_EXPRESSION/g' \
+        "${extracted_file}" 2>> "${results_dir}/shellcheck.log"; then
         decode_status=1
         break
       fi
@@ -332,10 +433,11 @@ extract_composite_action_shell_blocks() {
       ((block_index += 1))
     done < "${blocks_jsonl}"
     if ((decode_status != 0)); then
-      rm -f -- "${blocks_jsonl}"
+      rm -f -- "${blocks_jsonl}" "${shells_jsonl}"
       rm -rf -- "${extraction_dir}"
       return 1
     fi
+    rm -f -- "${shells_jsonl}"
   done
   rm -f -- "${blocks_jsonl}"
 }

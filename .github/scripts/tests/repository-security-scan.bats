@@ -360,6 +360,15 @@ assert_fixture_fails_gate() {
     "${GITHUB_WORKSPACE}/security-results/actionlint.txt"
 }
 
+@test "a workflow ShellCheck disable= directive limited to centrally trusted codes passes the embedded ShellCheck gate" {
+  prepare_fixture actionlint-shellcheck-directive-allowed
+  run_scanners
+  run bash "${SCANNER}" enforce
+
+  [ "${status}" -eq 0 ]
+  [ "$(< "${GITHUB_WORKSPACE}/security-results/actionlint.status")" -eq 0 ]
+}
+
 @test "an expression-valued workflow shell fails the embedded ShellCheck gate closed" {
   assert_fixture_fails_gate actionlint-dynamic-shell actionlint
   grep -q 'expression-valued workflow shells are not allowed' \
@@ -416,6 +425,21 @@ assert_fixture_fails_gate() {
     "${GITHUB_WORKSPACE}/security-results/shellcheck.txt"
 }
 
+@test "non-suppressing ShellCheck directives and centrally trusted disable= codes pass the standalone gate" {
+  prepare_fixture shellcheck-directive-allowed
+  run_scanners
+  run bash "${SCANNER}" enforce
+
+  [ "${status}" -eq 0 ]
+  [ "$(< "${GITHUB_WORKSPACE}/security-results/shellcheck.status")" -eq 0 ]
+}
+
+@test "a disable= directive mixing a non-suppressing key with an untrusted code still fails the gate closed" {
+  assert_fixture_fails_gate shellcheck-directive-disallowed-mixed shellcheck
+  grep -q 'target-owned ShellCheck directives' \
+    "${GITHUB_WORKSPACE}/security-results/shellcheck.txt"
+}
+
 @test "a composite action run block diagnostic fails standalone ShellCheck" {
   assert_fixture_fails_gate composite-action-shellcheck-finding shellcheck
   grep -q 'shellcheck fixture finding' \
@@ -426,6 +450,15 @@ assert_fixture_fails_gate() {
   assert_fixture_fails_gate composite-action-shellcheck-directive shellcheck
   grep -q 'target-owned ShellCheck directives' \
     "${GITHUB_WORKSPACE}/security-results/shellcheck.txt"
+}
+
+@test "a composite action non-suppressing ShellCheck directive passes the gate" {
+  prepare_fixture composite-action-shellcheck-directive-allowed
+  run_scanners
+  run bash "${SCANNER}" enforce
+
+  [ "${status}" -eq 0 ]
+  [ "$(< "${GITHUB_WORKSPACE}/security-results/shellcheck.status")" -eq 0 ]
 }
 
 @test "an expression-valued composite shell fails the gate closed" {
@@ -632,10 +665,10 @@ assert_fixture_fails_gate() {
   [[ "${output}" == *'checkov gate failed with status not-a-status'* ]]
 }
 
-@test "the workflow defers direct pull_request/merge_group activation to a follow-up" {
-  [ "$(yq eval '.on | keys | join(",")' "${WORKFLOW}")" = workflow_call ]
-  yq eval --exit-status '.on | has("pull_request") | not' "${WORKFLOW}" > /dev/null
-  yq eval --exit-status '.on | has("merge_group") | not' "${WORKFLOW}" > /dev/null
+@test "the workflow enables direct pull_request and merge_group triggers alongside workflow_call" {
+  [ "$(yq eval '.on | keys | join(",")' "${WORKFLOW}")" = pull_request,merge_group,workflow_call ]
+  yq eval --exit-status '.on.pull_request == null' "${WORKFLOW}" > /dev/null
+  yq eval --exit-status '.on.merge_group == null' "${WORKFLOW}" > /dev/null
 }
 
 @test "target-mode concurrency is isolated by target repository and controller run" {

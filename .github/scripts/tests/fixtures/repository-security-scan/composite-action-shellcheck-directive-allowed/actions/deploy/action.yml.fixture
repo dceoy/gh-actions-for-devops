@@ -1,0 +1,9 @@
+name: Composite action allowed ShellCheck directive
+description: Fixture with only non-suppressing ShellCheck directives
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: |
+        # shellcheck source=/dev/null
+        printf 'allowed\n'
