@@ -20,7 +20,9 @@ on:
         required: false
         type: string
         description: Additional arguments to pass directly to Claude Code Action
-        default: '--allowed-tools "Bash(gh:*)",mcp__github_inline_comment__create_inline_comment --model "opusplan"'
+        default: >-
+          --allowedTools "Skill,Agent,Read,Glob,Grep,WebFetch,WebSearch,Bash(git:*),Bash(gh:*),mcp__github_inline_comment__create_inline_comment"
+          --model "opusplan"
       aws-role-to-assume:
         required: false
         type: string
@@ -49,6 +51,10 @@ permissions:
   issues: write
   id-token: write
   actions: read  # Required for Claude to read CI results on PRs
+defaults:
+  run:
+    shell: bash -euo pipefail {0}
+    working-directory: .
 jobs:
   claude-code-bot:
     if: >
