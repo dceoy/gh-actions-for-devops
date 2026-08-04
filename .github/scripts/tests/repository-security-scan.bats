@@ -446,16 +446,7 @@ assert_fixture_fails_gate() {
     "${GITHUB_WORKSPACE}/security-results/shellcheck.txt"
 }
 
-@test "an explicitly trusted source= path passes the standalone gate" {
-  prepare_fixture shellcheck-directive-allowed-trusted-source
-  run_scanners
-  run bash "${SCANNER}" enforce
-
-  [ "${status}" -eq 0 ]
-  [ "$(< "${GITHUB_WORKSPACE}/security-results/shellcheck.status")" -eq 0 ]
-}
-
-@test "a source= path outside the trusted allowlist still fails the gate closed" {
+@test "a source= directive fails the gate closed" {
   assert_fixture_fails_gate shellcheck-directive-disallowed-source shellcheck
   grep -q 'target-owned ShellCheck directives' \
     "${GITHUB_WORKSPACE}/security-results/shellcheck.txt"

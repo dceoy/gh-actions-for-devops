@@ -203,7 +203,9 @@ write_shellcheck_directive_failure() {
 # this policy exists to reject. ShellCheck only accepts external-sources via
 # .shellcheckrc (SC1144), never inline, and nothing in this pipeline uses
 # source-path, so admitting either here would be unvetted, speculative
-# surface rather than a fix for a real conflict.
+# surface rather than a fix for a real conflict. None of these three keys
+# has a trusted-value carve-out: source=, source-path=, and
+# external-sources= are all rejected unconditionally below.
 readonly shellcheck_directive_non_suppressing_keys=' shell '
 
 # disable= codes that are centrally vetted, narrow, well-understood ShellCheck
@@ -214,20 +216,11 @@ readonly shellcheck_directive_non_suppressing_keys=' shell '
 # directive key, remains rejected.
 readonly shellcheck_directive_trusted_disable_codes=' SC2016 SC2153 '
 
-# source= values that are centrally vetted as accurately identifying the
-# real file a dynamic `source` statement resolves to at that exact line
-# (unlike shell=, source= can misdirect analysis, so - like disable= - only
-# specific, reviewed values are trusted, not the key unconditionally).
-# Currently only .agents/skills/local-qa/scripts/qa.sh's source of its
-# sibling supply-chain-cooldown.sh, which shellcheck cannot follow on its
-# own because the path is built from a runtime-computed REPO_ROOT.
-readonly shellcheck_directive_trusted_source_paths=' .agents/skills/local-qa/scripts/supply-chain-cooldown.sh '
-
 # Classifies one already-matched "# shellcheck key=value ..." line (with any
 # leading line-number/filename prefix already stripped by the caller).
 # Returns success (0) when the line is a policy violation, failure (1) when
-# every key=value token on it is a non-suppressing key, an explicitly
-# trusted disable= code, or an explicitly trusted source= path.
+# every key=value token on it is a non-suppressing key or an explicitly
+# trusted disable= code.
 directive_line_is_policy_violation() {
   local directive_line="$1"
   local directive_tail token key value code
@@ -251,12 +244,6 @@ directive_line_is_policy_violation() {
             *) return 0 ;;
           esac
         done
-        ;;
-      source)
-        case "${shellcheck_directive_trusted_source_paths}" in
-          *" ${value} "*) ;;
-          *) return 0 ;;
-        esac
         ;;
       *) return 0 ;;
     esac
