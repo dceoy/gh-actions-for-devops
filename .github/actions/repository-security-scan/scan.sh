@@ -218,10 +218,8 @@ readonly shellcheck_directive_trusted_disable_codes=' SC2016 SC2153 '
 # real file a dynamic `source` statement resolves to at that exact line
 # (unlike shell=, source= can misdirect analysis, so - like disable= - only
 # specific, reviewed values are trusted, not the key unconditionally).
-# Currently only .agents/skills/local-qa/scripts/qa.sh's source of its
-# sibling supply-chain-cooldown.sh, which shellcheck cannot follow on its
-# own because the path is built from a runtime-computed REPO_ROOT.
-readonly shellcheck_directive_trusted_source_paths=' .agents/skills/local-qa/scripts/supply-chain-cooldown.sh '
+# Currently empty: no target-owned source= directives are trusted.
+readonly shellcheck_directive_trusted_source_paths=' '
 
 # Classifies one already-matched "# shellcheck key=value ..." line (with any
 # leading line-number/filename prefix already stripped by the caller).

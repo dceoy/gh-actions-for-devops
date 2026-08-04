@@ -6,8 +6,10 @@ REPO_ROOT="$(git rev-parse --show-toplevel)"
 cd "${REPO_ROOT}"
 
 # Supply-chain cooldown: avoid resolving/installing packages published within the last N days.
-# shellcheck source=.agents/skills/local-qa/scripts/supply-chain-cooldown.sh
-source "${REPO_ROOT}/.agents/skills/local-qa/scripts/supply-chain-cooldown.sh"
+COOLDOWN_DAYS=7
+export UV_EXCLUDE_NEWER="${COOLDOWN_DAYS} days"
+export NPM_CONFIG_MIN_RELEASE_AGE="${COOLDOWN_DAYS}"
+export PNPM_CONFIG_MINIMUM_RELEASE_AGE=$((COOLDOWN_DAYS * 24 * 60))
 
 PYTHON_LINE_LENGTH=88
 RUFF_LINT_EXTEND_SELECT='F,E,W,C90,I,N,D,UP,S,B,A,COM,C4,PT,Q,SIM,ARG,ERA,PD,PLC,PLE,PLW,TRY,FLY,NPY,PERF,FURB,RUF'
