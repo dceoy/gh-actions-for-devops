@@ -440,6 +440,21 @@ assert_fixture_fails_gate() {
     "${GITHUB_WORKSPACE}/security-results/shellcheck.txt"
 }
 
+@test "an explicitly trusted source= path passes the standalone gate" {
+  prepare_fixture shellcheck-directive-allowed-trusted-source
+  run_scanners
+  run bash "${SCANNER}" enforce
+
+  [ "${status}" -eq 0 ]
+  [ "$(< "${GITHUB_WORKSPACE}/security-results/shellcheck.status")" -eq 0 ]
+}
+
+@test "a source= path outside the trusted allowlist still fails the gate closed" {
+  assert_fixture_fails_gate shellcheck-directive-disallowed-source shellcheck
+  grep -q 'target-owned ShellCheck directives' \
+    "${GITHUB_WORKSPACE}/security-results/shellcheck.txt"
+}
+
 @test "a composite action run block diagnostic fails standalone ShellCheck" {
   assert_fixture_fails_gate composite-action-shellcheck-finding shellcheck
   grep -q 'shellcheck fixture finding' \
@@ -454,6 +469,15 @@ assert_fixture_fails_gate() {
 
 @test "a composite action non-suppressing ShellCheck directive passes the gate" {
   prepare_fixture composite-action-shellcheck-directive-allowed
+  run_scanners
+  run bash "${SCANNER}" enforce
+
+  [ "${status}" -eq 0 ]
+  [ "$(< "${GITHUB_WORKSPACE}/security-results/shellcheck.status")" -eq 0 ]
+}
+
+@test "a composite run: expression containing internal braces from format() is masked correctly and passes" {
+  prepare_fixture composite-action-expression-with-braces
   run_scanners
   run bash "${SCANNER}" enforce
 

@@ -193,13 +193,18 @@ write_shellcheck_directive_failure() {
 }
 
 # ShellCheck directive keys that only annotate how a script should be parsed
-# (interpreter, sourced-file resolution) rather than suppress a finding.
-# Permitting these inline cannot hide a real issue from any gate below.
-# "external-sources" and "source-path" are deliberately excluded: ShellCheck
-# only accepts external-sources via .shellcheckrc (SC1144), never inline, and
-# nothing in this pipeline uses source-path, so admitting either here would
-# be unvetted, speculative surface rather than a fix for a real conflict.
-readonly shellcheck_directive_non_suppressing_keys=' shell source '
+# (interpreter selection) rather than suppress or misdirect a finding.
+# Permitting these inline, for any value, cannot hide a real issue from any
+# gate below. "source", "source-path", and "external-sources" are
+# deliberately excluded from this unconditional set: source= can redirect
+# ShellCheck's analysis away from what a script actually sources (for
+# example "source=/dev/null" silences SC1090 by having ShellCheck analyze an
+# empty file instead), which is exactly the kind of target-owned suppression
+# this policy exists to reject. ShellCheck only accepts external-sources via
+# .shellcheckrc (SC1144), never inline, and nothing in this pipeline uses
+# source-path, so admitting either here would be unvetted, speculative
+# surface rather than a fix for a real conflict.
+readonly shellcheck_directive_non_suppressing_keys=' shell '
 
 # disable= codes that are centrally vetted, narrow, well-understood ShellCheck
 # false positives (SC2153 for the standard actionlint version-validation
@@ -209,11 +214,20 @@ readonly shellcheck_directive_non_suppressing_keys=' shell source '
 # directive key, remains rejected.
 readonly shellcheck_directive_trusted_disable_codes=' SC2016 SC2153 '
 
+# source= values that are centrally vetted as accurately identifying the
+# real file a dynamic `source` statement resolves to at that exact line
+# (unlike shell=, source= can misdirect analysis, so - like disable= - only
+# specific, reviewed values are trusted, not the key unconditionally).
+# Currently only .agents/skills/local-qa/scripts/qa.sh's source of its
+# sibling supply-chain-cooldown.sh, which shellcheck cannot follow on its
+# own because the path is built from a runtime-computed REPO_ROOT.
+readonly shellcheck_directive_trusted_source_paths=' .agents/skills/local-qa/scripts/supply-chain-cooldown.sh '
+
 # Classifies one already-matched "# shellcheck key=value ..." line (with any
 # leading line-number/filename prefix already stripped by the caller).
 # Returns success (0) when the line is a policy violation, failure (1) when
-# every key=value token on it is a non-suppressing key or an explicitly
-# trusted disable= code.
+# every key=value token on it is a non-suppressing key, an explicitly
+# trusted disable= code, or an explicitly trusted source= path.
 directive_line_is_policy_violation() {
   local directive_line="$1"
   local directive_tail token key value code
@@ -228,16 +242,24 @@ directive_line_is_policy_violation() {
     case "${shellcheck_directive_non_suppressing_keys}" in
       *" ${key} "*) continue ;;
     esac
-    if [[ "${key}" != disable ]]; then
-      return 0
-    fi
-    IFS=',' read -r -a codes <<< "${value}"
-    for code in "${codes[@]}"; do
-      case "${shellcheck_directive_trusted_disable_codes}" in
-        *" ${code} "*) ;;
-        *) return 0 ;;
-      esac
-    done
+    case "${key}" in
+      disable)
+        IFS=',' read -r -a codes <<< "${value}"
+        for code in "${codes[@]}"; do
+          case "${shellcheck_directive_trusted_disable_codes}" in
+            *" ${code} "*) ;;
+            *) return 0 ;;
+          esac
+        done
+        ;;
+      source)
+        case "${shellcheck_directive_trusted_source_paths}" in
+          *" ${value} "*) ;;
+          *) return 0 ;;
+        esac
+        ;;
+      *) return 0 ;;
+    esac
   done
   return 1
 }
@@ -345,11 +367,73 @@ reject_script_shellcheck_directives() {
   return 1
 }
 
+# Replaces every GitHub Actions "${{ ... }}" expression span in text with a
+# fixed placeholder token, so a naive shell parse of unresolved expression
+# text does not misreport unrelated syntax errors (SC2296/SC1083) for
+# reasons that have nothing to do with the step's actual shell content.
+# GitHub Actions expressions never nest "${{", but their string literals
+# (single-quoted, with '' as an escaped quote) can freely contain "{" or
+# "}" - for example format('{0}', x) - so the closing "}}" cannot be found
+# with a plain [^}]* regex; this scans respecting that quoting instead.
+# shellcheck disable=SC2016
+mask_github_actions_expressions() {
+  local text="$1"
+  local result='' remaining="$text" prefix pos char in_quote close_at
+
+  while [[ "${remaining}" == *'${{'* ]]; do
+    prefix="${remaining%%\$\{\{*}"
+    result+="${prefix}"
+    remaining="${remaining#*\$\{\{}"
+    in_quote=0
+    pos=0
+    close_at=-1
+    while ((pos < ${#remaining})); do
+      char="${remaining:pos:1}"
+      if ((in_quote)); then
+        if [[ "${char}" == "'" ]]; then
+          if [[ "${remaining:pos+1:1}" == "'" ]]; then
+            ((pos += 2))
+            continue
+          fi
+          in_quote=0
+        fi
+        ((pos += 1))
+        continue
+      fi
+      case "${char}" in
+        "'")
+          in_quote=1
+          ((pos += 1))
+          ;;
+        '}')
+          if [[ "${remaining:pos:2}" == '}}' ]]; then
+            close_at=${pos}
+            break
+          fi
+          ((pos += 1))
+          ;;
+        *)
+          ((pos += 1))
+          ;;
+      esac
+    done
+    if ((close_at < 0)); then
+      result+='${{'"${remaining}"
+      remaining=''
+      break
+    fi
+    result+='$GITHUB_ACTIONS_EXPRESSION'
+    remaining="${remaining:close_at+2}"
+  done
+  result+="${remaining}"
+  printf '%s' "${result}"
+}
+
 extract_composite_action_shell_blocks() {
   local output_name=$1
   shift
   local -n composite_output_ref=${output_name}
-  local action_file block_json shell_json shell_value block_index decode_status extracted_file shell_word
+  local action_file block_json block_text shell_json shell_value block_index decode_status extracted_file shell_word
   local blocks_jsonl="${results_dir}/shellcheck-composite-blocks.jsonl"
   local shells_jsonl="${results_dir}/shellcheck-composite-shells.jsonl"
   local extraction_dir="${results_dir}/shellcheck-composite"
@@ -405,30 +489,25 @@ extract_composite_action_shell_blocks() {
           | yq eval --input-format=json --unwrapScalar '.' - 2>> "${results_dir}/shellcheck.log")"
         [[ "${shell_value}" =~ ${shell_pattern} ]] && shell_word="${BASH_REMATCH[2]}"
       fi
-      extracted_file="${extraction_dir}/${action_file}/step-${block_index}.sh"
-      mkdir -p "$(dirname "${extracted_file}")"
-      printf '#!/usr/bin/env %s\n' "${shell_word}" > "${extracted_file}"
-      if ! printf '%s\n' "${block_json}" \
-        | yq eval --input-format=json --unwrapScalar '.' - \
-          >> "${extracted_file}" 2>> "${results_dir}/shellcheck.log"; then
+      block_text=''
+      if ! block_text="$(printf '%s\n' "${block_json}" \
+        | yq eval --input-format=json --unwrapScalar '.' - 2>> "${results_dir}/shellcheck.log")"; then
         decode_status=1
         break
       fi
+      extracted_file="${extraction_dir}/${action_file}/step-${block_index}.sh"
+      mkdir -p "$(dirname "${extracted_file}")"
       # A composite run: body commonly consists of, or contains, an
       # unresolved ${{ ... }} expression (e.g. invoking a script by
       # ${{ github.action_path }}). GitHub substitutes these before the
-      # shell ever sees them; left as literal "${{ ... }}" text they are not
+      # shell ever sees them; left as literal "${{ ... }}" text it is not
       # valid shell syntax (SC2296/SC1083) for reasons unrelated to the
-      # step's actual content. Replacing each expression span with a plain
-      # variable reference keeps surrounding quoting exactly as written, so
-      # a genuinely unquoted expansion still trips SC2086 as it should,
-      # while the double-brace parsing noise disappears.
-      # shellcheck disable=SC2016
-      if ! sed -i -E 's/\$\{\{[^}]*\}\}/$GITHUB_ACTIONS_EXPRESSION/g' \
-        "${extracted_file}" 2>> "${results_dir}/shellcheck.log"; then
-        decode_status=1
-        break
-      fi
+      # step's actual content. Masking each expression span keeps
+      # surrounding quoting exactly as written, so a genuinely unquoted
+      # expansion still trips SC2086 as it should, while the double-brace
+      # parsing noise disappears.
+      printf '#!/usr/bin/env %s\n%s\n' "${shell_word}" \
+        "$(mask_github_actions_expressions "${block_text}")" > "${extracted_file}"
       composite_output_ref+=("${extracted_file}")
       ((block_index += 1))
     done < "${blocks_jsonl}"

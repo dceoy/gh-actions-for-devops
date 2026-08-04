@@ -1,0 +1,6 @@
+#!fixture /usr/bin/env bash
+
+REPO_ROOT="$(pwd)"
+# shellcheck source=.agents/skills/local-qa/scripts/supply-chain-cooldown.sh
+source "${REPO_ROOT}/.agents/skills/local-qa/scripts/supply-chain-cooldown.sh"
+printf 'cooldown days: %s\n' "${COOLDOWN_DAYS}"

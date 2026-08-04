@@ -1,7 +1,6 @@
 #!fixture /usr/bin/env bash
 
 # shellcheck shell=bash
-# shellcheck source=/dev/null
 export TOOL_VERSIONS=v1
 # shellcheck disable=SC2153
 [[ "${TOOL_VERSION}" =~ ^v[0-9]+$ ]] || exit 1

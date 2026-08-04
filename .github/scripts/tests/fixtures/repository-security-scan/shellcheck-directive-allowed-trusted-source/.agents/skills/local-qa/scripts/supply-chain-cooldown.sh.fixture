@@ -1,0 +1,3 @@
+# shellcheck shell=bash
+COOLDOWN_DAYS=7
+export COOLDOWN_DAYS
