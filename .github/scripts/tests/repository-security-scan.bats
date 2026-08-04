@@ -446,7 +446,7 @@ assert_fixture_fails_gate() {
     "${GITHUB_WORKSPACE}/security-results/shellcheck.txt"
 }
 
-@test "a source= path outside the trusted allowlist still fails the gate closed" {
+@test "a source= directive fails the gate closed" {
   assert_fixture_fails_gate shellcheck-directive-disallowed-source shellcheck
   grep -q 'target-owned ShellCheck directives' \
     "${GITHUB_WORKSPACE}/security-results/shellcheck.txt"

@@ -203,7 +203,9 @@ write_shellcheck_directive_failure() {
 # this policy exists to reject. ShellCheck only accepts external-sources via
 # .shellcheckrc (SC1144), never inline, and nothing in this pipeline uses
 # source-path, so admitting either here would be unvetted, speculative
-# surface rather than a fix for a real conflict.
+# surface rather than a fix for a real conflict. None of these three keys
+# has a trusted-value carve-out: source=, source-path=, and
+# external-sources= are all rejected unconditionally below.
 readonly shellcheck_directive_non_suppressing_keys=' shell '
 
 # disable= codes that are centrally vetted, narrow, well-understood ShellCheck
