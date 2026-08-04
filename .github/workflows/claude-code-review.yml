@@ -70,11 +70,6 @@ jobs:
               install -d "${HOME}/.claude/agents" "${HOME}/.claude/commands"
               rsync -av "${claude_dir}/agents/" "${HOME}/.claude/agents/"
               rsync -av "${claude_dir}/commands/" "${HOME}/.claude/commands/"
-              printf '\n%s\n' \
-                'Always finish by posting at least one top-level PR comment summarizing the overall review outcome.' \
-                'Post a concise no-issues-found summary when there are no noteworthy findings.' \
-                'Do not finish without creating GitHub review feedback.' \
-                >> "${HOME}/.claude/commands/review-pr.md"
             fi
           fi
       - name: Configure AWS credentials
