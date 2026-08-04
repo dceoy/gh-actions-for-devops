@@ -70,6 +70,11 @@ jobs:
               install -d "${HOME}/.claude/agents" "${HOME}/.claude/commands"
               rsync -av "${claude_dir}/agents/" "${HOME}/.claude/agents/"
               rsync -av "${claude_dir}/commands/" "${HOME}/.claude/commands/"
+              printf '\n%s\n' \
+                'Always finish by posting at least one top-level PR comment summarizing the overall review outcome.' \
+                'Post a concise no-issues-found summary when there are no noteworthy findings.' \
+                'Do not finish without creating GitHub review feedback.' \
+                >> "${HOME}/.claude/commands/review-pr.md"
             fi
           fi
       - name: Configure AWS credentials
@@ -82,6 +87,31 @@ jobs:
           role-session-name: github-actions-${{ github.run_id }}
           output-credentials: true
           output-env-credentials: false
+      - name: Capture existing Claude review feedback
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN || github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          CLAUDE_BOT_ID: '41898282'
+          FEEDBACK_BASELINE: ${{ runner.temp }}/claude-review-feedback-before.txt
+        run: |
+          set -euo pipefail
+
+          collect_claude_feedback_ids() {
+            gh api --paginate \
+              "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" \
+              | jq -r --argjson bot_id "${CLAUDE_BOT_ID}" \
+                '.[] | select(.user.id == $bot_id) | "issue-comment:\(.id)"'
+            gh api --paginate \
+              "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/comments" \
+              | jq -r --argjson bot_id "${CLAUDE_BOT_ID}" \
+                '.[] | select(.user.id == $bot_id) | "review-comment:\(.id)"'
+            gh api --paginate \
+              "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/reviews" \
+              | jq -r --argjson bot_id "${CLAUDE_BOT_ID}" \
+                '.[] | select(.user.id == $bot_id) | "review:\(.id)"'
+          }
+
+          collect_claude_feedback_ids | sort -u > "${FEEDBACK_BASELINE}"
       - name: Run PR review with Claude Code
         id: claude_review
         uses: anthropics/claude-code-action@be7b93b1907a4abad570368f3c74b6fe3807510b  # v1.0.183
@@ -96,13 +126,14 @@ jobs:
           prompt: '/review-pr REPO: ${{ github.repository }} PR_NUMBER: ${{ github.event.pull_request.number }}'
           claude_args: ${{ inputs.claude-args }}
       - name: Fail on Claude Code permission denials
-        if: ${{ always() && steps.claude_review.outputs.execution_file != '' }}
+        id: permission_denials
+        if: ${{ always() && steps.claude_review.outcome == 'success' }}
         env:
           CLAUDE_EXECUTION_FILE: ${{ steps.claude_review.outputs.execution_file }}
         run: |
           set -euo pipefail
 
-          if [[ ! -f "${CLAUDE_EXECUTION_FILE}" ]]; then
+          if [[ -z "${CLAUDE_EXECUTION_FILE}" || ! -f "${CLAUDE_EXECUTION_FILE}" ]]; then
             echo "::error::Claude Code execution file not found: ${CLAUDE_EXECUTION_FILE}"
             exit 1
           fi
@@ -150,4 +181,47 @@ jobs:
             ' <<< "${permission_denials}"
           )
 
+          exit 1
+      - name: Fail when Claude posts no review feedback
+        if: >-
+          ${{
+            always()
+            && steps.claude_review.outcome == 'success'
+            && steps.permission_denials.outcome == 'success'
+          }}
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN || github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          CLAUDE_BOT_ID: '41898282'
+          FEEDBACK_BASELINE: ${{ runner.temp }}/claude-review-feedback-before.txt
+        run: |
+          set -euo pipefail
+
+          collect_claude_feedback_ids() {
+            gh api --paginate \
+              "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" \
+              | jq -r --argjson bot_id "${CLAUDE_BOT_ID}" \
+                '.[] | select(.user.id == $bot_id) | "issue-comment:\(.id)"'
+            gh api --paginate \
+              "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/comments" \
+              | jq -r --argjson bot_id "${CLAUDE_BOT_ID}" \
+                '.[] | select(.user.id == $bot_id) | "review-comment:\(.id)"'
+            gh api --paginate \
+              "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/reviews" \
+              | jq -r --argjson bot_id "${CLAUDE_BOT_ID}" \
+                '.[] | select(.user.id == $bot_id) | "review:\(.id)"'
+          }
+
+          current_feedback="${RUNNER_TEMP}/claude-review-feedback-after.txt"
+          collect_claude_feedback_ids | sort -u > "${current_feedback}"
+
+          new_feedback="$(comm -13 "${FEEDBACK_BASELINE}" "${current_feedback}")"
+          if [[ -n "${new_feedback}" ]]; then
+            echo "::group::Claude review feedback created"
+            printf '%s\n' "${new_feedback}"
+            echo "::endgroup::"
+            exit 0
+          fi
+
+          echo "::error::Claude Code completed without posting review feedback to PR #${PR_NUMBER}"
           exit 1
