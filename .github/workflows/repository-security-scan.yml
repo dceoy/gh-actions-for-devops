@@ -1,17 +1,8 @@
 ---
 name: Repository security
 on:
-  # Direct pull_request/merge_group triggers are deferred one more PR cycle:
-  # a direct trigger always pins the trusted scanner to the PR's base SHA
-  # (see the "Check out trusted scanner implementation" step below), so this
-  # PR's own fix to the target-owned ShellCheck directive policy cannot be
-  # validated by a direct run of itself - the base commit at review time is
-  # still the unfixed policy. The fix is otherwise fully validated (bats,
-  # local self-scan simulation of this repository's working tree, zizmor,
-  # actionlint, shfmt) and merges via workflow_call first; a follow-up PR
-  # then re-adds pull_request:/merge_group: once main actually contains the
-  # fix, which is the only way to live-verify it through the mechanism it
-  # fixes. See #867.
+  pull_request:
+  merge_group:
   workflow_call:
     inputs:
       target-repository:
