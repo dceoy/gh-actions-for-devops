@@ -125,7 +125,7 @@ jobs:
 
 The reusable workflow runs zizmor, actionlint with embedded ShellCheck, standalone ShellCheck, Checkov, and separate Trivy vulnerability and secret gates. Every scanner runs before the aggregate result is enforced, and complete evidence is retained in the `repository-security-reports` artifact.
 
-The workflow currently exposes only `workflow_call`; it does not yet declare its own `pull_request`/`merge_group` triggers, so it cannot be selected directly as an organization ruleset workflow until a follow-up resolves a target-owned ShellCheck directive policy conflict uncovered while validating this repository's own tree. The `workflow_call` usage above is unaffected and works today. Direct `pull_request`/`merge_group` ruleset setup applies only after those triggers are activated.
+The workflow currently exposes only `workflow_call`; it does not yet declare its own `pull_request`/`merge_group` triggers. The target-owned ShellCheck directive policy conflict that previously blocked direct triggers is resolved, but a direct trigger always pins the trusted scanner to the base commit, so that fix can only be live-verified by a PR that runs after it is already on `main` - not by the PR that introduces it. A follow-up activates `pull_request`/`merge_group` once this fix has merged. The `workflow_call` usage above is unaffected and works today.
 
 When those triggers are activated, for organization-wide enforcement, configure `.github/workflows/repository-security-scan.yml` at a reviewed full commit SHA as a ruleset required workflow for `pull_request` and `merge_group`. Require the stable `Repository security / scan` check. Target repositories need no secrets or write permissions, and fork and Dependabot pull requests use the same read-only path.
 

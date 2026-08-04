@@ -360,6 +360,21 @@ assert_fixture_fails_gate() {
     "${GITHUB_WORKSPACE}/security-results/actionlint.txt"
 }
 
+@test "a workflow ShellCheck disable= directive limited to centrally trusted codes passes the embedded ShellCheck gate" {
+  prepare_fixture actionlint-shellcheck-directive-allowed
+  run_scanners
+  run bash "${SCANNER}" enforce
+
+  [ "${status}" -eq 0 ]
+  [ "$(< "${GITHUB_WORKSPACE}/security-results/actionlint.status")" -eq 0 ]
+}
+
+@test "a workflow disable= directive mixing a non-suppressing key with an untrusted code still fails the embedded gate closed" {
+  assert_fixture_fails_gate actionlint-shellcheck-directive-disallowed-mixed actionlint
+  grep -q 'target-owned ShellCheck directives' \
+    "${GITHUB_WORKSPACE}/security-results/actionlint.txt"
+}
+
 @test "an expression-valued workflow shell fails the embedded ShellCheck gate closed" {
   assert_fixture_fails_gate actionlint-dynamic-shell actionlint
   grep -q 'expression-valued workflow shells are not allowed' \
@@ -416,6 +431,36 @@ assert_fixture_fails_gate() {
     "${GITHUB_WORKSPACE}/security-results/shellcheck.txt"
 }
 
+@test "non-suppressing ShellCheck directives and centrally trusted disable= codes pass the standalone gate" {
+  prepare_fixture shellcheck-directive-allowed
+  run_scanners
+  run bash "${SCANNER}" enforce
+
+  [ "${status}" -eq 0 ]
+  [ "$(< "${GITHUB_WORKSPACE}/security-results/shellcheck.status")" -eq 0 ]
+}
+
+@test "a disable= directive mixing a non-suppressing key with an untrusted code still fails the gate closed" {
+  assert_fixture_fails_gate shellcheck-directive-disallowed-mixed shellcheck
+  grep -q 'target-owned ShellCheck directives' \
+    "${GITHUB_WORKSPACE}/security-results/shellcheck.txt"
+}
+
+@test "an explicitly trusted source= path passes the standalone gate" {
+  prepare_fixture shellcheck-directive-allowed-trusted-source
+  run_scanners
+  run bash "${SCANNER}" enforce
+
+  [ "${status}" -eq 0 ]
+  [ "$(< "${GITHUB_WORKSPACE}/security-results/shellcheck.status")" -eq 0 ]
+}
+
+@test "a source= path outside the trusted allowlist still fails the gate closed" {
+  assert_fixture_fails_gate shellcheck-directive-disallowed-source shellcheck
+  grep -q 'target-owned ShellCheck directives' \
+    "${GITHUB_WORKSPACE}/security-results/shellcheck.txt"
+}
+
 @test "a composite action run block diagnostic fails standalone ShellCheck" {
   assert_fixture_fails_gate composite-action-shellcheck-finding shellcheck
   grep -q 'shellcheck fixture finding' \
@@ -426,6 +471,29 @@ assert_fixture_fails_gate() {
   assert_fixture_fails_gate composite-action-shellcheck-directive shellcheck
   grep -q 'target-owned ShellCheck directives' \
     "${GITHUB_WORKSPACE}/security-results/shellcheck.txt"
+}
+
+@test "a composite action non-suppressing ShellCheck directive passes the gate" {
+  prepare_fixture composite-action-shellcheck-directive-allowed
+  run_scanners
+  run bash "${SCANNER}" enforce
+
+  [ "${status}" -eq 0 ]
+  [ "$(< "${GITHUB_WORKSPACE}/security-results/shellcheck.status")" -eq 0 ]
+}
+
+@test "a composite run: expression containing internal braces from format() is masked correctly and passes" {
+  prepare_fixture composite-action-expression-with-braces
+  run_scanners
+  run bash "${SCANNER}" enforce
+
+  [ "${status}" -eq 0 ]
+  [ "$(< "${GITHUB_WORKSPACE}/security-results/shellcheck.status")" -eq 0 ]
+}
+
+@test "a composite run: block with an unresolved expression still reaches the ShellCheck gate as a real file" {
+  assert_fixture_fails_gate composite-action-unquoted-expression shellcheck
+  grep -q 'shellcheck fixture finding' "${GITHUB_WORKSPACE}/security-results/shellcheck.txt"
 }
 
 @test "an expression-valued composite shell fails the gate closed" {
