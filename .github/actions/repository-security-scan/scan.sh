@@ -214,18 +214,11 @@ readonly shellcheck_directive_non_suppressing_keys=' shell '
 # directive key, remains rejected.
 readonly shellcheck_directive_trusted_disable_codes=' SC2016 SC2153 '
 
-# source= values that are centrally vetted as accurately identifying the
-# real file a dynamic `source` statement resolves to at that exact line
-# (unlike shell=, source= can misdirect analysis, so - like disable= - only
-# specific, reviewed values are trusted, not the key unconditionally).
-# Currently empty: no target-owned source= directives are trusted.
-readonly shellcheck_directive_trusted_source_paths=' '
-
 # Classifies one already-matched "# shellcheck key=value ..." line (with any
 # leading line-number/filename prefix already stripped by the caller).
 # Returns success (0) when the line is a policy violation, failure (1) when
-# every key=value token on it is a non-suppressing key, an explicitly
-# trusted disable= code, or an explicitly trusted source= path.
+# every key=value token on it is a non-suppressing key or an explicitly
+# trusted disable= code.
 directive_line_is_policy_violation() {
   local directive_line="$1"
   local directive_tail token key value code
@@ -249,12 +242,6 @@ directive_line_is_policy_violation() {
             *) return 0 ;;
           esac
         done
-        ;;
-      source)
-        case "${shellcheck_directive_trusted_source_paths}" in
-          *" ${value} "*) ;;
-          *) return 0 ;;
-        esac
         ;;
       *) return 0 ;;
     esac
