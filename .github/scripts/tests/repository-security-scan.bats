@@ -369,6 +369,12 @@ assert_fixture_fails_gate() {
   [ "$(< "${GITHUB_WORKSPACE}/security-results/actionlint.status")" -eq 0 ]
 }
 
+@test "a workflow disable= directive mixing a non-suppressing key with an untrusted code still fails the embedded gate closed" {
+  assert_fixture_fails_gate actionlint-shellcheck-directive-disallowed-mixed actionlint
+  grep -q 'target-owned ShellCheck directives' \
+    "${GITHUB_WORKSPACE}/security-results/actionlint.txt"
+}
+
 @test "an expression-valued workflow shell fails the embedded ShellCheck gate closed" {
   assert_fixture_fails_gate actionlint-dynamic-shell actionlint
   grep -q 'expression-valued workflow shells are not allowed' \
@@ -483,6 +489,11 @@ assert_fixture_fails_gate() {
 
   [ "${status}" -eq 0 ]
   [ "$(< "${GITHUB_WORKSPACE}/security-results/shellcheck.status")" -eq 0 ]
+}
+
+@test "a composite run: block with an unresolved expression still reaches the ShellCheck gate as a real file" {
+  assert_fixture_fails_gate composite-action-unquoted-expression shellcheck
+  grep -q 'shellcheck fixture finding' "${GITHUB_WORKSPACE}/security-results/shellcheck.txt"
 }
 
 @test "an expression-valued composite shell fails the gate closed" {
