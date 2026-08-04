@@ -125,9 +125,9 @@ jobs:
 
 The reusable workflow runs zizmor, actionlint with embedded ShellCheck, standalone ShellCheck, Checkov, and separate Trivy vulnerability and secret gates. Every scanner runs before the aggregate result is enforced, and complete evidence is retained in the `repository-security-reports` artifact.
 
-The workflow declares its own `pull_request` and `merge_group` triggers in addition to `workflow_call`, so it can be selected directly as an organization ruleset workflow. A direct pull request run uses `github.event.pull_request.base.sha` as the trusted scanner and scans the pull request's synthetic merge commit; a direct merge-group run uses `github.event.merge_group.base_sha` as the trusted scanner and scans `github.event.merge_group.head_sha`. The `workflow_call` usage above is unaffected.
+The workflow currently exposes only `workflow_call`; it does not yet declare its own `pull_request`/`merge_group` triggers. The target-owned ShellCheck directive policy conflict that previously blocked direct triggers is resolved, but a direct trigger always pins the trusted scanner to the base commit, so that fix can only be live-verified by a PR that runs after it is already on `main` - not by the PR that introduces it. A follow-up activates `pull_request`/`merge_group` once this fix has merged. The `workflow_call` usage above is unaffected and works today.
 
-For organization-wide enforcement, configure `.github/workflows/repository-security-scan.yml` at a reviewed full commit SHA as a ruleset required workflow for `pull_request` and `merge_group`. Require the stable `Repository security / scan` check. Target repositories need no secrets or write permissions, and fork and Dependabot pull requests use the same read-only path.
+When those triggers are activated, for organization-wide enforcement, configure `.github/workflows/repository-security-scan.yml` at a reviewed full commit SHA as a ruleset required workflow for `pull_request` and `merge_group`. Require the stable `Repository security / scan` check. Target repositories need no secrets or write permissions, and fork and Dependabot pull requests use the same read-only path.
 
 A trusted organization controller (for example, a periodic scan orchestrator) can also call the workflow to scan an explicit immutable commit in another repository instead of the caller's own revision:
 

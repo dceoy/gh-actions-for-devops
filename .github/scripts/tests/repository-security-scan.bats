@@ -665,10 +665,10 @@ assert_fixture_fails_gate() {
   [[ "${output}" == *'checkov gate failed with status not-a-status'* ]]
 }
 
-@test "the workflow enables direct pull_request and merge_group triggers alongside workflow_call" {
-  [ "$(yq eval '.on | keys | join(",")' "${WORKFLOW}")" = pull_request,merge_group,workflow_call ]
-  yq eval --exit-status '.on.pull_request == null' "${WORKFLOW}" > /dev/null
-  yq eval --exit-status '.on.merge_group == null' "${WORKFLOW}" > /dev/null
+@test "the workflow defers direct pull_request/merge_group activation to a follow-up" {
+  [ "$(yq eval '.on | keys | join(",")' "${WORKFLOW}")" = workflow_call ]
+  yq eval --exit-status '.on | has("pull_request") | not' "${WORKFLOW}" > /dev/null
+  yq eval --exit-status '.on | has("merge_group") | not' "${WORKFLOW}" > /dev/null
 }
 
 @test "target-mode concurrency is isolated by target repository and controller run" {
