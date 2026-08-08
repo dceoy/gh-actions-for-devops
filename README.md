@@ -207,7 +207,6 @@ Each workflow below exposes `workflow_call`; see its file for supported inputs, 
 | [docker-pull-from-aws.yml](.github/workflows/docker-pull-from-aws.yml)                                           | Docker image pull from AWS                                        |
 | [docker-save-and-terraform-deploy-to-aws.yml](.github/workflows/docker-save-and-terraform-deploy-to-aws.yml)     | Docker image save and resource deployment to AWS using Terraform  |
 | [gcloud-infra-manager-deployments.yml](.github/workflows/gcloud-infra-manager-deployments.yml)                   | Deployment of Google Cloud resources using Infrastructure Manager |
-| [gemini-cli-to-slack.yml](.github/workflows/gemini-cli-to-slack.yml)                                             | Gemini CLI with Slack notification                                |
 | [github-actions-lint-and-scan.yml](.github/workflows/github-actions-lint-and-scan.yml)                           | Lint and security scan for GitHub Actions workflows and actions   |
 | [github-codeql-analysis.yml](.github/workflows/github-codeql-analysis.yml)                                       | GitHub CodeQL Analysis                                            |
 | [github-major-version-tag.yml](.github/workflows/github-major-version-tag.yml)                                   | Major version tag on GitHub                                       |
@@ -237,7 +236,6 @@ Each workflow below exposes `workflow_call`; see its file for supported inputs, 
 | [repository-security-scan.yml](.github/workflows/repository-security-scan.yml)                                   | Repository security                                               |
 | [shell-lint.yml](.github/workflows/shell-lint.yml)                                                               | Lint for Shell                                                    |
 | [shell-project-ci.yml](.github/workflows/shell-project-ci.yml)                                                   | Run shell project CI                                              |
-| [speckit-init.yml](.github/workflows/speckit-init.yml)                                                           | Spec Kit initialization                                           |
 | [terraform-deploy-to-aws.yml](.github/workflows/terraform-deploy-to-aws.yml)                                     | Deployment of AWS resources using Terraform                       |
 | [terraform-format-and-pr.yml](.github/workflows/terraform-format-and-pr.yml)                                     | Formatting for Terraform                                          |
 | [terraform-lint-and-scan.yml](.github/workflows/terraform-lint-and-scan.yml)                                     | Lint and security scan for Terraform                              |
