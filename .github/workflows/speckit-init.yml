@@ -36,7 +36,7 @@ on:
       version-md-file-to-write:
         required: false
         type: string
-        description: Path to a Markdown file to write the `specify version` output to
+        description: Path to a Markdown file to write the `specify --version` output to
         default: null
     secrets:
       GH_TOKEN:
@@ -83,7 +83,7 @@ jobs:
       - name: Display Specify CLI version
         if: inputs.version-md-file-to-write == null
         run: >
-          specify version
+          specify --version
       - name: Save Specify CLI version to a Markdown file
         if: inputs.version-md-file-to-write != null
         env:
@@ -92,7 +92,7 @@ jobs:
           {
             echo '# Spec Kit Version';
             echo '```';
-            specify version;
+            specify --version;
             echo '```';
           } | tee "${VERSION_MD_FILE}"
       - name: Initialize Spec Kit
